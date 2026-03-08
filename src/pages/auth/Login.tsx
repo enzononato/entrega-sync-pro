@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,11 +17,12 @@ export default function Login() {
   const [error, setError] = useState('');
 
   // Redirect if already logged in
-  if (!authLoading && user) {
-    const dest = user.role === 'administrador' ? '/admin/dashboard' : '/colaborador/home';
-    navigate(dest, { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (!authLoading && user) {
+      const dest = user.role === 'administrador' ? '/admin/dashboard' : '/colaborador/home';
+      navigate(dest, { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,13 +30,15 @@ export default function Login() {
     setLoading(true);
     try {
       await signIn(email, password);
-      // onAuthStateChange will set user, triggering redirect above
+      // onAuthStateChange will set user, triggering redirect via useEffect
     } catch {
       setError('E-mail ou senha inválidos');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!authLoading && user) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -89,8 +92,8 @@ export default function Login() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full" disabled={loading || authLoading}>
+              {(loading || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Entrar
             </Button>
           </form>
