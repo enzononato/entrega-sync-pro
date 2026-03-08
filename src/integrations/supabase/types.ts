@@ -14,6 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
+      goals: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          indicator_id: string
+          periodo_tipo: string
+          unidade_id: string | null
+          user_id: string | null
+          valor_meta: number
+          vigencia_fim: string | null
+          vigencia_inicio: string
+          worker_type: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          indicator_id: string
+          periodo_tipo?: string
+          unidade_id?: string | null
+          user_id?: string | null
+          valor_meta?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+          worker_type?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          indicator_id?: string
+          periodo_tipo?: string
+          unidade_id?: string | null
+          user_id?: string | null
+          valor_meta?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+          worker_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incentive_rules: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          indicator_id: string
+          meta: number
+          peso: number
+          regra_json: Json
+          unidade_id: string | null
+          valor_maximo: number
+          valor_minimo: number
+          vigencia_fim: string | null
+          vigencia_inicio: string
+          worker_type: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          indicator_id: string
+          meta?: number
+          peso?: number
+          regra_json?: Json
+          unidade_id?: string | null
+          valor_maximo?: number
+          valor_minimo?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+          worker_type: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          indicator_id?: string
+          meta?: number
+          peso?: number
+          regra_json?: Json
+          unidade_id?: string | null
+          valor_maximo?: number
+          valor_minimo?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+          worker_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incentive_rules_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_rules_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indicators: {
+        Row: {
+          applies_to_worker_type: string
+          ativo: boolean
+          categoria: string
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          nome: string
+          unidade_medida: string
+        }
+        Insert: {
+          applies_to_worker_type?: string
+          ativo?: boolean
+          categoria?: string
+          codigo: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          nome: string
+          unidade_medida?: string
+        }
+        Update: {
+          applies_to_worker_type?: string
+          ativo?: boolean
+          categoria?: string
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          nome?: string
+          unidade_medida?: string
+        }
+        Relationships: []
+      }
       routes: {
         Row: {
           ativo: boolean
@@ -81,6 +244,63 @@ export type Database = {
           nome?: string
         }
         Relationships: []
+      }
+      user_indicator_daily: {
+        Row: {
+          created_at: string
+          data_referencia: string
+          id: string
+          indicator_id: string
+          meta: number | null
+          origem_dado: string
+          percentual_atingimento: number | null
+          status: string | null
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          indicator_id: string
+          meta?: number | null
+          origem_dado?: string
+          percentual_atingimento?: number | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          indicator_id?: string
+          meta?: number | null
+          origem_dado?: string
+          percentual_atingimento?: number | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_indicator_daily_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_indicator_daily_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {
