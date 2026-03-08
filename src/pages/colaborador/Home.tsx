@@ -6,12 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
+import { useMetas } from '@/hooks/useMetas';
 import { KpiCard } from '@/components/shared/KpiCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, AlertCircle, DollarSign, ClipboardList, AlertTriangle, MessageSquare, CalendarIcon, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, DollarSign, ClipboardList, AlertTriangle, MessageSquare, CalendarIcon, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { IndicatorStatus } from '@/types';
 
@@ -28,8 +29,9 @@ export default function ColaboradorHome() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: desempenho = [], isLoading: loadDes } = useDesempenhoDiario(today, { user_id: user?.id });
-  const { data: incentivo, isLoading: loadInc } = useIncentivoDiario(user?.id, today);
+  const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
+  const { data: metas = [] } = useMetas({ vigentes: true, worker_type: user?.worker_type ?? undefined });
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
@@ -41,11 +43,23 @@ export default function ColaboradorHome() {
 
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
+  const allOnTarget = kpis.length > 0 && badCount === 0;
   const acoesAbertas = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
   const recentPlanos = planos.slice(0, 3);
 
   const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Filter metas relevant to this user
+  const userMetas = useMemo(() => {
+    if (!user) return [];
+    return metas.filter(m => {
+      if (m.user_id && m.user_id !== user.id) return false;
+      if (m.worker_type && m.worker_type !== user.worker_type) return false;
+      if (m.unidade_id && m.unidade_id !== user.unidade_id) return false;
+      return true;
+    });
+  }, [metas, user]);
 
   return (
     <div className="space-y-6">
@@ -87,6 +101,35 @@ export default function ColaboradorHome() {
           <div><p className="text-lg font-bold text-foreground">{acoesAbertas}</p><p className="text-[11px] text-muted-foreground">Ações Abertas</p></div>
         </div>
       </div>
+
+      {/* Metas Vigentes */}
+      {allOnTarget && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm flex items-center gap-3">
+          <Trophy className="h-6 w-6 text-emerald-600 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Parabéns! Você atingiu todas as metas hoje!</p>
+          </div>
+        </div>
+      )}
+
+      {userMetas.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Suas Metas Vigentes</h2>
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-2">
+            {userMetas.map(m => (
+              <div key={m.id} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground truncate">{m.indicators?.nome ?? '—'}</p>
+                  <p className="text-xs text-muted-foreground">{m.periodo_tipo}</p>
+                </div>
+                <span className="text-sm font-semibold text-foreground shrink-0 ml-2">
+                  {m.valor_meta} {m.indicators?.unidade_medida ?? ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPIs de Hoje */}
       <div>
