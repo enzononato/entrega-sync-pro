@@ -16,7 +16,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
 }
 
-export function DataTable<T extends Record<string, unknown>>({ columns, data, loading, emptyMessage = 'Nenhum dado encontrado' }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum dado encontrado' }: DataTableProps<T>) {
   if (loading) {
     return (
       <div className="space-y-3">

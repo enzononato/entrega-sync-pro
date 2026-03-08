@@ -95,7 +95,7 @@ export default function Unidades() {
         values={{ search }}
         onChange={(_, v) => setSearch(v)}
       />
-      <DataTable columns={columns} data={filtered as unknown as Record<string, unknown>[]} loading={isLoading} emptyMessage="Nenhuma unidade encontrada" />
+      <DataTable columns={columns} data={filtered} loading={isLoading} emptyMessage="Nenhuma unidade encontrada" />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
