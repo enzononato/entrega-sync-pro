@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff, Truck } from 'lucide-react';
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { user, loading: authLoading, signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,13 +16,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Redirect if already logged in
+  if (!authLoading && user) {
+    const dest = user.role === 'administrador' ? '/admin/dashboard' : '/colaborador/home';
+    navigate(dest, { replace: true });
+    return null;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       await signIn(email, password);
-      // Navigation handled by auth state change in App
+      // onAuthStateChange will set user, triggering redirect above
     } catch {
       setError('E-mail ou senha inválidos');
     } finally {
