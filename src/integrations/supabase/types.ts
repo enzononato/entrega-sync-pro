@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_plans: {
+        Row: {
+          created_at: string
+          descricao_acao: string
+          id: string
+          observacoes: string
+          prazo: string | null
+          responsavel_user_id: string
+          root_cause_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao_acao?: string
+          id?: string
+          observacoes?: string
+          prazo?: string | null
+          responsavel_user_id: string
+          root_cause_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao_acao?: string
+          id?: string
+          observacoes?: string
+          prazo?: string | null
+          responsavel_user_id?: string
+          root_cause_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_plans_responsavel_user_id_fkey"
+            columns: ["responsavel_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_plans_root_cause_id_fkey"
+            columns: ["root_cause_id"]
+            isOneToOne: false
+            referencedRelation: "root_cause_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           ativo: boolean
@@ -177,6 +228,57 @@ export type Database = {
         }
         Relationships: []
       }
+      root_cause_records: {
+        Row: {
+          categoria_causa: string
+          causa_raiz: string
+          created_at: string
+          data_referencia: string
+          descricao_problema: string
+          id: string
+          impacto: string
+          indicator_id: string
+          user_id: string
+        }
+        Insert: {
+          categoria_causa?: string
+          causa_raiz?: string
+          created_at?: string
+          data_referencia?: string
+          descricao_problema?: string
+          id?: string
+          impacto?: string
+          indicator_id: string
+          user_id: string
+        }
+        Update: {
+          categoria_causa?: string
+          causa_raiz?: string
+          created_at?: string
+          data_referencia?: string
+          descricao_problema?: string
+          id?: string
+          impacto?: string
+          indicator_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "root_cause_records_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "root_cause_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           ativo: boolean
@@ -244,6 +346,47 @@ export type Database = {
           nome?: string
         }
         Relationships: []
+      }
+      user_incentives_daily: {
+        Row: {
+          created_at: string
+          data_referencia: string
+          detalhes_json: Json
+          id: string
+          status: string
+          user_id: string
+          valor_estimado: number
+          valor_fechado: number | null
+        }
+        Insert: {
+          created_at?: string
+          data_referencia?: string
+          detalhes_json?: Json
+          id?: string
+          status?: string
+          user_id: string
+          valor_estimado?: number
+          valor_fechado?: number | null
+        }
+        Update: {
+          created_at?: string
+          data_referencia?: string
+          detalhes_json?: Json
+          id?: string
+          status?: string
+          user_id?: string
+          valor_estimado?: number
+          valor_fechado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_incentives_daily_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_indicator_daily: {
         Row: {
