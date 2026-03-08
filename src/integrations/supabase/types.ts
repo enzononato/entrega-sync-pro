@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      routes: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          nome: string
+          unidade_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          nome: string
+          unidade_id: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          nome?: string
+          unidade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       units: {
         Row: {
           ativo: boolean
@@ -85,6 +123,13 @@ export type Database = {
           worker_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "users_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "users_unidade_id_fkey"
             columns: ["unidade_id"]
