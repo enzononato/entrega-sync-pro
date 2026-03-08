@@ -21,30 +21,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (authUserId: string) => {
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select('*, units(*), routes(*)')
       .eq('auth_user_id', authUserId)
       .single();
     if (error) {
       console.error('Error fetching profile:', error);
       return null;
     }
-    return data as User;
+    return data as unknown as User;
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          setUser(profile);
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
-      }
-    );
-
+    // First get current session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -53,6 +41,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     });
+
+    // Then listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          // Use setTimeout to avoid Supabase deadlock on token refresh
+          setTimeout(async () => {
+            const profile = await fetchProfile(session.user.id);
+            setUser(profile);
+          }, 0);
+        } else {
+          setUser(null);
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
