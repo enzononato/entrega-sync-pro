@@ -13,7 +13,9 @@ import IndicadoresAdmin from '@/pages/admin/Indicadores';
 import MetasAdmin from '@/pages/admin/Metas';
 import IncentivosAdmin from '@/pages/admin/Incentivos';
 import DesempenhoAdmin from '@/pages/admin/Desempenho';
+import CausaRaizAdmin from '@/pages/admin/CausaRaiz';
 import ColaboradorHome from '@/pages/colaborador/Home';
+import CausaRaizColaborador from '@/pages/colaborador/CausaRaiz';
 import NotFound from '@/pages/NotFound';
 
 function RootRedirect() {
@@ -38,16 +40,16 @@ export default function AppRoutes() {
         <Route path="indicadores" element={<IndicadoresAdmin />} />
         <Route path="metas" element={<MetasAdmin />} />
         <Route path="incentivos" element={<IncentivosAdmin />} />
+        <Route path="causa-raiz" element={<CausaRaizAdmin />} />
         <Route path="feedbacks" element={<PlaceholderPage title="Feedbacks" />} />
         <Route path="planos-de-acao" element={<PlaceholderPage title="Planos de Ação" />} />
-        <Route path="causa-raiz" element={<PlaceholderPage title="Causa Raiz" />} />
       </Route>
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
         <Route path="home" element={<ColaboradorHome />} />
         <Route path="indicadores" element={<PlaceholderPage title="Indicadores" />} />
         <Route path="incentivo" element={<PlaceholderPage title="Incentivo" />} />
-        <Route path="causa-raiz" element={<PlaceholderPage title="Causa Raiz" />} />
+        <Route path="causa-raiz" element={<CausaRaizColaborador />} />
         <Route path="planos-de-acao" element={<PlaceholderPage title="Planos de Ação" />} />
         <Route path="feedbacks" element={<PlaceholderPage title="Feedbacks" />} />
         <Route path="perfil" element={<PlaceholderPage title="Meu Perfil" />} />
