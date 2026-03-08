@@ -17,6 +17,8 @@ import CausaRaizAdmin from '@/pages/admin/CausaRaiz';
 import PlanosDeAcaoAdmin from '@/pages/admin/PlanosDeAcao';
 import FeedbacksAdmin from '@/pages/admin/Feedbacks';
 import ColaboradorHome from '@/pages/colaborador/Home';
+import IndicadoresColaborador from '@/pages/colaborador/Indicadores';
+import IncentivoColaborador from '@/pages/colaborador/Incentivo';
 import CausaRaizColaborador from '@/pages/colaborador/CausaRaiz';
 import PlanosDeAcaoColaborador from '@/pages/colaborador/PlanosDeAcao';
 import FeedbacksColaborador from '@/pages/colaborador/Feedbacks';
@@ -51,8 +53,8 @@ export default function AppRoutes() {
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
         <Route path="home" element={<ColaboradorHome />} />
-        <Route path="indicadores" element={<PlaceholderPage title="Indicadores" />} />
-        <Route path="incentivo" element={<PlaceholderPage title="Incentivo" />} />
+        <Route path="indicadores" element={<IndicadoresColaborador />} />
+        <Route path="incentivo" element={<IncentivoColaborador />} />
         <Route path="causa-raiz" element={<CausaRaizColaborador />} />
         <Route path="planos-de-acao" element={<PlanosDeAcaoColaborador />} />
         <Route path="feedbacks" element={<FeedbacksColaborador />} />
