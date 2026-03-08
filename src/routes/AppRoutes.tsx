@@ -14,8 +14,12 @@ import MetasAdmin from '@/pages/admin/Metas';
 import IncentivosAdmin from '@/pages/admin/Incentivos';
 import DesempenhoAdmin from '@/pages/admin/Desempenho';
 import CausaRaizAdmin from '@/pages/admin/CausaRaiz';
+import PlanosDeAcaoAdmin from '@/pages/admin/PlanosDeAcao';
+import FeedbacksAdmin from '@/pages/admin/Feedbacks';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import CausaRaizColaborador from '@/pages/colaborador/CausaRaiz';
+import PlanosDeAcaoColaborador from '@/pages/colaborador/PlanosDeAcao';
+import FeedbacksColaborador from '@/pages/colaborador/Feedbacks';
 import NotFound from '@/pages/NotFound';
 
 function RootRedirect() {
@@ -41,8 +45,8 @@ export default function AppRoutes() {
         <Route path="metas" element={<MetasAdmin />} />
         <Route path="incentivos" element={<IncentivosAdmin />} />
         <Route path="causa-raiz" element={<CausaRaizAdmin />} />
-        <Route path="feedbacks" element={<PlaceholderPage title="Feedbacks" />} />
-        <Route path="planos-de-acao" element={<PlaceholderPage title="Planos de Ação" />} />
+        <Route path="planos-de-acao" element={<PlanosDeAcaoAdmin />} />
+        <Route path="feedbacks" element={<FeedbacksAdmin />} />
       </Route>
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
@@ -50,8 +54,8 @@ export default function AppRoutes() {
         <Route path="indicadores" element={<PlaceholderPage title="Indicadores" />} />
         <Route path="incentivo" element={<PlaceholderPage title="Incentivo" />} />
         <Route path="causa-raiz" element={<CausaRaizColaborador />} />
-        <Route path="planos-de-acao" element={<PlaceholderPage title="Planos de Ação" />} />
-        <Route path="feedbacks" element={<PlaceholderPage title="Feedbacks" />} />
+        <Route path="planos-de-acao" element={<PlanosDeAcaoColaborador />} />
+        <Route path="feedbacks" element={<FeedbacksColaborador />} />
         <Route path="perfil" element={<PlaceholderPage title="Meu Perfil" />} />
       </Route>
 
