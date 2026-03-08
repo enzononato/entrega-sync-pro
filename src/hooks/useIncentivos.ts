@@ -30,8 +30,8 @@ export function useIncentivos(filters?: { worker_type?: string; indicator_id?: s
 export function useCreateIncentivo() {
   const qc = useQueryClient(); const { toast } = useToast();
   return useMutation({
-    mutationFn: async (rule: { indicator_id: string; worker_type: string; unidade_id?: string | null; peso: number; meta: number; valor_minimo: number; valor_maximo: number; regra_json: Record<string, unknown>; vigencia_inicio: string; vigencia_fim?: string | null; ativo: boolean }) => {
-      const { data, error } = await supabase.from('incentive_rules').insert(rule).select().single();
+    mutationFn: async (rule: { indicator_id: string; worker_type: string; unidade_id?: string | null; peso: number; meta: number; valor_minimo: number; valor_maximo: number; regra_json: Record<string, string>; vigencia_inicio: string; vigencia_fim?: string | null; ativo: boolean }) => {
+      const { data, error } = await supabase.from('incentive_rules').insert(rule as any).select().single();
       if (error) throw error; return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['incentive_rules'] }); toast({ title: 'Regra salva com sucesso!' }); },
@@ -44,7 +44,7 @@ export function useUpdateIncentivo() {
   return useMutation({
     mutationFn: async ({ id, ...rule }: Partial<IncentiveRuleWithRelations> & { id: string }) => {
       const { indicators, units, ...data } = rule;
-      const { error } = await supabase.from('incentive_rules').update(data).eq('id', id);
+      const { error } = await supabase.from('incentive_rules').update(data as any).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['incentive_rules'] }); toast({ title: 'Regra atualizada!' }); },
