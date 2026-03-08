@@ -9,6 +9,10 @@ import Dashboard from '@/pages/admin/Dashboard';
 import Unidades from '@/pages/admin/Unidades';
 import Rotas from '@/pages/admin/Rotas';
 import Colaboradores from '@/pages/admin/Colaboradores';
+import IndicadoresAdmin from '@/pages/admin/Indicadores';
+import MetasAdmin from '@/pages/admin/Metas';
+import IncentivosAdmin from '@/pages/admin/Incentivos';
+import DesempenhoAdmin from '@/pages/admin/Desempenho';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import NotFound from '@/pages/NotFound';
 
@@ -30,10 +34,10 @@ export default function AppRoutes() {
         <Route path="unidades" element={<Unidades />} />
         <Route path="rotas" element={<Rotas />} />
         <Route path="colaboradores" element={<Colaboradores />} />
-        <Route path="desempenho" element={<PlaceholderPage title="Desempenho" />} />
-        <Route path="indicadores" element={<PlaceholderPage title="Indicadores" />} />
-        <Route path="metas" element={<PlaceholderPage title="Metas" />} />
-        <Route path="incentivos" element={<PlaceholderPage title="Incentivos" />} />
+        <Route path="desempenho" element={<DesempenhoAdmin />} />
+        <Route path="indicadores" element={<IndicadoresAdmin />} />
+        <Route path="metas" element={<MetasAdmin />} />
+        <Route path="incentivos" element={<IncentivosAdmin />} />
         <Route path="feedbacks" element={<PlaceholderPage title="Feedbacks" />} />
         <Route path="planos-de-acao" element={<PlaceholderPage title="Planos de Ação" />} />
         <Route path="causa-raiz" element={<PlaceholderPage title="Causa Raiz" />} />
