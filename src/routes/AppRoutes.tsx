@@ -22,6 +22,7 @@ import IncentivoColaborador from '@/pages/colaborador/Incentivo';
 import CausaRaizColaborador from '@/pages/colaborador/CausaRaiz';
 import PlanosDeAcaoColaborador from '@/pages/colaborador/PlanosDeAcao';
 import FeedbacksColaborador from '@/pages/colaborador/Feedbacks';
+import PerfilColaborador from '@/pages/colaborador/Perfil';
 import NotFound from '@/pages/NotFound';
 
 function RootRedirect() {
@@ -58,7 +59,7 @@ export default function AppRoutes() {
         <Route path="causa-raiz" element={<CausaRaizColaborador />} />
         <Route path="planos-de-acao" element={<PlanosDeAcaoColaborador />} />
         <Route path="feedbacks" element={<FeedbacksColaborador />} />
-        <Route path="perfil" element={<PlaceholderPage title="Meu Perfil" />} />
+        <Route path="perfil" element={<PerfilColaborador />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
