@@ -65,6 +65,86 @@ export type Database = {
           },
         ]
       }
+      feedbacks: {
+        Row: {
+          created_at: string
+          data_referencia: string
+          descricao: string
+          id: string
+          responded_at: string | null
+          respondido_por: string | null
+          resposta_lideranca: string | null
+          rota_id: string | null
+          status: string
+          tipo: string
+          titulo: string
+          unidade_id: string | null
+          urgencia: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_referencia?: string
+          descricao?: string
+          id?: string
+          responded_at?: string | null
+          respondido_por?: string | null
+          resposta_lideranca?: string | null
+          rota_id?: string | null
+          status?: string
+          tipo: string
+          titulo?: string
+          unidade_id?: string | null
+          urgencia?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data_referencia?: string
+          descricao?: string
+          id?: string
+          responded_at?: string | null
+          respondido_por?: string | null
+          resposta_lideranca?: string | null
+          rota_id?: string | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          unidade_id?: string | null
+          urgencia?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedbacks_respondido_por_fkey"
+            columns: ["respondido_por"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedbacks_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedbacks_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedbacks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           ativo: boolean
