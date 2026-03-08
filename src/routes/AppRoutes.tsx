@@ -7,6 +7,8 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import ColaboradorLayout from '@/components/colaborador/ColaboradorLayout';
 import Dashboard from '@/pages/admin/Dashboard';
 import Unidades from '@/pages/admin/Unidades';
+import Rotas from '@/pages/admin/Rotas';
+import Colaboradores from '@/pages/admin/Colaboradores';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import NotFound from '@/pages/NotFound';
 
@@ -23,22 +25,20 @@ export default function AppRoutes() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
 
-      {/* Admin routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRole="administrador"><AdminLayout /></ProtectedRoute>}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="unidades" element={<Unidades />} />
-        <Route path="colaboradores" element={<PlaceholderPage title="Colaboradores" />} />
+        <Route path="rotas" element={<Rotas />} />
+        <Route path="colaboradores" element={<Colaboradores />} />
         <Route path="desempenho" element={<PlaceholderPage title="Desempenho" />} />
         <Route path="indicadores" element={<PlaceholderPage title="Indicadores" />} />
         <Route path="metas" element={<PlaceholderPage title="Metas" />} />
         <Route path="incentivos" element={<PlaceholderPage title="Incentivos" />} />
-        <Route path="rotas" element={<PlaceholderPage title="Rotas" />} />
         <Route path="feedbacks" element={<PlaceholderPage title="Feedbacks" />} />
         <Route path="planos-de-acao" element={<PlaceholderPage title="Planos de Ação" />} />
         <Route path="causa-raiz" element={<PlaceholderPage title="Causa Raiz" />} />
       </Route>
 
-      {/* Colaborador routes */}
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
         <Route path="home" element={<ColaboradorHome />} />
         <Route path="indicadores" element={<PlaceholderPage title="Indicadores" />} />
