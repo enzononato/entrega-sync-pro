@@ -7,18 +7,18 @@ interface ProgressBarProps {
 }
 
 const colorMap = {
-  green: 'bg-emerald-500',
-  blue: 'bg-primary',
-  red: 'bg-destructive',
-  yellow: 'bg-warning',
+  green: 'bg-gradient-to-r from-emerald-500 to-emerald-400',
+  blue: 'bg-gradient-to-r from-primary to-secondary',
+  red: 'bg-gradient-to-r from-destructive to-red-400',
+  yellow: 'bg-gradient-to-r from-warning to-amber-400',
 };
 
 export function ProgressBar({ value, color = 'blue', className }: ProgressBarProps) {
   const clamped = Math.min(100, Math.max(0, value));
   return (
-    <div className={cn('h-2 w-full rounded-full bg-muted', className)}>
+    <div className={cn('h-2 w-full rounded-full bg-muted/80', className)}>
       <div
-        className={cn('h-full rounded-full transition-all duration-500', colorMap[color])}
+        className={cn('h-full rounded-full transition-all duration-700 ease-out', colorMap[color])}
         style={{ width: `${clamped}%` }}
       />
     </div>

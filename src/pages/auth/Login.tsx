@@ -16,7 +16,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
       const dest = user.role === 'administrador' ? '/admin/dashboard' : '/colaborador/home';
@@ -30,7 +29,6 @@ export default function Login() {
     setLoading(true);
     try {
       await signIn(email, password);
-      // onAuthStateChange will set user, triggering redirect via useEffect
     } catch {
       setError('E-mail ou senha inválidos');
     } finally {
@@ -41,26 +39,31 @@ export default function Login() {
   if (!authLoading && user) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-xl border bg-card p-8 shadow-sm">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Gradient background */}
+      <div className="absolute inset-0 gradient-hero" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(199_89%_48%_/_0.3),_transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(224_76%_30%_/_0.4),_transparent_60%)]" />
+
+      <div className="w-full max-w-sm relative z-10 animate-scale-in">
+        <div className="rounded-2xl bg-card/95 backdrop-blur-xl p-8 shadow-elevated border border-white/10">
           <div className="flex flex-col items-center mb-8">
-            <div className="h-14 w-14 rounded-xl bg-primary flex items-center justify-center mb-4">
-              <Truck className="h-7 w-7 text-primary-foreground" />
+            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary">
+              <Truck className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">EntregaApp</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">EntregaApp</h1>
             <p className="text-sm text-muted-foreground mt-1">Acesse sua conta para continuar</p>
           </div>
 
           {error && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="mb-4 rounded-xl">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -68,11 +71,12 @@ export default function Login() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
+                className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -81,18 +85,19 @@ export default function Login() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
+                  className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || authLoading}>
+            <Button type="submit" className="w-full h-11 rounded-xl gradient-primary text-white font-semibold shadow-glow-primary hover:opacity-90 transition-opacity" disabled={loading || authLoading}>
               {(loading || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Entrar
             </Button>

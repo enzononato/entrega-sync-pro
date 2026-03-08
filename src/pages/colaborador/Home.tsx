@@ -12,7 +12,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, AlertCircle, DollarSign, ClipboardList, AlertTriangle, MessageSquare, CalendarIcon, Trophy } from 'lucide-react';
+import { CheckCircle, AlertCircle, DollarSign, ClipboardList, AlertTriangle, MessageSquare, CalendarIcon, Trophy, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { IndicatorStatus } from '@/types';
 
@@ -50,7 +50,6 @@ export default function ColaboradorHome() {
   const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Filter metas relevant to this user
   const userMetas = useMemo(() => {
     if (!user) return [];
     return metas.filter(m => {
@@ -62,81 +61,80 @@ export default function ColaboradorHome() {
   }, [metas, user]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">
-          {greeting()}, {user?.nome?.split(' ')[0]}!
+    <div className="space-y-5 animate-fade-up">
+      {/* Hero Header */}
+      <div className="gradient-hero rounded-2xl p-5 text-white shadow-elevated -mx-4 -mt-4 mb-2">
+        <h1 className="text-xl font-bold">
+          {greeting()}, {user?.nome?.split(' ')[0]}! 👋
         </h1>
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
           {user?.worker_type && (
-            <span className={cn('inline-flex rounded-md px-2 py-0.5 text-xs font-medium',
-              user.worker_type === 'motorista' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'
-            )}>{user.worker_type === 'motorista' ? 'Motorista' : 'Ajudante'}</span>
+            <span className={cn('inline-flex rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+              user.worker_type === 'motorista' ? 'bg-white/20' : 'bg-white/20'
+            )}>{user.worker_type === 'motorista' ? '🚛 Motorista' : '📦 Ajudante'}</span>
           )}
-          {user?.units && <span className="text-xs text-muted-foreground">Unidade: {user.units.nome}</span>}
-          {user?.routes && <span className="text-xs text-muted-foreground">• Rota: {user.routes.nome}</span>}
+          {user?.units && <span className="text-xs text-white/80">📍 {user.units.nome}</span>}
+          {user?.routes && <span className="text-xs text-white/80">• 🛣️ {user.routes.nome}</span>}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+        <p className="text-xs text-white/60 mt-2">
+          {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
         </p>
       </div>
 
-      {/* Mini cards 2x2 */}
+      {/* Mini KPI Cards */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-border bg-card p-3 shadow-sm flex items-center gap-3">
-          <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0" />
-          <div><p className="text-lg font-bold text-foreground">{okCount}</p><p className="text-[11px] text-muted-foreground">Indicadores OK</p></div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3 shadow-sm flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-          <div><p className="text-lg font-bold text-foreground">{badCount}</p><p className="text-[11px] text-muted-foreground">Fora da Meta</p></div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3 shadow-sm flex items-center gap-3">
-          <DollarSign className="h-5 w-5 text-blue-500 shrink-0" />
-          <div><p className="text-lg font-bold text-foreground">{fmtBRL(incentivo?.valor_estimado ?? 0)}</p><p className="text-[11px] text-muted-foreground">Incentivo Hoje</p></div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3 shadow-sm flex items-center gap-3">
-          <ClipboardList className="h-5 w-5 text-amber-500 shrink-0" />
-          <div><p className="text-lg font-bold text-foreground">{acoesAbertas}</p><p className="text-[11px] text-muted-foreground">Ações Abertas</p></div>
-        </div>
+        {[
+          { icon: CheckCircle, iconClass: 'text-emerald-500', bg: 'bg-emerald-50', value: okCount, label: 'Indicadores OK' },
+          { icon: AlertCircle, iconClass: 'text-destructive', bg: 'bg-red-50', value: badCount, label: 'Fora da Meta' },
+          { icon: DollarSign, iconClass: 'text-primary', bg: 'bg-primary-light', value: fmtBRL(incentivo?.valor_estimado ?? 0), label: 'Incentivo Hoje' },
+          { icon: ClipboardList, iconClass: 'text-warning', bg: 'bg-amber-50', value: acoesAbertas, label: 'Ações Abertas' },
+        ].map((item, i) => (
+          <div key={i} className="card-elevated p-3.5 flex items-center gap-3">
+            <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', item.bg)}>
+              <item.icon className={cn('h-4.5 w-4.5', item.iconClass)} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground leading-tight">{item.value}</p>
+              <p className="text-[11px] text-muted-foreground">{item.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Metas Vigentes */}
+      {/* Success Banner */}
       {allOnTarget && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm flex items-center gap-3">
-          <Trophy className="h-6 w-6 text-emerald-600 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-800">Parabéns! Você atingiu todas as metas hoje!</p>
-          </div>
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-400 p-4 shadow-sm flex items-center gap-3 text-white">
+          <Trophy className="h-6 w-6 shrink-0" />
+          <p className="text-sm font-semibold">Parabéns! Você atingiu todas as metas hoje! 🎉</p>
         </div>
       )}
 
+      {/* Metas Vigentes */}
       {userMetas.length > 0 && (
-        <div>
+        <section>
           <h2 className="text-sm font-semibold text-foreground mb-3">Suas Metas Vigentes</h2>
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-2">
+          <div className="card-elevated p-4 space-y-3">
             {userMetas.map(m => (
-              <div key={m.id} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+              <div key={m.id} className="flex items-center justify-between text-sm border-b border-border/40 pb-3 last:border-0 last:pb-0">
                 <div className="min-w-0">
                   <p className="font-medium text-foreground truncate">{m.indicators?.nome ?? '—'}</p>
                   <p className="text-xs text-muted-foreground">{m.periodo_tipo}</p>
                 </div>
-                <span className="text-sm font-semibold text-foreground shrink-0 ml-2">
+                <span className="text-sm font-bold text-primary shrink-0 ml-2">
                   {m.valor_meta} {m.indicators?.unidade_medida ?? ''}
                 </span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* KPIs de Hoje */}
-      <div>
+      <section>
         <h2 className="text-sm font-semibold text-foreground mb-3">Meus KPIs de Hoje</h2>
         {loadDes ? (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
           </div>
         ) : kpis.length === 0 ? (
           <EmptyState titulo="Sem indicadores lançados hoje" icon={<AlertCircle className="h-10 w-10" />} />
@@ -155,26 +153,39 @@ export default function ColaboradorHome() {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Ações Rápidas */}
-      <div>
+      <section>
         <h2 className="text-sm font-semibold text-foreground mb-3">Ações Rápidas</h2>
-        <div className="space-y-2">
-          <Button className="w-full justify-start gap-2" onClick={() => navigate('/colaborador/causa-raiz')}>
-            <AlertTriangle className="h-4 w-4" />Registrar Problema
-          </Button>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/colaborador/feedbacks')}>
-            <MessageSquare className="h-4 w-4" />Enviar Feedback
-          </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => navigate('/colaborador/causa-raiz')} className="card-elevated p-4 flex flex-col items-center gap-2 hover:shadow-card-hover active:scale-[0.98] transition-all">
+            <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+            </div>
+            <span className="text-xs font-medium text-foreground">Registrar Problema</span>
+          </button>
+          <button onClick={() => navigate('/colaborador/feedbacks')} className="card-elevated p-4 flex flex-col items-center gap-2 hover:shadow-card-hover active:scale-[0.98] transition-all">
+            <div className="h-10 w-10 rounded-xl bg-primary-light flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-primary" />
+            </div>
+            <span className="text-xs font-medium text-foreground">Enviar Feedback</span>
+          </button>
         </div>
-      </div>
+      </section>
 
       {/* Últimos Planos */}
-      <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">Meus Últimos Planos</h2>
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground">Meus Últimos Planos</h2>
+          {recentPlanos.length > 0 && (
+            <button onClick={() => navigate('/colaborador/planos-de-acao')} className="text-xs font-medium text-primary flex items-center gap-0.5">
+              Ver todos <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
+        </div>
         {loadPlan ? (
-          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
         ) : recentPlanos.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum plano de ação.</p>
         ) : (
@@ -182,28 +193,25 @@ export default function ColaboradorHome() {
             {recentPlanos.map(p => {
               const atrasado = p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status);
               return (
-                <div key={p.id} className="rounded-xl border border-border bg-card p-3 shadow-sm flex items-center justify-between gap-2">
+                <div key={p.id} className="card-elevated p-3.5 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm text-foreground truncate">{p.descricao_acao}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-sm text-foreground truncate font-medium">{p.descricao_acao}</p>
+                    <div className="flex items-center gap-2 mt-1">
                       <StatusBadge status={p.status} />
-                      {atrasado && <span className="text-[10px] text-destructive font-semibold">ATRASADO</span>}
+                      {atrasado && <span className="text-[10px] text-destructive font-bold uppercase tracking-wide">Atrasado</span>}
                     </div>
                   </div>
                   {p.prazo && (
-                    <span className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1 shrink-0">
                       <CalendarIcon className="h-3 w-3" />{format(new Date(p.prazo + 'T00:00:00'), 'dd/MM')}
                     </span>
                   )}
                 </div>
               );
             })}
-            <Button variant="link" size="sm" className="w-full" onClick={() => navigate('/colaborador/planos-de-acao')}>
-              Ver todos os planos
-            </Button>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
