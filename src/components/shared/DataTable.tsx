@@ -48,7 +48,7 @@ export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum da
               <TableRow key={i}>
                 {columns.map(col => (
                   <TableCell key={col.key}>
-                    {col.render ? col.render(item) : String(item[col.key] ?? '')}
+                    {col.render ? col.render(item) : String((item as Record<string, unknown>)[col.key] ?? '')}
                   </TableCell>
                 ))}
               </TableRow>
@@ -64,7 +64,7 @@ export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum da
             {columns.map(col => (
               <div key={col.key} className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground font-medium">{col.label}</span>
-                <span>{col.render ? col.render(item) : String(item[col.key] ?? '')}</span>
+                <span>{col.render ? col.render(item) : String((item as Record<string, unknown>)[col.key] ?? '')}</span>
               </div>
             ))}
           </div>
