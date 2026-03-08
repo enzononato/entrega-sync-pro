@@ -14,7 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      units: {
+        Row: {
+          ativo: boolean
+          cidade: string
+          codigo: string
+          created_at: string
+          estado: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          cidade?: string
+          codigo: string
+          created_at?: string
+          estado?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          cidade?: string
+          codigo?: string
+          created_at?: string
+          estado?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          ativo: boolean
+          auth_user_id: string
+          created_at: string
+          email: string
+          id: string
+          matricula: string
+          nome: string
+          role: string
+          rota_id: string | null
+          unidade_id: string | null
+          worker_type: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          auth_user_id: string
+          created_at?: string
+          email: string
+          id?: string
+          matricula?: string
+          nome: string
+          role?: string
+          rota_id?: string | null
+          unidade_id?: string | null
+          worker_type?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          auth_user_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          matricula?: string
+          nome?: string
+          role?: string
+          rota_id?: string | null
+          unidade_id?: string | null
+          worker_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
