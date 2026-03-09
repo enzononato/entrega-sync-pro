@@ -72,7 +72,7 @@ export default function Colaboradores() {
   const openEdit = (u: UserWithRelations) => {
     setEditing(u);
     setForm({
-      nome: u.nome, email: u.email, matricula: u.matricula, password: '',
+      nome: u.nome, email: u.email, matricula: u.matricula, cpf: u.cpf || '', password: '',
       role: u.role, worker_type: u.worker_type, unidade_id: u.unidade_id,
       rota_id: u.rota_id, ativo: u.ativo,
       unit_ids: u.user_units?.map(uu => uu.unit_id) ?? (u.unidade_id ? [u.unidade_id] : []),
