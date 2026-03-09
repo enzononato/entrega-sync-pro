@@ -79,11 +79,13 @@ export default function Colaboradores() {
   };
 
   const handleSave = async () => {
+    const primaryUnit = form.unit_ids.length > 0 ? form.unit_ids[0] : null;
     if (editing) {
       await updateMut.mutateAsync({
         id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
         role: form.role, worker_type: form.role === 'colaborador' ? form.worker_type : null,
-        unidade_id: form.unidade_id || null, rota_id: form.rota_id || null, ativo: form.ativo,
+        unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
+        unit_ids: form.unit_ids,
       });
     } else {
       const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
@@ -91,7 +93,8 @@ export default function Colaboradores() {
         email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(), role: form.role,
         worker_type: form.role === 'colaborador' ? form.worker_type : null,
-        unidade_id: form.unidade_id || null, rota_id: form.rota_id || null,
+        unidade_id: primaryUnit, rota_id: form.rota_id || null,
+        unit_ids: form.unit_ids,
       });
     }
     setDialogOpen(false);
