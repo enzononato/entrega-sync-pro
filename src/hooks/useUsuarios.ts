@@ -82,6 +82,7 @@ export function useCreateUsuario() {
   return useMutation({
     mutationFn: async (payload: {
       email: string; password: string; nome: string; matricula: string;
+      cpf?: string | null;
       role: string; worker_type: string | null; unidade_id: string | null; rota_id: string | null;
       unit_ids?: string[];
     }) => {
