@@ -88,6 +88,7 @@ serve(async (req) => {
       .update({
         nome,
         matricula: matricula || "",
+        cpf: cpf || null,
         role: role || "colaborador",
         worker_type: worker_type || null,
         unidade_id: unidade_id || null,
