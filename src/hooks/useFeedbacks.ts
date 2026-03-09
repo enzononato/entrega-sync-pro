@@ -16,7 +16,7 @@ export function useFeedbacks(filters?: { status?: string; urgencia?: string; tip
     queryKey: ['feedbacks', filters],
     queryFn: async () => {
       let q = (supabase.from('feedbacks' as any) as any)
-        .select('*, users(nome, worker_type), units(nome), routes(nome)')
+        .select('*, users:users!feedbacks_user_id_fkey(nome, worker_type), units(nome), routes(nome)')
         .order('created_at', { ascending: false });
       if (filters?.status) q = q.eq('status', filters.status);
       if (filters?.urgencia) q = q.eq('urgencia', filters.urgencia);
