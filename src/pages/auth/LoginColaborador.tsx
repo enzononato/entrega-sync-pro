@@ -29,8 +29,8 @@ export default function LoginColaborador() {
     setError('');
 
     const cleanCpf = cpf.replace(/\D/g, '');
-    if (cleanCpf.length !== 11) {
-      setError('CPF inválido. Digite os 11 dígitos.');
+    if (!validateCpf(cleanCpf)) {
+      setError('CPF inválido. Verifique os dígitos.');
       return;
     }
 
