@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronLeft, ChevronRight, CalendarIcon, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarIcon, AlertCircle, BarChart3 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { IndicatorStatus } from '@/types';
@@ -22,7 +22,6 @@ export default function IndicadoresColaborador() {
 
   const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStr, { user_id: user?.id });
 
-  // Historico 7 dias for sparklines
   const startDate = format(subDays(new Date(dateStr + 'T00:00:00'), 6), 'yyyy-MM-dd');
   const { data: historico = [] } = useDesempenhoPorColaborador(user?.id, startDate, dateStr);
 
@@ -59,20 +58,34 @@ export default function IndicadoresColaborador() {
   };
 
   const statusColor = (s: string | null) => {
-    if (s === 'acima_meta') return '#22c55e';
+    if (s === 'acima_meta') return '#10b981';
     if (s === 'dentro_meta') return '#3b82f6';
     return '#ef4444';
   };
 
+  // Summary stats
+  const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
+  const avgPct = kpis.length > 0
+    ? Math.round(kpis.reduce((s, d) => s + (d.percentual_atingimento ?? 0), 0) / kpis.length)
+    : 0;
+
   return (
-    <div>
-      {/* Date nav */}
-      <div className="flex items-center justify-center gap-3 mb-5">
-        <Button variant="ghost" size="icon" onClick={prevDay}><ChevronLeft className="h-5 w-5" /></Button>
+    <div className="space-y-5 stagger-children">
+      {/* Header with date nav */}
+      <div>
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-emerald-500" /> Meus Indicadores
+        </h1>
+      </div>
+
+      <div className="flex items-center justify-center gap-2">
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={prevDay}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="font-medium">
-              <CalendarIcon className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="font-medium rounded-xl h-9 px-4">
+              <CalendarIcon className="mr-2 h-4 w-4 text-emerald-500" />
               {format(new Date(dateStr + 'T00:00:00'), "dd 'de' MMMM", { locale: ptBR })}
             </Button>
           </PopoverTrigger>
@@ -85,10 +98,28 @@ export default function IndicadoresColaborador() {
             />
           </PopoverContent>
         </Popover>
-        <Button variant="ghost" size="icon" disabled={isToday} onClick={nextDay}><ChevronRight className="h-5 w-5" /></Button>
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" disabled={isToday} onClick={nextDay}>
+          <ChevronRight className="h-5 w-5" />
+        </Button>
       </div>
 
-      <h1 className="text-xl font-bold text-foreground mb-4">Meus Indicadores</h1>
+      {/* Summary strip */}
+      {kpis.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="card-elevated p-3 text-center">
+            <p className="text-lg font-bold text-foreground">{kpis.length}</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Indicadores</p>
+          </div>
+          <div className="card-elevated p-3 text-center">
+            <p className="text-lg font-bold text-emerald-600">{okCount}</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Na Meta</p>
+          </div>
+          <div className="card-elevated p-3 text-center">
+            <p className="text-lg font-bold text-foreground">{avgPct}%</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Média</p>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -102,8 +133,11 @@ export default function IndicadoresColaborador() {
             const isExpanded = expanded === d.indicator_id;
             const sparkData = isExpanded ? getSparkData(d.indicator_id) : [];
             return (
-              <div key={d.id}>
-                <div onClick={() => setExpanded(isExpanded ? null : d.indicator_id)} className="cursor-pointer">
+              <div key={d.id} className="overflow-hidden rounded-xl">
+                <div
+                  onClick={() => setExpanded(isExpanded ? null : d.indicator_id)}
+                  className="cursor-pointer active:scale-[0.99] transition-transform"
+                >
                   <KpiCard
                     titulo={d.indicators?.nome ?? ''}
                     valor={d.valor}
@@ -114,19 +148,19 @@ export default function IndicadoresColaborador() {
                   />
                 </div>
                 {isExpanded && sparkData.length > 1 && (
-                  <div className="rounded-b-xl border border-t-0 border-border bg-card p-3 -mt-1">
-                    <p className="text-xs text-muted-foreground mb-2">Últimos 7 dias</p>
+                  <div className="border border-t-0 border-border bg-card p-4 rounded-b-xl">
+                    <p className="text-xs text-muted-foreground mb-3 font-medium">Evolução — Últimos 7 dias</p>
                     <ResponsiveContainer width="100%" height={120}>
                       <LineChart data={sparkData}>
                         <XAxis dataKey="data" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} domain={[0, 'auto']} />
                         <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Atingimento']} />
-                        <ReferenceLine y={100} stroke="hsl(0, 84%, 60%)" strokeDasharray="3 3" />
+                        <ReferenceLine y={100} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Meta', fontSize: 9, fill: '#ef4444' }} />
                         <Line
-                          type="monotone" dataKey="valor" stroke="hsl(var(--primary))"
-                          strokeWidth={2} dot={(props: any) => {
+                          type="monotone" dataKey="valor" stroke="#10b981"
+                          strokeWidth={2.5} dot={(props: any) => {
                             const { cx, cy, payload } = props;
-                            return <circle key={payload.data} cx={cx} cy={cy} r={4} fill={statusColor(payload.status)} stroke="none" />;
+                            return <circle key={payload.data} cx={cx} cy={cy} r={4} fill={statusColor(payload.status)} stroke="white" strokeWidth={2} />;
                           }}
                         />
                       </LineChart>
