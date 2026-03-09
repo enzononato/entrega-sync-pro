@@ -111,7 +111,10 @@ export default function Colaboradores() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6);
+  const isMotorista = form.role === 'colaborador' && form.worker_type === 'motorista';
+  const cpfValid = !isMotorista || form.cpf.replace(/\D/g, '').length === 11;
+  const unitValid = !isMotorista || form.unit_ids.length === 1;
+  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6) && cpfValid && unitValid;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   const kpis = [
