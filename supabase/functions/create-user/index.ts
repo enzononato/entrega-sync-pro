@@ -24,7 +24,7 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify the caller is an authenticated admin
+    // Verify the caller is an authenticated admin or service role
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autenticado" }), {
@@ -34,27 +34,31 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const isServiceRole = token === serviceRoleKey;
 
-    if (userError || !userData.user) {
-      return new Response(JSON.stringify({ error: "Não autenticado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!isServiceRole) {
+      const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
 
-    const callerAuthId = userData.user.id;
-    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
-      .from("users")
-      .select("role")
-      .eq("auth_user_id", callerAuthId)
-      .single();
+      if (userError || !userData.user) {
+        return new Response(JSON.stringify({ error: "Não autenticado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    if (callerProfileError || callerProfile?.role !== "administrador") {
-      return new Response(JSON.stringify({ error: "Acesso negado" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const callerAuthId = userData.user.id;
+      const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
+        .from("users")
+        .select("role")
+        .eq("auth_user_id", callerAuthId)
+        .single();
+
+      if (callerProfileError || callerProfile?.role !== "administrador") {
+        return new Response(JSON.stringify({ error: "Acesso negado" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = await req.json();
