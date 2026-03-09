@@ -145,11 +145,19 @@ export function useUpdateUsuario() {
       const { error } = await supabase.from('users').update(data).eq('id', id);
       if (error) throw error;
 
+      // Sync role to user_roles table via edge function
+      if (data.role) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await supabase.functions.invoke('sync-user-role', {
+          body: { user_id: id, role: data.role },
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+        if (res.data?.error) console.error('Error syncing role:', res.data.error);
+      }
+
       // Sync user_units if provided
       if (unit_ids !== undefined) {
-        // Delete existing
         await supabase.from('user_units').delete().eq('user_id', id);
-        // Insert new
         if (unit_ids.length > 0) {
           const rows = unit_ids.map(uid => ({ user_id: id, unit_id: uid }));
           const { error: insertErr } = await supabase.from('user_units').insert(rows);
