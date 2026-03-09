@@ -58,7 +58,7 @@ export function BottomNav() {
                   'flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200',
                   active && 'bg-primary/10'
                 )}>
-                  <tab.icon className={cn('h-[18px] w-[18px] transition-all', active && 'text-emerald-600')} />
+                  <tab.icon className={cn('h-[18px] w-[18px] transition-all', active && 'text-primary')} />
                 </div>
                 <span className={cn(
                   'text-[10px] font-semibold transition-all',
