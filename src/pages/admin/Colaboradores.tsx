@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
-  CheckCircle2, XCircle,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
