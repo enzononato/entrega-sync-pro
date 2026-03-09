@@ -72,8 +72,9 @@ export default function Colaboradores() {
         unidade_id: form.unidade_id || null, rota_id: form.rota_id || null, ativo: form.ativo,
       });
     } else {
+      const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
       await createMut.mutateAsync({
-        email: form.email, password: form.password, nome: form.nome,
+        email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(), role: form.role,
         worker_type: form.role === 'colaborador' ? form.worker_type : null,
         unidade_id: form.unidade_id || null, rota_id: form.rota_id || null,
@@ -132,7 +133,7 @@ export default function Colaboradores() {
     },
   ];
 
-  const canSave = form.nome.length >= 3 && form.email && (editing || form.password.length >= 6);
+  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6);
 
   return (
     <div>
@@ -209,11 +210,11 @@ export default function Colaboradores() {
                   <Input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} minLength={3} />
                 </div>
                 <div className="space-y-1">
-                  <Label>E-mail *</Label>
-                  <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                  <Label>E-mail <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+                  <Input type="email" placeholder="Deixe vazio para gerar automaticamente" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Matrícula *</Label>
+                  <Label>Matrícula <span className="text-muted-foreground text-xs">(opcional)</span></Label>
                   <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} />
                 </div>
                 {!editing && (
