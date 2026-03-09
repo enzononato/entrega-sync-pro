@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useUnidades } from '@/hooks/useUnidades';
 import { useRotas } from '@/hooks/useRotas';
@@ -24,7 +25,7 @@ import { cn } from '@/lib/utils';
 const emptyForm = {
   nome: '', email: '', matricula: '', password: '', role: 'colaborador' as string,
   worker_type: 'motorista' as string | null, unidade_id: '' as string | null,
-  rota_id: '' as string | null, ativo: true,
+  rota_id: '' as string | null, ativo: true, unit_ids: [] as string[],
 };
 
 export default function Colaboradores() {
@@ -49,7 +50,8 @@ export default function Colaboradores() {
   const [toggleTarget, setToggleTarget] = useState<UserWithRelations | null>(null);
   const [perfDrawer, setPerfDrawer] = useState<UserWithRelations | null>(null);
 
-  const { data: rotasForUnit = [] } = useRotas(form.unidade_id || undefined);
+  const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
+  const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
   const activeRoutes = rotasForUnit.filter(r => r.ativo);
 
   // KPIs from all users (unfiltered)
@@ -73,16 +75,19 @@ export default function Colaboradores() {
       nome: u.nome, email: u.email, matricula: u.matricula, password: '',
       role: u.role, worker_type: u.worker_type, unidade_id: u.unidade_id,
       rota_id: u.rota_id, ativo: u.ativo,
+      unit_ids: u.user_units?.map(uu => uu.unit_id) ?? (u.unidade_id ? [u.unidade_id] : []),
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
+    const primaryUnit = form.unit_ids.length > 0 ? form.unit_ids[0] : null;
     if (editing) {
       await updateMut.mutateAsync({
         id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
         role: form.role, worker_type: form.role === 'colaborador' ? form.worker_type : null,
-        unidade_id: form.unidade_id || null, rota_id: form.rota_id || null, ativo: form.ativo,
+        unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
+        unit_ids: form.unit_ids,
       });
     } else {
       const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
@@ -90,7 +95,8 @@ export default function Colaboradores() {
         email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(), role: form.role,
         worker_type: form.role === 'colaborador' ? form.worker_type : null,
-        unidade_id: form.unidade_id || null, rota_id: form.rota_id || null,
+        unidade_id: primaryUnit, rota_id: form.rota_id || null,
+        unit_ids: form.unit_ids,
       });
     }
     setDialogOpen(false);
@@ -222,11 +228,16 @@ export default function Colaboradores() {
                     <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Mail className="h-3 w-3" />{u.email}
                     </span>
-                    {u.units?.nome && (
+                    {(u.user_units && u.user_units.length > 0) ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Building2 className="h-3 w-3" />
+                        {u.user_units.map(uu => uu.units?.nome).filter(Boolean).join(', ')}
+                      </span>
+                    ) : u.units?.nome ? (
                       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                         <Building2 className="h-3 w-3" />{u.units.nome}
                       </span>
-                    )}
+                    ) : null}
                     {u.routes?.nome && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hidden sm:inline-flex">
                         <MapPin className="h-3 w-3" />{u.routes.nome}
@@ -338,30 +349,44 @@ export default function Colaboradores() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Unidades (Revendas)</Label>
+                  <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
+                    {activeUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
+                    {activeUnits.map(u => (
+                      <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
+                        <Checkbox
+                          checked={form.unit_ids.includes(u.id)}
+                          onCheckedChange={(checked) => {
+                            setForm(f => ({
+                              ...f,
+                              unit_ids: checked
+                                ? [...f.unit_ids, u.id]
+                                : f.unit_ids.filter(id => id !== u.id),
+                            }));
+                          }}
+                        />
+                        <span className="text-sm">{u.nome}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {form.unit_ids.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground">{form.unit_ids.length} unidade(s) selecionada(s)</p>
+                  )}
+                </div>
+
+                {form.unit_ids.length > 0 && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Unidade</Label>
-                    <Select value={form.unidade_id ?? ''} onValueChange={v => setForm(f => ({ ...f, unidade_id: v === 'none' ? null : v, rota_id: null }))}>
+                    <Label className="text-xs">Rota</Label>
+                    <Select value={form.rota_id ?? ''} onValueChange={v => setForm(f => ({ ...f, rota_id: v === 'none' ? null : v }))}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nenhuma</SelectItem>
-                        {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                        {activeRoutes.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  {form.unidade_id && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Rota</Label>
-                      <Select value={form.rota_id ?? ''} onValueChange={v => setForm(f => ({ ...f, rota_id: v === 'none' ? null : v }))}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma</SelectItem>
-                          {activeRoutes.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
                   <Label className="text-sm">Colaborador Ativo</Label>
