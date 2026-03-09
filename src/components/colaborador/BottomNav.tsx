@@ -76,7 +76,7 @@ export function BottomNav() {
           >
             <div className={cn(
               'flex items-center justify-center h-8 w-8 rounded-lg',
-              isMoreActive && 'bg-emerald-500/10'
+              isMoreActive && 'bg-primary/10'
             )}>
               <MoreHorizontal className="h-[18px] w-[18px]" />
             </div>
