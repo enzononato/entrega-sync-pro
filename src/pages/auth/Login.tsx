@@ -1,116 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Eye, EyeOff, Truck } from 'lucide-react';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Truck, Shield, Users } from 'lucide-react';
 
 export default function Login() {
-  const { user, loading: authLoading, signIn } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!authLoading && user) {
-      const dest = user.role === 'administrador' ? '/admin/dashboard' : '/colaborador/home';
-      navigate(dest, { replace: true });
+    if (!loading && user) {
+      navigate(user.role === 'administrador' ? '/admin/dashboard' : '/colaborador/home', { replace: true });
     }
-  }, [authLoading, user, navigate]);
+  }, [loading, user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await signIn(email, password);
-    } catch {
-      setError('E-mail ou senha inválidos');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!authLoading && user) return null;
+  if (loading) return <LoadingSpinner />;
+  if (user) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Layered gradient background */}
       <div className="absolute inset-0 gradient-hero" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(199_89%_48%_/_0.2),_transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(224_76%_20%_/_0.5),_transparent_50%)]" />
-      
-      {/* Subtle grid pattern */}
       <div className="absolute inset-0 opacity-[0.03]" style={{
         backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
         backgroundSize: '40px 40px',
       }} />
 
-      <div className="w-full max-w-sm relative z-10 animate-scale-in">
-        {/* Glow behind card */}
+      <div className="w-full max-w-md relative z-10 animate-scale-in">
         <div className="absolute -inset-4 bg-white/5 rounded-3xl blur-2xl" />
-        
         <div className="relative rounded-2xl bg-card/95 backdrop-blur-2xl p-8 shadow-elevated border border-white/10">
           <div className="flex flex-col items-center mb-8">
             <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary ring-1 ring-white/10">
               <Truck className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">RotaScore</h1>
-            <p className="text-sm text-muted-foreground mt-1">Acesse sua conta para continuar</p>
+            <p className="text-sm text-muted-foreground mt-1">Selecione seu perfil para continuar</p>
           </div>
 
-          {error && (
-            <Alert variant="destructive" className="mb-4 rounded-xl">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card transition-colors"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card pr-10 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+          <div className="grid gap-4">
+            <button
+              onClick={() => navigate('/login/colaborador')}
+              className="group relative flex items-center gap-4 p-5 rounded-xl border border-border/60 bg-muted/30 hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"
+            >
+              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
+                <Users className="h-6 w-6 text-emerald-600" />
               </div>
-            </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Motorista / Ajudante</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Acesse seus indicadores, incentivos e metas</p>
+              </div>
+            </button>
 
-            <Button type="submit" className="w-full h-11 rounded-xl gradient-primary text-white font-semibold shadow-glow-primary hover:opacity-90 hover:shadow-lg transition-all" disabled={loading || authLoading}>
-              {(loading || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Entrar
-            </Button>
-          </form>
+            <button
+              onClick={() => navigate('/login/admin')}
+              className="group relative flex items-center gap-4 p-5 rounded-xl border border-border/60 bg-muted/30 hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"
+            >
+              <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                <Shield className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Administrador</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Gerencie equipes, metas e desempenho</p>
+              </div>
+            </button>
+          </div>
 
           <p className="text-center text-[10px] text-muted-foreground/50 mt-6 tracking-wide">
             © {new Date().getFullYear()} RotaScore · Gestão de Entregas
