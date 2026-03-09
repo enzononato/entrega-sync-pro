@@ -58,7 +58,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { email, password, nome, matricula, role, worker_type, unidade_id, rota_id } = body;
+    const { email, password, nome, matricula, role, worker_type, unidade_id, rota_id, cpf } = body;
 
     if (!email || !password || !nome) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios: email, password, nome" }), {
