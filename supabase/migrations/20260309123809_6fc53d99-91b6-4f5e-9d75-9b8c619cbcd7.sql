@@ -1,0 +1,1 @@
+UPDATE public.users SET cpf = '05667087529' WHERE id = '2093f6ca-746b-45f9-b505-e2170b785a58';
