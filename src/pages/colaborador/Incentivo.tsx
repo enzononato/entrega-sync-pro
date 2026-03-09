@@ -114,14 +114,14 @@ export default function IncentivoColaborador() {
         <div className="flex items-baseline justify-between">
           <div>
             <span className="text-lg font-bold text-foreground">{fmtBRL(bonusAcumulado)}</span>
-            <span className="text-sm text-muted-foreground"> / {fmtBRL(projecaoMensal)}</span>
+            <span className="text-sm text-muted-foreground"> / {fmtBRL(metaMensal)}</span>
           </div>
           <span className="text-sm font-bold text-primary">{pctProjecao.toFixed(0)}%</span>
         </div>
         <ProgressBar value={pctProjecao} color="blue" className="h-2.5" />
-        {projecaoMensal > bonusAcumulado && (
+        {metaMensal > bonusAcumulado && (
           <p className="text-xs text-muted-foreground">
-            Faltam <span className="font-semibold text-primary">{fmtBRL(projecaoMensal - bonusAcumulado)}</span> para atingir a projeção
+            Faltam <span className="font-semibold text-primary">{fmtBRL(metaMensal - bonusAcumulado)}</span> para atingir a meta
           </p>
         )}
       </div>
