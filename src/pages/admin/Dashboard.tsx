@@ -2,18 +2,24 @@ import { useState, useMemo } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUsuarios } from '@/hooks/useUsuarios';
-import { useFeedbacks, type FeedbackWithRelations } from '@/hooks/useFeedbacks';
-import { usePlanosDeAcao, type ActionPlanWithRelations } from '@/hooks/usePlanosDeAcao';
+import { useFeedbacks } from '@/hooks/useFeedbacks';
+import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useUnidades } from '@/hooks/useUnidades';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp, AlertTriangle, ChevronRight } from 'lucide-react';
+import {
+  Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp,
+  TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
+  UserCheck, Zap, Clock, ArrowUpRight, ArrowDownRight,
+} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -22,12 +28,12 @@ function DatePick({ value, onChange }: { value: string; onChange: (v: string) =>
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('w-full sm:w-44 justify-start text-left font-normal rounded-xl h-10', !value && 'text-muted-foreground')}>
+        <Button variant="outline" className={cn('w-full sm:w-44 justify-start text-left font-normal h-9', !value && 'text-muted-foreground')}>
           <CalendarIcon className="mr-2 h-4 w-4" />
           {value ? format(new Date(value + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : 'Data'}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 rounded-xl" align="start">
+      <PopoverContent className="w-auto p-0" align="start">
         <Calendar mode="single" selected={date} onSelect={d => onChange(d ? format(d, 'yyyy-MM-dd') : '')} className="p-3 pointer-events-auto" />
       </PopoverContent>
     </Popover>
@@ -37,16 +43,20 @@ function DatePick({ value, onChange }: { value: string; onChange: (v: string) =>
 const PIE_COLORS: Record<string, string> = {
   baixa: '#94a3b8', media: '#fbbf24', alta: '#f97316', critica: '#ef4444',
 };
+const PIE_LABELS: Record<string, string> = { baixa: 'Baixa', media: 'Média', alta: 'Alta', critica: 'Crítica' };
 
-const kpiConfigs = [
-  { key: 'users', icon: Users, bg: 'bg-primary-light', iconClass: 'text-primary' },
-  { key: 'feedbacks', icon: MessageSquare, bg: 'bg-amber-50', iconClass: 'text-warning' },
-  { key: 'plans', icon: ClipboardList, bg: 'bg-orange-50', iconClass: 'text-orange-500' },
-  { key: 'incentive', icon: DollarSign, bg: 'bg-emerald-50', iconClass: 'text-emerald-600' },
-];
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [dateFilter, setDateFilter] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
@@ -73,11 +83,20 @@ export default function Dashboard() {
   const planosPendentes = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
   const planosAtrasados = planos.filter(p => p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status)).length;
 
-  const incentivoMedio = useMemo(() => {
+  const incentivoTotal = useMemo(() => {
     if (!incentivos.length) return 0;
-    const total = incentivos.reduce((s, i) => s + (i.valor_estimado ?? 0), 0);
-    return Math.round(total / incentivos.length * 100) / 100;
+    return incentivos.reduce((s, i) => s + (i.valor_estimado ?? 0), 0);
   }, [incentivos]);
+  const incentivoMedio = incentivos.length ? Math.round(incentivoTotal / incentivos.length * 100) / 100 : 0;
+
+  // Performance stats
+  const avgAtingimento = useMemo(() => {
+    if (!desempenho.length) return 0;
+    const vals = desempenho.filter(d => d.percentual_atingimento != null).map(d => d.percentual_atingimento!);
+    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : 0;
+  }, [desempenho]);
+  const acimaMeta = desempenho.filter(d => d.status === 'acima_meta').length;
+  const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
 
   const barData = useMemo(() => {
     const byInd: Record<string, { codigo: string; nome: string; vals: number[] }> = {};
@@ -86,29 +105,28 @@ export default function Dashboard() {
       if (d.percentual_atingimento != null) byInd[d.indicator_id].vals.push(d.percentual_atingimento);
     });
     return Object.values(byInd).map(v => ({
-      indicador: v.codigo,
-      nome: v.nome,
+      indicador: v.codigo, nome: v.nome,
       media: Math.round(v.vals.reduce((a, b) => a + b, 0) / v.vals.length * 10) / 10,
-    }));
+    })).sort((a, b) => a.media - b.media);
   }, [desempenho]);
 
   const pieData = useMemo(() => {
     const byUrg: Record<string, number> = { baixa: 0, media: 0, alta: 0, critica: 0 };
     feedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).forEach(f => { byUrg[f.urgencia] = (byUrg[f.urgencia] ?? 0) + 1; });
-    return Object.entries(byUrg).filter(([, v]) => v > 0).map(([k, v]) => ({ name: k, value: v }));
+    return Object.entries(byUrg).filter(([, v]) => v > 0).map(([k, v]) => ({ name: k, label: PIE_LABELS[k] ?? k, value: v }));
   }, [feedbacks]);
   const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   const topCritical = useMemo(() => {
-    const byInd: Record<string, { nome: string; vals: number[] }> = {};
+    const byInd: Record<string, { nome: string; codigo: string; vals: number[] }> = {};
     desempenho.forEach(d => {
-      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { nome: d.indicators?.nome ?? '', vals: [] };
+      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { nome: d.indicators?.nome ?? '', codigo: d.indicators?.codigo ?? '', vals: [] };
       if (d.percentual_atingimento != null) byInd[d.indicator_id].vals.push(d.percentual_atingimento);
     });
     return Object.values(byInd)
       .map(v => {
         const avg = v.vals.reduce((a, b) => a + b, 0) / v.vals.length;
-        return { nome: v.nome, media: Math.round(avg * 10) / 10, meta: 100, gap: Math.round((avg - 100) * 10) / 10, afetados: v.vals.length };
+        return { nome: v.nome, codigo: v.codigo, media: Math.round(avg * 10) / 10, gap: Math.round((avg - 100) * 10) / 10, afetados: v.vals.length };
       })
       .filter(v => v.gap < 0)
       .sort((a, b) => a.gap - b.gap)
@@ -127,177 +145,269 @@ export default function Dashboard() {
       .slice(0, 5),
   [planos, todayStr]);
 
-  const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  const getBarColor = (media: number) => {
+    if (media >= 100) return 'hsl(160, 84%, 39%)';
+    if (media >= 90) return 'hsl(217, 91%, 60%)';
+    return 'hsl(0, 84%, 60%)';
+  };
 
-  const kpiData = [
-    { title: activeUsers.length.toString(), sub: `${motoristas} motoristas • ${ajudantes} ajudantes` },
-    { title: feedbacksAbertos.toString(), sub: `${feedbacksCriticos} críticos` },
-    { title: planosPendentes.toString(), sub: `${planosAtrasados} atrasados` },
-    { title: fmtBRL(incentivoMedio), sub: 'Incentivo médio hoje' },
-  ];
+  const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
 
   return (
     <div className="space-y-6 animate-fade-up">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-        <DatePick value={dateFilter} onChange={setDateFilter} />
-        <Select value={unidadeFilter} onValueChange={v => setUnidadeFilter(v === 'all' ? '' : v)}>
-          <SelectTrigger className="w-full sm:w-44 rounded-xl h-10"><SelectValue placeholder="Unidade" /></SelectTrigger>
-          <SelectContent className="rounded-xl"><SelectItem value="all">Todas</SelectItem>{units.filter(u => u.ativo).map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
-          <SelectTrigger className="w-full sm:w-40 rounded-xl h-10"><SelectValue placeholder="Tipo" /></SelectTrigger>
-          <SelectContent className="rounded-xl"><SelectItem value="all">Todos</SelectItem><SelectItem value="motorista">Motorista</SelectItem><SelectItem value="ajudante">Ajudante</SelectItem></SelectContent>
-        </Select>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            {getGreeting()}, {firstName} 👋
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <DatePick value={dateFilter} onChange={setDateFilter} />
+          <Select value={unidadeFilter} onValueChange={v => setUnidadeFilter(v === 'all' ? '' : v)}>
+            <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
+            <SelectContent><SelectItem value="all">Todas</SelectItem>{units.filter(u => u.ativo).map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
+            <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+            <SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="motorista">Motorista</SelectItem><SelectItem value="ajudante">Ajudante</SelectItem></SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpiConfigs.map((cfg, i) => (
-          <div key={cfg.key} className="card-elevated p-4 flex items-center gap-4">
-            <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center shrink-0', cfg.bg)}>
-              <cfg.icon className={cn('h-5 w-5', cfg.iconClass)} />
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Colaboradores Ativos', value: activeUsers.length, sub: `${motoristas} mot · ${ajudantes} aj`, icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
+          { label: 'Média Atingimento', value: `${avgAtingimento}%`, sub: `${acimaMeta} acima · ${abaixoMeta} abaixo`, icon: Target, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+          { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: `${feedbacksCriticos} críticos`, icon: MessageSquare, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', borderColor: 'border-l-amber-500' },
+          { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100', iconColor: 'text-green-600', borderColor: 'border-l-green-500', isText: true },
+        ].map(k => {
+          const Icon = k.icon;
+          return (
+            <div key={k.label} className={cn('rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all hover:shadow-md', k.borderColor)}>
+              <div className="flex items-center gap-3">
+                <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', k.iconBg)}>
+                  <Icon className={cn('h-5 w-5', k.iconColor)} />
+                </div>
+                <div>
+                  <p className={cn('font-bold text-foreground leading-none', 'isText' in k ? 'text-lg' : 'text-2xl')}>{k.value}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{k.sub}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground tracking-tight">{kpiData[i].title}</p>
-              <p className="text-xs text-muted-foreground">{kpiData[i].sub}</p>
+          );
+        })}
+      </div>
+
+      {/* Secondary stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Planos Pendentes', value: planosPendentes, icon: ClipboardList, color: 'text-blue-600' },
+          { label: 'Planos Atrasados', value: planosAtrasados, icon: Clock, color: 'text-red-600' },
+          { label: 'Motoristas', value: motoristas, icon: Truck, color: 'text-emerald-600' },
+          { label: 'Ajudantes', value: ajudantes, icon: UserCheck, color: 'text-violet-600' },
+        ].map(s => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className="rounded-xl border bg-card p-3 shadow-sm flex items-center gap-3">
+              <Icon className={cn('h-4 w-4 shrink-0', s.color)} />
+              <div>
+                <p className="text-lg font-bold text-foreground leading-none">{s.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-elevated p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Desempenho por Indicador Hoje</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bar chart - 2 cols */}
+        <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-bold text-foreground">Desempenho por Indicador</h3>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/desempenho')}>
+              Ver tudo <ChevronRight className="h-3 w-3" />
+            </Button>
           </div>
           {barData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 20% 92%)" />
-                <XAxis dataKey="indicador" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} domain={[0, 120]} />
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 'auto']} />
+                <YAxis type="category" dataKey="indicador" tick={{ fontSize: 11 }} width={55} />
                 <Tooltip formatter={(v: number, _n: string, p: any) => [`${v}%`, p.payload.nome]} contentStyle={{ borderRadius: 12, border: '1px solid hsl(214 20% 92%)' }} />
-                <ReferenceLine y={90} stroke="hsl(0, 84%, 60%)" strokeDasharray="5 5" label={{ value: '90%', position: 'right', fontSize: 10 }} />
-                <ReferenceLine y={100} stroke="hsl(160, 84%, 39%)" strokeDasharray="5 5" label={{ value: '100%', position: 'right', fontSize: 10 }} />
-                <Bar dataKey="media" radius={[6, 6, 0, 0]}>
-                  {barData.map((entry, i) => (
-                    <Cell key={i} fill={entry.media >= 100 ? '#22c55e' : entry.media >= 90 ? '#3b82f6' : '#ef4444'} />
-                  ))}
+                <ReferenceLine x={90} stroke="hsl(0, 84%, 60%)" strokeDasharray="5 5" />
+                <ReferenceLine x={100} stroke="hsl(160, 84%, 39%)" strokeDasharray="5 5" />
+                <Bar dataKey="media" radius={[0, 4, 4, 0]} barSize={18}>
+                  {barData.map((entry, i) => <Cell key={i} fill={getBarColor(entry.media)} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="text-sm text-muted-foreground py-12 text-center">Nenhum dado de desempenho para esta data.</p>}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16">
+              <BarChart3 className="h-8 w-8 text-muted-foreground/30 mb-2" />
+              <p className="text-sm text-muted-foreground">Sem dados para esta data</p>
+            </div>
+          )}
         </div>
 
-        <div className="card-elevated p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <h3 className="text-sm font-semibold text-foreground">Feedbacks por Urgência</h3>
+        {/* Pie chart - 1 col */}
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-bold text-foreground">Feedbacks por Urgência</h3>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/feedbacks')}>
+              Ver <ChevronRight className="h-3 w-3" />
+            </Button>
           </div>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
-                  {pieData.map((entry, i) => <Cell key={i} fill={PIE_COLORS[entry.name] ?? '#94a3b8'} />)}
-                </Pie>
-                <Legend />
-                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-xl font-bold">{pieTotal}</text>
-              </PieChart>
-            </ResponsiveContainer>
-          ) : <p className="text-sm text-muted-foreground py-12 text-center">Nenhum feedback aberto.</p>}
+            <div className="flex flex-col items-center">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="label" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                    {pieData.map((entry, i) => <Cell key={i} fill={PIE_COLORS[entry.name] ?? '#94a3b8'} />)}
+                  </Pie>
+                  <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">{pieTotal}</text>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-3 justify-center mt-2">
+                {pieData.map(d => (
+                  <div key={d.name} className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[d.name] }} />
+                    <span className="text-[11px] text-muted-foreground">{d.label} ({d.value})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16">
+              <MessageSquare className="h-8 w-8 text-muted-foreground/30 mb-2" />
+              <p className="text-sm text-muted-foreground">Nenhum feedback aberto</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Bottom panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Critical indicators */}
         {topCritical.length > 0 && (
-          <div className="card-elevated p-5">
+          <div className="rounded-xl border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-foreground">Top Indicadores Críticos</h3>
-              <button onClick={() => navigate('/admin/desempenho')} className="text-xs font-medium text-primary flex items-center gap-0.5">
-                Ver todos <ChevronRight className="h-3 w-3" />
-              </button>
+              <div className="flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-red-500" />
+                <h3 className="text-sm font-bold text-foreground">Indicadores Críticos</h3>
+              </div>
+              <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/desempenho')}>
+                Ver <ChevronRight className="h-3 w-3" />
+              </Button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b border-border/60 text-muted-foreground text-xs">
-                  <th className="text-left p-2.5">Indicador</th><th className="text-right p-2.5">Média</th><th className="text-right p-2.5">Gap</th><th className="text-right p-2.5">Afetados</th>
-                </tr></thead>
-                <tbody>
-                  {topCritical.map((c, i) => (
-                    <tr key={i} className="border-b border-border/40 last:border-0">
-                      <td className="p-2.5 font-medium text-foreground">{c.nome}</td>
-                      <td className="p-2.5 text-right">{c.media}%</td>
-                      <td className="p-2.5 text-right text-destructive font-semibold">{c.gap}%</td>
-                      <td className="p-2.5 text-right">{c.afetados}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {topCritical.map((c, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary font-mono">{c.codigo}</span>
+                      <span className="text-xs font-medium text-foreground truncate">{c.nome}</span>
+                    </div>
+                    <ProgressBar value={c.media} color="red" className="h-1.5" />
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-red-600">{c.media}%</p>
+                    <p className="text-[10px] text-muted-foreground">{c.afetados} col.</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        <div className="card-elevated p-5">
+        {/* Recent feedbacks */}
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-foreground">Feedbacks Recentes</h3>
-            <button onClick={() => navigate('/admin/feedbacks')} className="text-xs font-medium text-primary flex items-center gap-0.5">
-              Ver todos <ChevronRight className="h-3 w-3" />
-            </button>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-bold text-foreground">Feedbacks Recentes</h3>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/feedbacks')}>
+              Ver <ChevronRight className="h-3 w-3" />
+            </Button>
           </div>
           {recentFeedbacks.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b border-border/60 text-muted-foreground text-xs">
-                  <th className="text-left p-2.5">Colaborador</th><th className="text-left p-2.5">Título</th><th className="text-left p-2.5">Urgência</th><th className="text-right p-2.5">Tempo</th>
-                </tr></thead>
-                <tbody>
-                  {recentFeedbacks.map(f => (
-                    <tr key={f.id} className={cn("border-b border-border/40 last:border-0", f.urgencia === 'critica' && 'bg-destructive/5')}>
-                      <td className="p-2.5 font-medium text-foreground">{f.users?.nome ?? '—'}</td>
-                      <td className="p-2.5 max-w-[140px] truncate">{f.titulo}</td>
-                      <td className="p-2.5"><StatusBadge status={f.urgencia} /></td>
-                      <td className="p-2.5 text-right text-xs text-muted-foreground whitespace-nowrap">{formatDistanceToNow(new Date(f.created_at), { addSuffix: true, locale: ptBR })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {recentFeedbacks.map(f => (
+                <div key={f.id} className={cn(
+                  'rounded-lg border p-3 transition-colors',
+                  f.urgencia === 'critica' ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50'
+                )}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-foreground truncate max-w-[150px]">{f.users?.nome ?? '—'}</span>
+                    <StatusBadge status={f.urgencia} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">{f.titulo}</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    {formatDistanceToNow(new Date(f.created_at), { addSuffix: true, locale: ptBR })}
+                  </p>
+                </div>
+              ))}
             </div>
-          ) : <p className="text-sm text-muted-foreground py-6 text-center">Nenhum feedback aberto.</p>}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8">
+              <MessageSquare className="h-6 w-6 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">Nenhum feedback aberto</p>
+            </div>
+          )}
+        </div>
+
+        {/* Late plans */}
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-red-500" />
+              <h3 className="text-sm font-bold text-foreground">Planos Atrasados</h3>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/planos-de-acao')}>
+              Ver <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
+          {latePlans.length > 0 ? (
+            <div className="space-y-3">
+              {latePlans.map(p => (
+                <div key={p.id} className={cn(
+                  'rounded-lg border p-3',
+                  p.diasAtraso > 3 ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50'
+                )}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-foreground truncate max-w-[150px]">{p.users?.nome ?? '—'}</span>
+                    <span className="inline-flex items-center rounded-md bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-bold">
+                      {p.diasAtraso}d atraso
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">{p.descricao_acao}</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    Prazo: {p.prazo ? format(new Date(p.prazo + 'T00:00:00'), 'dd/MM/yy') : '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Zap className="h-6 w-6 text-emerald-400 mb-2" />
+              <p className="text-xs text-muted-foreground">Nenhum plano atrasado 🎉</p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Late Plans */}
-      {latePlans.length > 0 && (
-        <div className="card-elevated p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-foreground">Planos Atrasados</h3>
-            <button onClick={() => navigate('/admin/planos-de-acao')} className="text-xs font-medium text-primary flex items-center gap-0.5">
-              Ver todos <ChevronRight className="h-3 w-3" />
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-border/60 text-muted-foreground text-xs">
-                <th className="text-left p-2.5">Responsável</th><th className="text-left p-2.5">Descrição</th><th className="text-left p-2.5">Prazo</th><th className="text-right p-2.5">Atraso</th>
-              </tr></thead>
-              <tbody>
-                {latePlans.map(p => (
-                  <tr key={p.id} className={cn("border-b border-border/40 last:border-0", p.diasAtraso > 3 && 'bg-destructive/5')}>
-                    <td className="p-2.5 font-medium text-foreground">{p.users?.nome ?? '—'}</td>
-                    <td className="p-2.5 max-w-[200px] truncate">{p.descricao_acao}</td>
-                    <td className="p-2.5 text-muted-foreground">{p.prazo ? format(new Date(p.prazo + 'T00:00:00'), 'dd/MM/yy') : '—'}</td>
-                    <td className="p-2.5 text-right text-destructive font-semibold">{p.diasAtraso}d</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
