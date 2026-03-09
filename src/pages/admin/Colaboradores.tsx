@@ -173,7 +173,7 @@ export default function Colaboradores() {
           <Input
             placeholder="Buscar nome ou matrícula..."
             value={filters.search ?? ''}
-            onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+            onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(0); }}
             className="h-9 w-full sm:w-64 text-xs"
           />
           <Select value={filters.unidade_id ?? ''} onValueChange={v => setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v }))}>
