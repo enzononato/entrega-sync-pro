@@ -1,0 +1,1 @@
+UPDATE public.users SET nome = 'Thiago' WHERE id = '2093f6ca-746b-45f9-b505-e2170b785a58';
