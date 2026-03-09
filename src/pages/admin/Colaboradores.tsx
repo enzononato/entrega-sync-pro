@@ -155,7 +155,7 @@ export default function Colaboradores() {
 
       {/* Tabs + Filters */}
       <div className="flex flex-col gap-3">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); setPage(0); }}>
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="todos">Todos</TabsTrigger>
             <TabsTrigger value="motorista" className="gap-1.5">
