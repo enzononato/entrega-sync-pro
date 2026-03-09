@@ -21,7 +21,7 @@ export interface Route {
 export interface User {
   id: string; auth_user_id: string; nome: string; email: string;
   matricula: string; role: UserRole; worker_type: WorkerType | null;
-  unidade_id: string | null; rota_id: string | null;
+  unidade_id: string | null; rota_id: string | null; avatar_url: string | null;
   ativo: boolean; created_at: string; units?: Unit; routes?: Route;
 }
 
