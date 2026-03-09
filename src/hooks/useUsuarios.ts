@@ -13,6 +13,7 @@ export interface UserWithRelations {
   nome: string;
   email: string;
   matricula: string;
+  cpf: string | null;
   role: string;
   worker_type: string | null;
   unidade_id: string | null;
