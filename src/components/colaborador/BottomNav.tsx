@@ -52,7 +52,7 @@ export function BottomNav() {
                 )}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[2.5px] rounded-b-full bg-emerald-500 transition-all" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[2.5px] rounded-b-full bg-primary transition-all" />
                 )}
                 <div className={cn(
                   'flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200',
