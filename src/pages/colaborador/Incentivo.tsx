@@ -55,10 +55,8 @@ export default function IncentivoColaborador() {
 
   const bonusAcumulado = mesHistorico.reduce((s, h) => s + (h.valor_fechado ?? h.valor_estimado), 0);
   const diasComDados = mesHistorico.length;
-  const diasNoMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const diasUteis = Math.round(diasNoMes * 0.72);
-  const projecaoMensal = diasComDados > 0 ? (bonusAcumulado / diasComDados) * diasUteis : 0;
-  const pctProjecao = projecaoMensal > 0 ? Math.min(100, (bonusAcumulado / projecaoMensal) * 100) : 0;
+  const metaMensal = 1000;
+  const pctProjecao = metaMensal > 0 ? Math.min(100, (bonusAcumulado / metaMensal) * 100) : 0;
 
   const chartData = useMemo(() =>
     [...historico].slice(0, 7).reverse().map(h => ({
