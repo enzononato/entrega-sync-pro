@@ -132,7 +132,7 @@ export default function Colaboradores() {
     },
   ];
 
-  const canSave = form.nome.length >= 3 && form.email && (editing || form.password.length >= 6);
+  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6);
 
   return (
     <div>
