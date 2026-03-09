@@ -72,8 +72,9 @@ export default function Colaboradores() {
         unidade_id: form.unidade_id || null, rota_id: form.rota_id || null, ativo: form.ativo,
       });
     } else {
+      const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
       await createMut.mutateAsync({
-        email: form.email, password: form.password, nome: form.nome,
+        email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(), role: form.role,
         worker_type: form.role === 'colaborador' ? form.worker_type : null,
         unidade_id: form.unidade_id || null, rota_id: form.rota_id || null,
