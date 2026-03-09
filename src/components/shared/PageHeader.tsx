@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface PageHeaderProps {
@@ -13,10 +13,10 @@ interface PageHeaderProps {
 export function PageHeader({ title, subtitle, actionLabel, onAction, backTo }: PageHeaderProps) {
   const navigate = useNavigate();
   return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
         {backTo && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(backTo)} className="rounded-xl">
+          <Button variant="ghost" size="icon" onClick={() => navigate(backTo)} className="rounded-xl h-9 w-9">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
@@ -26,7 +26,10 @@ export function PageHeader({ title, subtitle, actionLabel, onAction, backTo }: P
         </div>
       </div>
       {actionLabel && onAction && (
-        <Button onClick={onAction} className="rounded-xl gradient-primary text-white shadow-glow-primary hover:opacity-90 transition-opacity">{actionLabel}</Button>
+        <Button onClick={onAction} className="rounded-xl gradient-primary text-white shadow-glow-primary hover:opacity-90 transition-all hover:shadow-lg gap-2">
+          <Plus className="h-4 w-4" />
+          {actionLabel}
+        </Button>
       )}
     </div>
   );

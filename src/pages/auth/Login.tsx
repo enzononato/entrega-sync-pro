@@ -40,15 +40,24 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Gradient background */}
+      {/* Layered gradient background */}
       <div className="absolute inset-0 gradient-hero" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(199_89%_48%_/_0.3),_transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(224_76%_30%_/_0.4),_transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(199_89%_48%_/_0.2),_transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(224_76%_20%_/_0.5),_transparent_50%)]" />
+      
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }} />
 
       <div className="w-full max-w-sm relative z-10 animate-scale-in">
-        <div className="rounded-2xl bg-card/95 backdrop-blur-xl p-8 shadow-elevated border border-white/10">
+        {/* Glow behind card */}
+        <div className="absolute -inset-4 bg-white/5 rounded-3xl blur-2xl" />
+        
+        <div className="relative rounded-2xl bg-card/95 backdrop-blur-2xl p-8 shadow-elevated border border-white/10">
           <div className="flex flex-col items-center mb-8">
-            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary">
+            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary ring-1 ring-white/10">
               <Truck className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">RotaScore</h1>
@@ -71,7 +80,7 @@ export default function Login() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card"
+                className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card transition-colors"
               />
             </div>
 
@@ -85,7 +94,7 @@ export default function Login() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card pr-10"
+                  className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card pr-10 transition-colors"
                 />
                 <button
                   type="button"
@@ -97,11 +106,15 @@ export default function Login() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-11 rounded-xl gradient-primary text-white font-semibold shadow-glow-primary hover:opacity-90 transition-opacity" disabled={loading || authLoading}>
+            <Button type="submit" className="w-full h-11 rounded-xl gradient-primary text-white font-semibold shadow-glow-primary hover:opacity-90 hover:shadow-lg transition-all" disabled={loading || authLoading}>
               {(loading || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Entrar
             </Button>
           </form>
+
+          <p className="text-center text-[10px] text-muted-foreground/50 mt-6 tracking-wide">
+            © {new Date().getFullYear()} RotaScore · Gestão de Entregas
+          </p>
         </div>
       </div>
     </div>

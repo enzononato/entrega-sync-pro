@@ -16,7 +16,7 @@ const colorMap = {
 export function ProgressBar({ value, color = 'blue', className }: ProgressBarProps) {
   const clamped = Math.min(100, Math.max(0, value));
   return (
-    <div className={cn('h-2 w-full rounded-full bg-muted/80', className)}>
+    <div className={cn('h-2 w-full rounded-full bg-muted/60 overflow-hidden', className)}>
       <div
         className={cn('h-full rounded-full transition-all duration-700 ease-out', colorMap[color])}
         style={{ width: `${clamped}%` }}

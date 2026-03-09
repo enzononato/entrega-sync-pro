@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 216 25% 97%;
+    --background: 220 20% 97%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -22,10 +22,10 @@
     --secondary: 199 89% 48%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 214 20% 94%;
+    --muted: 220 14% 94%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 214 20% 94%;
+    --accent: 220 14% 94%;
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
@@ -37,19 +37,19 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 20% 92%;
-    --input: 214 20% 92%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 224 76% 40%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 224 76% 40%;
+    --sidebar-background: 224 71% 28%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 0 0% 100%;
     --sidebar-primary-foreground: 224 76% 40%;
-    --sidebar-accent: 224 76% 48%;
+    --sidebar-accent: 224 60% 36%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 224 76% 50%;
+    --sidebar-border: 224 50% 34%;
     --sidebar-ring: 199 89% 48%;
   }
 
@@ -102,6 +102,27 @@
     overscroll-behavior-y: none;
   }
 
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Better scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.35);
+  }
+
   /* Hide bottom nav when keyboard is open */
   body.keyboard-open .bottom-nav-bar {
     display: none !important;
@@ -117,23 +138,92 @@
   }
 
   .card-elevated {
-    @apply bg-card rounded-xl border border-border/50 shadow-card transition-shadow duration-300;
+    @apply bg-card rounded-xl border border-border/50 shadow-card transition-all duration-300;
+  }
+
+  .card-elevated:hover {
+    @apply shadow-card-hover;
   }
 
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(224 76% 40%), hsl(199 89% 48%));
+    background: linear-gradient(135deg, hsl(224 71% 28%), hsl(224 76% 44%));
   }
 
   .gradient-hero {
-    background: linear-gradient(135deg, hsl(224 76% 38%), hsl(224 76% 48%) 50%, hsl(199 89% 48%));
+    background: linear-gradient(145deg, hsl(224 71% 22%), hsl(224 76% 36%) 50%, hsl(199 89% 38%));
   }
 
   .gradient-surface {
-    background: linear-gradient(180deg, hsl(216 25% 97%), hsl(214 20% 94%));
+    background: linear-gradient(180deg, hsl(220 20% 97%), hsl(220 14% 94%));
   }
 
   .text-gradient {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(224 76% 40%), hsl(199 89% 48%));
+  }
+
+  /* Staggered fade-up for children */
+  .stagger-children > * {
+    animation: fade-up 0.45s ease-out both;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+
+  /* Subtle shine effect for cards */
+  .shine-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,0.08),
+      transparent
+    );
+    transition: left 0.6s ease;
+  }
+  .shine-effect:hover::after {
+    left: 100%;
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+}
+
+@layer components {
+  /* KPI card pattern used across all admin pages */
+  .kpi-card {
+    @apply rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all duration-200;
+  }
+  .kpi-card:hover {
+    @apply shadow-md -translate-y-0.5;
+  }
+
+  /* List item pattern */
+  .list-row {
+    @apply flex items-center gap-4 px-5 py-4 transition-colors;
+  }
+  .list-row:hover {
+    @apply bg-muted/30;
+  }
+
+  /* Section card */
+  .section-card {
+    @apply rounded-xl border bg-card p-5 shadow-sm;
   }
 }

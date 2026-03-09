@@ -1,6 +1,7 @@
 import { StatusBadge } from './StatusBadge';
 import { ProgressBar } from './ProgressBar';
 import type { IndicatorStatus } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface KpiCardProps {
   titulo: string;
@@ -20,7 +21,7 @@ const statusBorder = {
 
 export function KpiCard({ titulo, valor, meta, percentual, status, unidade }: KpiCardProps) {
   return (
-    <div className={`card-elevated p-4 border-l-[3px] ${status ? statusBorder[status] : 'border-l-transparent'}`}>
+    <div className={cn('kpi-card', status ? statusBorder[status] : 'border-l-transparent')}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-muted-foreground">{titulo}</span>
         {status && <StatusBadge status={status} />}
