@@ -30,7 +30,7 @@ const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency'
 
 const statusColor: Record<string, string> = {
   acima_meta: 'bg-success',
-  dentro_meta: 'bg-primary',
+  dentro_meta: 'bg-success',
   abaixo_meta: 'bg-destructive',
 };
 
