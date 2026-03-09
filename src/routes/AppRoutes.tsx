@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import ProtectedRoute from './ProtectedRoute';
 import Login from '@/pages/auth/Login';
+import LoginAdmin from '@/pages/auth/LoginAdmin';
+import LoginColaborador from '@/pages/auth/LoginColaborador';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ColaboradorLayout from '@/components/colaborador/ColaboradorLayout';
 import Dashboard from '@/pages/admin/Dashboard';
