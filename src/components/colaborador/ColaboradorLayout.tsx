@@ -2,7 +2,8 @@ import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from './BottomNav';
 import { Truck } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 export default function ColaboradorLayout() {
   const { user } = useAuth();
@@ -11,7 +12,7 @@ export default function ColaboradorLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <header className="shrink-0 sticky top-0 z-30" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="gradient-hero px-4 pt-3 pb-3">
+        <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-600 px-4 pt-3 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-white/12 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/15">
@@ -19,18 +20,24 @@ export default function ColaboradorLayout() {
               </div>
               <div>
                 <span className="font-bold text-white text-base tracking-tight">RotaScore</span>
-                <p className="text-[9px] text-white/40 font-medium tracking-[0.15em] uppercase">Gestão de Entregas</p>
+                <p className="text-[9px] text-white/50 font-medium tracking-[0.15em] uppercase">Gestão de Entregas</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden min-[360px]:block">
                 <p className="text-xs text-white/90 font-medium leading-tight">{user?.nome?.split(' ')[0]}</p>
                 {user?.worker_type && (
-                  <p className="text-[10px] text-white/40">{user.worker_type === 'motorista' ? 'Motorista' : 'Ajudante'}</p>
+                  <p className="text-[10px] text-white/50">
+                    {user.worker_type === 'motorista' ? '🚛 Motorista' : '📦 Ajudante'}
+                  </p>
                 )}
               </div>
-              <Avatar className="h-9 w-9 ring-2 ring-white/20 transition-all hover:ring-white/40">
-                <AvatarFallback className="bg-white/15 text-white text-xs font-bold">{initials}</AvatarFallback>
+              <Avatar className="h-9 w-9 ring-2 ring-white/25 transition-all hover:ring-white/50">
+                <AvatarImage src={user?.avatar_url || undefined} alt={user?.nome} />
+                <AvatarFallback className={cn(
+                  'text-xs font-bold text-white',
+                  'bg-white/15'
+                )}>{initials}</AvatarFallback>
               </Avatar>
             </div>
           </div>
