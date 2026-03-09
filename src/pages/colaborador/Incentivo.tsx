@@ -55,10 +55,8 @@ export default function IncentivoColaborador() {
 
   const bonusAcumulado = mesHistorico.reduce((s, h) => s + (h.valor_fechado ?? h.valor_estimado), 0);
   const diasComDados = mesHistorico.length;
-  const diasNoMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const diasUteis = Math.round(diasNoMes * 0.72);
-  const projecaoMensal = diasComDados > 0 ? (bonusAcumulado / diasComDados) * diasUteis : 0;
-  const pctProjecao = projecaoMensal > 0 ? Math.min(100, (bonusAcumulado / projecaoMensal) * 100) : 0;
+  const metaMensal = 1000;
+  const pctProjecao = metaMensal > 0 ? Math.min(100, (bonusAcumulado / metaMensal) * 100) : 0;
 
   const chartData = useMemo(() =>
     [...historico].slice(0, 7).reverse().map(h => ({
@@ -116,14 +114,14 @@ export default function IncentivoColaborador() {
         <div className="flex items-baseline justify-between">
           <div>
             <span className="text-lg font-bold text-foreground">{fmtBRL(bonusAcumulado)}</span>
-            <span className="text-sm text-muted-foreground"> / {fmtBRL(projecaoMensal)}</span>
+            <span className="text-sm text-muted-foreground"> / {fmtBRL(metaMensal)}</span>
           </div>
           <span className="text-sm font-bold text-primary">{pctProjecao.toFixed(0)}%</span>
         </div>
         <ProgressBar value={pctProjecao} color="blue" className="h-2.5" />
-        {projecaoMensal > bonusAcumulado && (
+        {metaMensal > bonusAcumulado && (
           <p className="text-xs text-muted-foreground">
-            Faltam <span className="font-semibold text-primary">{fmtBRL(projecaoMensal - bonusAcumulado)}</span> para atingir a projeção
+            Faltam <span className="font-semibold text-primary">{fmtBRL(metaMensal - bonusAcumulado)}</span> para atingir a meta
           </p>
         )}
       </div>
