@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useUnidades } from '@/hooks/useUnidades';
 import { useRotas } from '@/hooks/useRotas';
