@@ -23,7 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
-  nome: '', email: '', matricula: '', password: '', role: 'colaborador' as string,
+  nome: '', email: '', matricula: '', cpf: '', password: '', role: 'colaborador' as string,
   worker_type: 'motorista' as string | null, unidade_id: '' as string | null,
   rota_id: '' as string | null, ativo: true, unit_ids: [] as string[],
 };
@@ -72,7 +72,7 @@ export default function Colaboradores() {
   const openEdit = (u: UserWithRelations) => {
     setEditing(u);
     setForm({
-      nome: u.nome, email: u.email, matricula: u.matricula, password: '',
+      nome: u.nome, email: u.email, matricula: u.matricula, cpf: u.cpf || '', password: '',
       role: u.role, worker_type: u.worker_type, unidade_id: u.unidade_id,
       rota_id: u.rota_id, ativo: u.ativo,
       unit_ids: u.user_units?.map(uu => uu.unit_id) ?? (u.unidade_id ? [u.unidade_id] : []),
@@ -85,6 +85,7 @@ export default function Colaboradores() {
     if (editing) {
       await updateMut.mutateAsync({
         id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
+        cpf: form.role === 'colaborador' && form.worker_type === 'motorista' ? form.cpf : null,
         role: form.role, worker_type: form.role === 'colaborador' ? form.worker_type : null,
         unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
         unit_ids: form.unit_ids,
@@ -93,7 +94,9 @@ export default function Colaboradores() {
       const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
       await createMut.mutateAsync({
         email: emailToUse, password: form.password, nome: form.nome,
-        matricula: form.matricula.toUpperCase(), role: form.role,
+        matricula: form.matricula.toUpperCase(),
+        cpf: form.role === 'colaborador' && form.worker_type === 'motorista' ? form.cpf : null,
+        role: form.role,
         worker_type: form.role === 'colaborador' ? form.worker_type : null,
         unidade_id: primaryUnit, rota_id: form.rota_id || null,
         unit_ids: form.unit_ids,
@@ -108,7 +111,10 @@ export default function Colaboradores() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6);
+  const isMotorista = form.role === 'colaborador' && form.worker_type === 'motorista';
+  const cpfValid = !isMotorista || form.cpf.replace(/\D/g, '').length === 11;
+  const unitValid = !isMotorista || form.unit_ids.length === 1;
+  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6) && cpfValid && unitValid;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   const kpis = [
@@ -294,6 +300,28 @@ export default function Colaboradores() {
                     <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} className="h-9 font-mono" />
                   </div>
                 </div>
+                {isMotorista && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">CPF *</Label>
+                    <Input
+                      placeholder="000.000.000-00"
+                      value={form.cpf}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        const formatted = raw.replace(/(\d{3})(\d{3})?(\d{3})?(\d{2})?/, (_m, a, b, c, d) => {
+                          let r = a;
+                          if (b) r += '.' + b;
+                          if (c) r += '.' + c;
+                          if (d) r += '-' + d;
+                          return r;
+                        });
+                        setForm(f => ({ ...f, cpf: formatted }));
+                      }}
+                      className="h-9 font-mono"
+                    />
+                    {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF deve ter 11 dígitos</p>}
+                  </div>
+                )}
                 {!editing && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Senha *</Label>
@@ -350,27 +378,38 @@ export default function Colaboradores() {
                 )}
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Unidades (Revendas)</Label>
-                  <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
-                    {activeUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
-                    {activeUnits.map(u => (
-                      <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
-                        <Checkbox
-                          checked={form.unit_ids.includes(u.id)}
-                          onCheckedChange={(checked) => {
-                            setForm(f => ({
-                              ...f,
-                              unit_ids: checked
-                                ? [...f.unit_ids, u.id]
-                                : f.unit_ids.filter(id => id !== u.id),
-                            }));
-                          }}
-                        />
-                        <span className="text-sm">{u.nome}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {form.unit_ids.length > 0 && (
+                  <Label className="text-xs">
+                    {isMotorista ? 'Revenda (apenas 1)' : 'Unidades (Revendas)'}
+                  </Label>
+                  {isMotorista ? (
+                    <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
+                      <SelectContent>
+                        {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
+                      {activeUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
+                      {activeUnits.map(u => (
+                        <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
+                          <Checkbox
+                            checked={form.unit_ids.includes(u.id)}
+                            onCheckedChange={(checked) => {
+                              setForm(f => ({
+                                ...f,
+                                unit_ids: checked
+                                  ? [...f.unit_ids, u.id]
+                                  : f.unit_ids.filter(id => id !== u.id),
+                              }));
+                            }}
+                          />
+                          <span className="text-sm">{u.nome}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {!isMotorista && form.unit_ids.length > 0 && (
                     <p className="text-[10px] text-muted-foreground">{form.unit_ids.length} unidade(s) selecionada(s)</p>
                   )}
                 </div>

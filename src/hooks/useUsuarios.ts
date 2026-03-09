@@ -13,6 +13,7 @@ export interface UserWithRelations {
   nome: string;
   email: string;
   matricula: string;
+  cpf: string | null;
   role: string;
   worker_type: string | null;
   unidade_id: string | null;
@@ -81,6 +82,7 @@ export function useCreateUsuario() {
   return useMutation({
     mutationFn: async (payload: {
       email: string; password: string; nome: string; matricula: string;
+      cpf?: string | null;
       role: string; worker_type: string | null; unidade_id: string | null; rota_id: string | null;
       unit_ids?: string[];
     }) => {
@@ -111,7 +113,7 @@ export function useUpdateUsuario() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async ({ id, unit_ids, ...data }: { id: string; nome?: string; email?: string; matricula?: string; role?: string; worker_type?: string | null; unidade_id?: string | null; rota_id?: string | null; ativo?: boolean; unit_ids?: string[] }) => {
+    mutationFn: async ({ id, unit_ids, ...data }: { id: string; nome?: string; email?: string; matricula?: string; cpf?: string | null; role?: string; worker_type?: string | null; unidade_id?: string | null; rota_id?: string | null; ativo?: boolean; unit_ids?: string[] }) => {
       const { error } = await supabase.from('users').update(data).eq('id', id);
       if (error) throw error;
 
