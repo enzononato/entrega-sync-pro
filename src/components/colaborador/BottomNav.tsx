@@ -34,8 +34,8 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/60 z-40">
-        <div className="flex items-stretch justify-around h-16 safe-area-pb">
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/60 z-40 bottom-nav-bar" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div className="flex items-stretch justify-around h-16">
           {tabs.map(tab => {
             const active = isActive(tab.path);
             return (

@@ -97,6 +97,17 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    overscroll-behavior-y: none;
+  }
+
+  /* Hide bottom nav when keyboard is open */
+  body.keyboard-open .bottom-nav-bar {
+    display: none !important;
+  }
+  body.keyboard-open main {
+    padding-bottom: 0 !important;
   }
 }
 

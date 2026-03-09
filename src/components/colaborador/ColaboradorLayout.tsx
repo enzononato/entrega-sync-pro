@@ -9,9 +9,9 @@ export default function ColaboradorLayout() {
   const initials = user?.nome?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {/* Dark navy header matching reference */}
-      <header className="shrink-0 sticky top-0 z-30">
+      <header className="shrink-0 sticky top-0 z-30" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="gradient-hero px-4 pt-3 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
