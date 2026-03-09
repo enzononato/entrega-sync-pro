@@ -48,7 +48,7 @@ export function BottomNav() {
                 onClick={() => navigate(tab.path)}
                 className={cn(
                   'relative flex flex-col items-center justify-center gap-0.5 flex-1 transition-all duration-200',
-                  active ? 'text-emerald-600' : 'text-muted-foreground'
+                  active ? 'text-primary' : 'text-muted-foreground'
                 )}
               >
                 {active && (
