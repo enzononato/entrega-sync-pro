@@ -30,21 +30,30 @@ interface UsersFilters {
   worker_type?: string;
   unidade_id?: string;
   ativo?: string;
+  page?: number;
+  pageSize?: number;
 }
+
+export const DEFAULT_PAGE_SIZE = 25;
 
 export function useUsuarios(filters?: UsersFilters) {
   return useQuery({
     queryKey: ['users', filters],
     queryFn: async () => {
-      let query = supabase.from('users').select('*, units(nome), routes(nome), user_units(unit_id, units(nome))').order('nome');
+      const page = filters?.page ?? 0;
+      const size = filters?.pageSize ?? DEFAULT_PAGE_SIZE;
+      const from = page * size;
+      const to = from + size - 1;
+
+      let query = supabase.from('users').select('*, units(nome), routes(nome), user_units(unit_id, units(nome))', { count: 'exact' }).order('nome').range(from, to);
       if (filters?.nome) query = query.ilike('nome', `%${filters.nome}%`);
       if (filters?.worker_type) query = query.eq('worker_type', filters.worker_type);
       if (filters?.unidade_id) query = query.eq('unidade_id', filters.unidade_id);
       if (filters?.ativo === 'true') query = query.eq('ativo', true);
       if (filters?.ativo === 'false') query = query.eq('ativo', false);
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as UserWithRelations[];
+      return { data: data as UserWithRelations[], count: count ?? 0 };
     },
   });
 }
