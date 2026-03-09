@@ -164,7 +164,7 @@ export default function PerfilColaborador() {
         <p className="text-lg font-semibold text-foreground mt-4">{user.nome}</p>
         {user.worker_type && (
           <span className={cn('inline-flex rounded-lg px-3 py-1 text-xs font-semibold mt-2',
-            user.worker_type === 'motorista' ? 'bg-emerald-50 text-emerald-700' : 'bg-purple-50 text-purple-700'
+            user.worker_type === 'motorista' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
           )}>
             {user.worker_type === 'motorista' ? '🚛 Motorista' : '📦 Ajudante'}
           </span>
