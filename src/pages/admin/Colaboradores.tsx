@@ -32,10 +32,14 @@ const emptyForm = {
 export default function Colaboradores() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('todos');
-  const { data: usuarios = [], isLoading } = useUsuarios({
+  const [page, setPage] = useState(0);
+  const { data: paginatedResult, isLoading } = useUsuariosPaginated({
     nome: filters.search, worker_type: activeTab !== 'todos' && activeTab !== 'admins' ? activeTab : filters.worker_type,
-    unidade_id: filters.unidade_id, ativo: filters.ativo,
+    unidade_id: filters.unidade_id, ativo: filters.ativo, page, pageSize: DEFAULT_PAGE_SIZE,
   });
+  const usuarios = paginatedResult?.data ?? [];
+  const totalCount = paginatedResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
   const { data: units = [] } = useUnidades();
   const activeUnits = units.filter(u => u.ativo);
 
