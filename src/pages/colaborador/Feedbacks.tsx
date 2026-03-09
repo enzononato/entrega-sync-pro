@@ -14,9 +14,9 @@ import { MessageSquare, Send, Loader2, ChevronRight, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils';
 
 const PROBLEMAS_RAPIDOS = [
-  { id: 'rota', tipo: 'operacao', label: 'Rota com problemas', desc: 'Falto intenso, ausências and latidger da entrega', urgencia: 'media' },
-  { id: 'cliente', tipo: 'operacao', label: 'Cliente reclamou', desc: 'Da falta de produto de amostrição', urgencia: 'alta' },
-  { id: 'sistema', tipo: 'sistema', label: 'Sistema travou na expedição', desc: 'Atrasando dat baligãas', urgencia: 'alta' },
+  { id: 'rota', tipo: 'operacao', label: 'Rota com problemas', desc: 'Fluxo intenso, ausências ou atraso na entrega', urgencia: 'media' },
+  { id: 'cliente', tipo: 'operacao', label: 'Cliente reclamou', desc: 'Reclamação sobre falta de produto ou atendimento', urgencia: 'alta' },
+  { id: 'sistema', tipo: 'sistema', label: 'Sistema travou na expedição', desc: 'Atrasando as entregas e liberações', urgencia: 'alta' },
   { id: 'veiculo', tipo: 'incidente', label: 'Veículo com problema mecânico', desc: 'Necessário manutenção urgente', urgencia: 'critica' },
   { id: 'carga', tipo: 'processo', label: 'Erro na separação de carga', desc: 'Produtos errados ou faltando', urgencia: 'media' },
 ];
