@@ -1,16 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff, Truck, ArrowLeft } from 'lucide-react';
 
+function formatCpf(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
 export default function LoginColaborador() {
-  const { user, loading: authLoading, signIn } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,11 +34,31 @@ export default function LoginColaborador() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      setError('CPF inválido. Digite os 11 dígitos.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await signIn(email, password);
+      const { data, error: fnError } = await supabase.functions.invoke('auth-cpf', {
+        body: { cpf: cleanCpf, password },
+      });
+
+      if (fnError || !data?.session) {
+        setError(data?.error || 'CPF ou senha inválidos');
+        return;
+      }
+
+      // Set the session returned by the Edge Function
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
     } catch {
-      setError('E-mail ou senha inválidos');
+      setError('Erro ao conectar. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -39,7 +68,6 @@ export default function LoginColaborador() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Green-tinted gradient for colaborador */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(160_60%_40%_/_0.3),_transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(170_50%_15%_/_0.5),_transparent_50%)]" />
@@ -75,13 +103,14 @@ export default function LoginColaborador() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
+              <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                id="cpf"
+                type="text"
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={e => setCpf(formatCpf(e.target.value))}
                 required
                 className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card transition-colors"
               />
