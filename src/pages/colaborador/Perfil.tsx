@@ -26,7 +26,7 @@ interface Badge {
 }
 
 const BADGES: Badge[] = [
-  { id: 'first_step', emoji: '🌱', title: 'Primeiro Passo', description: '1 dia na meta', threshold: 1, color: 'from-green-400 to-green-500' },
+  { id: 'first_step', emoji: '🌱', title: 'Primeiro Passo', description: '1 dia na meta', threshold: 1, color: 'from-primary to-primary/80' },
   { id: 'on_track', emoji: '🎯', title: 'No Alvo', description: '3 dias na meta', threshold: 3, color: 'from-blue-400 to-blue-500' },
   { id: 'consistent', emoji: '⭐', title: 'Consistente', description: '7 dias na meta', threshold: 7, color: 'from-amber-400 to-amber-500' },
   { id: 'dedicated', emoji: '🔥', title: 'Dedicado', description: '15 dias na meta', threshold: 15, color: 'from-orange-400 to-orange-500' },
