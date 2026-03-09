@@ -1,12 +1,15 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from './BottomNav';
+import { PageTransition } from './PageTransition';
 import { Truck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { AnimatePresence } from 'framer-motion';
 
 export default function ColaboradorLayout() {
   const { user } = useAuth();
+  const location = useLocation();
   const initials = user?.nome?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? 'U';
 
   return (
@@ -45,7 +48,11 @@ export default function ColaboradorLayout() {
       </header>
 
       <main className="flex-1 overflow-auto pb-20 p-4">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            <Outlet />
+          </PageTransition>
+        </AnimatePresence>
       </main>
 
       <BottomNav />
