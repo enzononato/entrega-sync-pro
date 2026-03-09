@@ -71,7 +71,7 @@ export function BottomNav() {
             onClick={() => setMoreOpen(true)}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 transition-all duration-200',
-              isMoreActive ? 'text-emerald-600' : 'text-muted-foreground'
+              isMoreActive ? 'text-primary' : 'text-muted-foreground'
             )}
           >
             <div className={cn(
