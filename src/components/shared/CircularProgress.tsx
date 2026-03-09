@@ -14,7 +14,7 @@ export function CircularProgress({ value, size = 100, strokeWidth = 8, className
   const clamped = Math.min(100, Math.max(0, value));
   const offset = circumference - (clamped / 100) * circumference;
 
-  const color = clamped >= 80 ? 'stroke-primary' : clamped >= 50 ? 'stroke-warning' : 'stroke-destructive';
+  const color = clamped >= 80 ? 'stroke-success' : clamped >= 50 ? 'stroke-warning' : 'stroke-destructive';
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)} style={{ width: size, height: size }}>
