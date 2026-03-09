@@ -23,7 +23,7 @@ const CATEGORIAS = ['Logística', 'Qualidade', 'Processo', 'Externo', 'Equipamen
 
 const catColors: Record<string, string> = {
   Logística: 'bg-blue-100 text-blue-700',
-  Qualidade: 'bg-emerald-100 text-emerald-700',
+  Qualidade: 'bg-sky-100 text-sky-700',
   Processo: 'bg-amber-100 text-amber-700',
   Externo: 'bg-purple-100 text-purple-700',
   Equipamento: 'bg-red-100 text-red-700',
@@ -143,12 +143,12 @@ export default function CausaRaizColaborador() {
   return (
     <div className="space-y-5 stagger-children relative min-h-[60vh]">
       <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-        <Search className="h-5 w-5 text-emerald-500" /> Análise de Causa Raiz
+        <Search className="h-5 w-5 text-primary" /> Análise de Causa Raiz
       </h1>
 
       {/* Hero card */}
       <div className="rounded-2xl overflow-hidden shadow-lg">
-        <div className="bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 p-5">
+        <div className="gradient-hero p-5">
           <div className="flex items-center gap-5">
             <CircularProgress value={porquesCompletos} size={80} strokeWidth={6}>
               <span className="text-lg font-bold text-white">{porquesCompletos}%</span>
@@ -184,16 +184,16 @@ export default function CausaRaizColaborador() {
       {kpisBelowTarget.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
-            <AlertTriangle className="h-4 w-4 text-red-500" /> KPIs Abaixo da Meta
+            <AlertTriangle className="h-4 w-4 text-destructive" /> KPIs Abaixo da Meta
           </h2>
           <div className="card-elevated divide-y divide-border/40 overflow-hidden">
             {kpisBelowTarget.map(d => (
               <div key={d.id} className="flex items-center gap-3 px-4 py-3.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0" />
+                <div className="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-foreground truncate">{d.indicators?.nome ?? ''}</span>
-                    <span className="text-sm font-bold text-red-500 ml-2 shrink-0">{(d.percentual_atingimento ?? 0).toFixed(0)}%</span>
+                    <span className="text-sm font-bold text-destructive ml-2 shrink-0">{(d.percentual_atingimento ?? 0).toFixed(0)}%</span>
                   </div>
                   <ProgressBar value={d.percentual_atingimento ?? 0} color="red" className="h-1.5" />
                 </div>
@@ -235,7 +235,7 @@ export default function CausaRaizColaborador() {
             {causas.slice(0, 5).map((c: any) => (
               <div key={c.id} className="px-4 py-3.5 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center rounded-lg bg-emerald-500/10 text-emerald-700 px-2 py-0.5 text-xs font-medium">
+                  <span className="inline-flex items-center rounded-lg bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
                     {c.indicators?.codigo}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
@@ -254,7 +254,7 @@ export default function CausaRaizColaborador() {
 
       {/* FAB */}
       <Button
-        className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-xl z-50 bg-gradient-to-br from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+        className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-xl z-50 gradient-primary hover:opacity-90"
         onClick={openSheet}
       >
         <Plus className="h-6 w-6 text-white" />
@@ -271,10 +271,9 @@ export default function CausaRaizColaborador() {
             </SheetTitle>
           </SheetHeader>
 
-          {/* Progress steps */}
           <div className="flex gap-1 my-4">
             {[1, 2, 3].map(s => (
-              <div key={s} className={cn('h-1.5 flex-1 rounded-full transition-colors', s <= step ? 'bg-emerald-500' : 'bg-muted')} />
+              <div key={s} className={cn('h-1.5 flex-1 rounded-full transition-colors', s <= step ? 'bg-primary' : 'bg-muted')} />
             ))}
           </div>
 
@@ -299,7 +298,7 @@ export default function CausaRaizColaborador() {
                 <Label>Impacto percebido</Label>
                 <Textarea value={form.impacto} onChange={e => setForm(f => ({ ...f, impacto: e.target.value }))} rows={2} placeholder="Qual foi o impacto?" maxLength={300} className="rounded-xl" />
               </div>
-              <Button className="w-full rounded-xl h-11 bg-emerald-500 hover:bg-emerald-600" disabled={!canNext1} onClick={() => setStep(2)}>
+              <Button className="w-full rounded-xl h-11 gradient-primary text-white" disabled={!canNext1} onClick={() => setStep(2)}>
                 Próximo <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
@@ -321,7 +320,7 @@ export default function CausaRaizColaborador() {
                 <Label>Causa Raiz * <span className="text-xs text-muted-foreground">(mín. 20 caracteres)</span></Label>
                 <Textarea value={form.causa_raiz} onChange={e => setForm(f => ({ ...f, causa_raiz: e.target.value }))} rows={4} placeholder="Por que aconteceu? Use os 5 Porquês..." maxLength={500} className="rounded-xl" />
               </div>
-              <Button className="w-full rounded-xl h-11 bg-emerald-500 hover:bg-emerald-600" disabled={!canNext2} onClick={() => setStep(3)}>
+              <Button className="w-full rounded-xl h-11 gradient-primary text-white" disabled={!canNext2} onClick={() => setStep(3)}>
                 Próximo <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
@@ -340,7 +339,7 @@ export default function CausaRaizColaborador() {
                 <Label>Prazo</Label>
                 <DatePick value={form.prazo} onChange={v => setForm(f => ({ ...f, prazo: v }))} placeholder="Selecione" minDate={tomorrow} />
               </div>
-              <Button className="w-full rounded-xl h-11 bg-emerald-500 hover:bg-emerald-600" disabled={!canSave || saving} onClick={handleSave}>
+              <Button className="w-full rounded-xl h-11 gradient-primary text-white" disabled={!canSave || saving} onClick={handleSave}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar Tudo
               </Button>

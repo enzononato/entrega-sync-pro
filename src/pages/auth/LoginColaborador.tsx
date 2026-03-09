@@ -52,7 +52,6 @@ export default function LoginColaborador() {
         return;
       }
 
-      // Set the session returned by the Edge Function
       await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
@@ -68,16 +67,16 @@ export default function LoginColaborador() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(160_60%_40%_/_0.3),_transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(170_50%_15%_/_0.5),_transparent_50%)]" />
+      <div className="absolute inset-0 gradient-hero" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(199_89%_48%_/_0.2),_transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(224_76%_20%_/_0.5),_transparent_50%)]" />
       <div className="absolute inset-0 opacity-[0.03]" style={{
         backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
         backgroundSize: '40px 40px',
       }} />
 
       <div className="w-full max-w-sm relative z-10 animate-scale-in">
-        <div className="absolute -inset-4 bg-emerald-500/5 rounded-3xl blur-2xl" />
+        <div className="absolute -inset-4 bg-white/5 rounded-3xl blur-2xl" />
         <div className="relative rounded-2xl bg-card/95 backdrop-blur-2xl p-8 shadow-elevated border border-white/10">
           <button
             onClick={() => navigate('/login')}
@@ -88,7 +87,7 @@ export default function LoginColaborador() {
           </button>
 
           <div className="flex flex-col items-center mb-8">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-5 shadow-lg ring-1 ring-white/10">
+            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary ring-1 ring-white/10">
               <Truck className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-xl font-bold text-foreground tracking-tight">Área do Colaborador</h1>
@@ -140,7 +139,7 @@ export default function LoginColaborador() {
 
             <Button
               type="submit"
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold shadow-lg hover:opacity-90 hover:shadow-xl transition-all"
+              className="w-full h-11 rounded-xl gradient-primary text-white font-semibold shadow-glow-primary hover:opacity-90 hover:shadow-lg transition-all"
               disabled={loading || authLoading}
             >
               {(loading || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

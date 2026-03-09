@@ -81,7 +81,7 @@ export default function IncentivoColaborador() {
 
       {/* Hero card */}
       <div className="rounded-2xl overflow-hidden shadow-lg">
-        <div className="bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 p-5 text-white">
+        <div className="gradient-hero p-5 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] text-white/60 uppercase tracking-wider font-semibold">Bônus acumulado no mês</p>
@@ -110,7 +110,7 @@ export default function IncentivoColaborador() {
       {/* Projeção Mensal */}
       <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-emerald-500" />
+          <Target className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Projeção Mensal</h3>
         </div>
         <div className="flex items-baseline justify-between">
@@ -118,12 +118,12 @@ export default function IncentivoColaborador() {
             <span className="text-lg font-bold text-foreground">{fmtBRL(bonusAcumulado)}</span>
             <span className="text-sm text-muted-foreground"> / {fmtBRL(projecaoMensal)}</span>
           </div>
-          <span className="text-sm font-bold text-emerald-600">{pctProjecao.toFixed(0)}%</span>
+          <span className="text-sm font-bold text-primary">{pctProjecao.toFixed(0)}%</span>
         </div>
-        <ProgressBar value={pctProjecao} color="green" className="h-2.5" />
+        <ProgressBar value={pctProjecao} color="blue" className="h-2.5" />
         {projecaoMensal > bonusAcumulado && (
           <p className="text-xs text-muted-foreground">
-            Faltam <span className="font-semibold text-emerald-600">{fmtBRL(projecaoMensal - bonusAcumulado)}</span> para atingir a projeção
+            Faltam <span className="font-semibold text-primary">{fmtBRL(projecaoMensal - bonusAcumulado)}</span> para atingir a projeção
           </p>
         )}
       </div>
@@ -141,8 +141,8 @@ export default function IncentivoColaborador() {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -161,10 +161,10 @@ export default function IncentivoColaborador() {
               <Area
                 type="monotone"
                 dataKey="valor"
-                stroke="#10b981"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2.5}
                 fill="url(#colorValor)"
-                dot={{ r: 4, fill: '#10b981', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                dot={{ r: 4, fill: 'hsl(var(--primary))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -189,19 +189,17 @@ export default function IncentivoColaborador() {
                     <p className="text-[11px] text-muted-foreground mt-0.5">Peso {b.peso} · Meta {b.meta} · Valor {b.valor}</p>
                   </div>
                   <div className="text-right shrink-0 ml-3">
-                    <div className="flex items-center gap-1.5 justify-end">
-                      <span className={cn('text-xs font-bold', isGood ? 'text-emerald-600' : 'text-red-500')}>
-                        {b.pct.toFixed(0)}%
-                      </span>
-                    </div>
-                    <p className="text-xs font-bold text-emerald-600 mt-0.5">{fmtBRL(b.valorGerado)}</p>
+                    <span className={cn('text-xs font-bold', isGood ? 'text-success' : 'text-destructive')}>
+                      {b.pct.toFixed(0)}%
+                    </span>
+                    <p className="text-xs font-bold text-primary mt-0.5">{fmtBRL(b.valorGerado)}</p>
                   </div>
                 </div>
               );
             })}
-            <div className="flex items-center justify-between px-4 py-3.5 bg-emerald-50">
+            <div className="flex items-center justify-between px-4 py-3.5 bg-primary/5">
               <span className="text-sm font-bold text-foreground">Total estimado hoje</span>
-              <span className="text-lg font-bold text-emerald-600">{fmtBRL(valorHoje)}</span>
+              <span className="text-lg font-bold text-primary">{fmtBRL(valorHoje)}</span>
             </div>
           </div>
         </div>

@@ -48,21 +48,21 @@ export function BottomNav() {
                 onClick={() => navigate(tab.path)}
                 className={cn(
                   'relative flex flex-col items-center justify-center gap-0.5 flex-1 transition-all duration-200',
-                  active ? 'text-emerald-600' : 'text-muted-foreground'
+                  active ? 'text-primary' : 'text-muted-foreground'
                 )}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[2.5px] rounded-b-full bg-emerald-500 transition-all" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[2.5px] rounded-b-full bg-primary transition-all" />
                 )}
                 <div className={cn(
                   'flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200',
-                  active && 'bg-emerald-500/10'
+                  active && 'bg-primary/10'
                 )}>
-                  <tab.icon className={cn('h-[18px] w-[18px] transition-all', active && 'text-emerald-600')} />
+                  <tab.icon className={cn('h-[18px] w-[18px] transition-all', active && 'text-primary')} />
                 </div>
                 <span className={cn(
                   'text-[10px] font-semibold transition-all',
-                  active ? 'text-emerald-600' : 'text-muted-foreground'
+                  active ? 'text-primary' : 'text-muted-foreground'
                 )}>{tab.label}</span>
               </button>
             );
@@ -71,12 +71,12 @@ export function BottomNav() {
             onClick={() => setMoreOpen(true)}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 transition-all duration-200',
-              isMoreActive ? 'text-emerald-600' : 'text-muted-foreground'
+              isMoreActive ? 'text-primary' : 'text-muted-foreground'
             )}
           >
             <div className={cn(
               'flex items-center justify-center h-8 w-8 rounded-lg',
-              isMoreActive && 'bg-emerald-500/10'
+              isMoreActive && 'bg-primary/10'
             )}>
               <MoreHorizontal className="h-[18px] w-[18px]" />
             </div>
@@ -92,7 +92,7 @@ export function BottomNav() {
           </SheetHeader>
           <div className="space-y-1 py-2">
             <Button variant="ghost" className="w-full justify-start rounded-xl h-12 gap-3 text-base" onClick={() => handleMore('/colaborador/indicadores')}>
-              <BarChart3 className="h-5 w-5 text-emerald-500" /> Indicadores
+              <BarChart3 className="h-5 w-5 text-primary" /> Indicadores
             </Button>
             <Button variant="ghost" className="w-full justify-start rounded-xl h-12 gap-3 text-base" onClick={() => handleMore('/colaborador/planos-de-acao')}>
               <ClipboardList className="h-5 w-5 text-amber-500" /> Planos de Ação
