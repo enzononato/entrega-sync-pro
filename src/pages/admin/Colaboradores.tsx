@@ -176,7 +176,7 @@ export default function Colaboradores() {
             onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(0); }}
             className="h-9 w-full sm:w-64 text-xs"
           />
-          <Select value={filters.unidade_id ?? ''} onValueChange={v => setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v }))}>
+          <Select value={filters.unidade_id ?? ''} onValueChange={v => { setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v })); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-48 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
