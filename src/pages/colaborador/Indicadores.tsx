@@ -58,12 +58,11 @@ export default function IndicadoresColaborador() {
   };
 
   const statusColor = (s: string | null) => {
-    if (s === 'acima_meta') return '#10b981';
-    if (s === 'dentro_meta') return '#3b82f6';
-    return '#ef4444';
+    if (s === 'acima_meta') return 'hsl(var(--success))';
+    if (s === 'dentro_meta') return 'hsl(var(--primary))';
+    return 'hsl(var(--destructive))';
   };
 
-  // Summary stats
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const avgPct = kpis.length > 0
     ? Math.round(kpis.reduce((s, d) => s + (d.percentual_atingimento ?? 0), 0) / kpis.length)
@@ -71,10 +70,9 @@ export default function IndicadoresColaborador() {
 
   return (
     <div className="space-y-5 stagger-children">
-      {/* Header with date nav */}
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-emerald-500" /> Meus Indicadores
+          <BarChart3 className="h-5 w-5 text-primary" /> Meus Indicadores
         </h1>
       </div>
 
@@ -85,7 +83,7 @@ export default function IndicadoresColaborador() {
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="font-medium rounded-xl h-9 px-4">
-              <CalendarIcon className="mr-2 h-4 w-4 text-emerald-500" />
+              <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
               {format(new Date(dateStr + 'T00:00:00'), "dd 'de' MMMM", { locale: ptBR })}
             </Button>
           </PopoverTrigger>
@@ -103,7 +101,6 @@ export default function IndicadoresColaborador() {
         </Button>
       </div>
 
-      {/* Summary strip */}
       {kpis.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <div className="card-elevated p-3 text-center">
@@ -111,7 +108,7 @@ export default function IndicadoresColaborador() {
             <p className="text-[10px] text-muted-foreground font-medium">Indicadores</p>
           </div>
           <div className="card-elevated p-3 text-center">
-            <p className="text-lg font-bold text-emerald-600">{okCount}</p>
+            <p className="text-lg font-bold text-primary">{okCount}</p>
             <p className="text-[10px] text-muted-foreground font-medium">Na Meta</p>
           </div>
           <div className="card-elevated p-3 text-center">
@@ -155,9 +152,9 @@ export default function IndicadoresColaborador() {
                         <XAxis dataKey="data" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} domain={[0, 'auto']} />
                         <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Atingimento']} />
-                        <ReferenceLine y={100} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Meta', fontSize: 9, fill: '#ef4444' }} />
+                        <ReferenceLine y={100} stroke="hsl(var(--destructive))" strokeDasharray="3 3" label={{ value: 'Meta', fontSize: 9, fill: 'hsl(var(--destructive))' }} />
                         <Line
-                          type="monotone" dataKey="valor" stroke="#10b981"
+                          type="monotone" dataKey="valor" stroke="hsl(var(--primary))"
                           strokeWidth={2.5} dot={(props: any) => {
                             const { cx, cy, payload } = props;
                             return <circle key={payload.data} cx={cx} cy={cy} r={4} fill={statusColor(payload.status)} stroke="white" strokeWidth={2} />;

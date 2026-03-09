@@ -29,9 +29,9 @@ function greeting() {
 const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const statusColor: Record<string, string> = {
-  acima_meta: 'bg-emerald-500',
-  dentro_meta: 'bg-blue-500',
-  abaixo_meta: 'bg-red-500',
+  acima_meta: 'bg-success',
+  dentro_meta: 'bg-primary',
+  abaixo_meta: 'bg-destructive',
 };
 
 export default function ColaboradorHome() {
@@ -94,7 +94,7 @@ export default function ColaboradorHome() {
 
       {/* Main performance hero card */}
       <div className="rounded-2xl overflow-hidden shadow-lg">
-        <div className="bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 p-5">
+        <div className="gradient-hero p-5">
           <div className="flex items-center gap-5">
             <CircularProgress value={overallPct} size={90} strokeWidth={7}>
               <div className="text-center">
@@ -116,17 +116,17 @@ export default function ColaboradorHome() {
         {/* Quick stats strip */}
         <div className="grid grid-cols-3 divide-x divide-border/40 bg-card">
           <button onClick={() => navigate('/colaborador/indicadores')} className="p-3 text-center hover:bg-muted/30 transition-colors">
-            <CheckCircle className="h-4 w-4 text-emerald-500 mx-auto mb-0.5" />
+            <CheckCircle className="h-4 w-4 text-success mx-auto mb-0.5" />
             <p className="text-lg font-bold text-foreground">{okCount}</p>
             <p className="text-[9px] text-muted-foreground font-medium">Na Meta</p>
           </button>
           <button onClick={() => navigate('/colaborador/incentivo')} className="p-3 text-center hover:bg-muted/30 transition-colors">
-            <DollarSign className="h-4 w-4 text-emerald-500 mx-auto mb-0.5" />
+            <DollarSign className="h-4 w-4 text-primary mx-auto mb-0.5" />
             <p className="text-sm font-bold text-foreground">{fmtBRL(incentivo?.valor_estimado ?? 0)}</p>
             <p className="text-[9px] text-muted-foreground font-medium">Incentivo</p>
           </button>
           <button onClick={() => navigate('/colaborador/planos-de-acao')} className="p-3 text-center hover:bg-muted/30 transition-colors">
-            <ClipboardList className="h-4 w-4 text-amber-500 mx-auto mb-0.5" />
+            <ClipboardList className="h-4 w-4 text-warning mx-auto mb-0.5" />
             <p className="text-lg font-bold text-foreground">{acoesAbertas}</p>
             <p className="text-[9px] text-muted-foreground font-medium">Ações</p>
           </button>
@@ -135,7 +135,7 @@ export default function ColaboradorHome() {
 
       {/* Success Banner */}
       {allOnTarget && (
-        <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 p-4 shadow-md flex items-center gap-3 text-white animate-fade-up">
+        <div className="rounded-2xl gradient-hero p-4 shadow-md flex items-center gap-3 text-white animate-fade-up">
           <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
             <Trophy className="h-5 w-5" />
           </div>
@@ -150,9 +150,9 @@ export default function ColaboradorHome() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <Zap className="h-4 w-4 text-emerald-500" /> KPIs do Dia
+            <Zap className="h-4 w-4 text-primary" /> KPIs do Dia
           </h2>
-          <button onClick={() => navigate('/colaborador/indicadores')} className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5">
+          <button onClick={() => navigate('/colaborador/indicadores')} className="text-xs font-semibold text-primary flex items-center gap-0.5">
             Ver todos <ChevronRight className="h-3 w-3" />
           </button>
         </div>
@@ -180,7 +180,7 @@ export default function ColaboradorHome() {
                       <span className="text-sm font-medium text-foreground truncate">{d.indicators?.nome ?? ''}</span>
                       <span className={cn(
                         'text-sm font-bold ml-2 shrink-0',
-                        isGood ? 'text-emerald-600' : 'text-red-500'
+                        isGood ? 'text-success' : 'text-destructive'
                       )}>{pct.toFixed(0)}%</span>
                     </div>
                     <ProgressBar
@@ -201,7 +201,7 @@ export default function ColaboradorHome() {
       {userMetas.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4 text-emerald-500" /> Suas Metas
+            <TrendingUp className="h-4 w-4 text-primary" /> Suas Metas
           </h2>
           <div className="card-elevated divide-y divide-border/40 overflow-hidden">
             {userMetas.map(m => (
@@ -210,7 +210,7 @@ export default function ColaboradorHome() {
                   <p className="text-sm font-medium text-foreground truncate">{m.indicators?.nome ?? '—'}</p>
                   <p className="text-[11px] text-muted-foreground capitalize">{m.periodo_tipo}</p>
                 </div>
-                <span className="text-sm font-bold text-emerald-600 shrink-0 ml-2">
+                <span className="text-sm font-bold text-primary shrink-0 ml-2">
                   {m.valor_meta} {m.indicators?.unidade_medida ?? ''}
                 </span>
               </div>
@@ -223,10 +223,10 @@ export default function ColaboradorHome() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <ClipboardList className="h-4 w-4 text-amber-500" /> Meus Planos
+            <ClipboardList className="h-4 w-4 text-warning" /> Meus Planos
           </h2>
           {recentPlanos.length > 0 && (
-            <button onClick={() => navigate('/colaborador/planos-de-acao')} className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5">
+            <button onClick={() => navigate('/colaborador/planos-de-acao')} className="text-xs font-semibold text-primary flex items-center gap-0.5">
               Ver todos <ChevronRight className="h-3 w-3" />
             </button>
           )}
