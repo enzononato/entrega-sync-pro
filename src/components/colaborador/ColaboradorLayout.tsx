@@ -12,7 +12,7 @@ export default function ColaboradorLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <header className="shrink-0 sticky top-0 z-30" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-600 px-4 pt-3 pb-3">
+        <div className="gradient-hero px-4 pt-3 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-white/12 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/15">

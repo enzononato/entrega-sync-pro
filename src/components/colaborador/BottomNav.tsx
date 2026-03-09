@@ -92,7 +92,7 @@ export function BottomNav() {
           </SheetHeader>
           <div className="space-y-1 py-2">
             <Button variant="ghost" className="w-full justify-start rounded-xl h-12 gap-3 text-base" onClick={() => handleMore('/colaborador/indicadores')}>
-              <BarChart3 className="h-5 w-5 text-emerald-500" /> Indicadores
+              <BarChart3 className="h-5 w-5 text-primary" /> Indicadores
             </Button>
             <Button variant="ghost" className="w-full justify-start rounded-xl h-12 gap-3 text-base" onClick={() => handleMore('/colaborador/planos-de-acao')}>
               <ClipboardList className="h-5 w-5 text-amber-500" /> Planos de Ação
