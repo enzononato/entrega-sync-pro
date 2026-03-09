@@ -85,6 +85,7 @@ export default function Colaboradores() {
     if (editing) {
       await updateMut.mutateAsync({
         id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
+        cpf: form.role === 'colaborador' && form.worker_type === 'motorista' ? form.cpf : null,
         role: form.role, worker_type: form.role === 'colaborador' ? form.worker_type : null,
         unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
         unit_ids: form.unit_ids,
@@ -93,7 +94,9 @@ export default function Colaboradores() {
       const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
       await createMut.mutateAsync({
         email: emailToUse, password: form.password, nome: form.nome,
-        matricula: form.matricula.toUpperCase(), role: form.role,
+        matricula: form.matricula.toUpperCase(),
+        cpf: form.role === 'colaborador' && form.worker_type === 'motorista' ? form.cpf : null,
+        role: form.role,
         worker_type: form.role === 'colaborador' ? form.worker_type : null,
         unidade_id: primaryUnit, rota_id: form.rota_id || null,
         unit_ids: form.unit_ids,
