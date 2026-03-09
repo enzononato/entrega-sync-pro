@@ -109,7 +109,7 @@ export default function IncentivoColaborador() {
       <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Projeção Mensal</h3>
+          <h3 className="text-sm font-bold text-foreground">Meta Mensal</h3>
         </div>
         <div className="flex items-baseline justify-between">
           <div>
