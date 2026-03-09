@@ -40,6 +40,8 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/login/admin" element={<LoginAdmin />} />
+      <Route path="/login/colaborador" element={<LoginColaborador />} />
 
       <Route path="/admin" element={<ProtectedRoute allowedRole="administrador"><AdminLayout /></ProtectedRoute>}>
         <Route path="dashboard" element={<Dashboard />} />
