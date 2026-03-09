@@ -62,7 +62,7 @@ export function BottomNav() {
                 </div>
                 <span className={cn(
                   'text-[10px] font-semibold transition-all',
-                  active ? 'text-emerald-600' : 'text-muted-foreground'
+                  active ? 'text-primary' : 'text-muted-foreground'
                 )}>{tab.label}</span>
               </button>
             );
