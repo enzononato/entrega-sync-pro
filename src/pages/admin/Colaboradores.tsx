@@ -50,7 +50,8 @@ export default function Colaboradores() {
   const [toggleTarget, setToggleTarget] = useState<UserWithRelations | null>(null);
   const [perfDrawer, setPerfDrawer] = useState<UserWithRelations | null>(null);
 
-  const { data: rotasForUnit = [] } = useRotas(form.unidade_id || undefined);
+  const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
+  const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
   const activeRoutes = rotasForUnit.filter(r => r.ativo);
 
   // KPIs from all users (unfiltered)
