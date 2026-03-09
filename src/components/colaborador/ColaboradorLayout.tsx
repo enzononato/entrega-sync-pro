@@ -19,7 +19,7 @@ export default function ColaboradorLayout() {
                 <Truck className="h-5 w-5 text-white" />
               </div>
               <div>
-                <span className="font-bold text-white text-base tracking-tight">EntregaApp</span>
+                <span className="font-bold text-white text-base tracking-tight">RotaScore</span>
                 <p className="text-[10px] text-white/50 font-medium tracking-wider uppercase">Gestão de Entregas</p>
               </div>
             </div>

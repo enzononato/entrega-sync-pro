@@ -263,8 +263,8 @@ export default function PerfilColaborador() {
 
       <ConfirmDialog
         open={confirmLogout}
-        title="Sair do EntregaApp"
-        description="Deseja sair do EntregaApp?"
+        title="Sair do RotaScore"
+        description="Deseja sair do RotaScore?"
         confirmLabel="Sair"
         onConfirm={handleLogout}
         onCancel={() => setConfirmLogout(false)}
