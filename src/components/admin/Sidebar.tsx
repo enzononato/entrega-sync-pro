@@ -41,6 +41,7 @@ const sections = [
       { title: 'Feedbacks', url: '/admin/feedbacks', icon: MessageSquare },
       { title: 'Planos de Ação', url: '/admin/planos-de-acao', icon: ClipboardCheck },
       { title: 'Causa Raiz', url: '/admin/causa-raiz', icon: AlertTriangle },
+      { title: 'Auditoria', url: '/admin/auditoria', icon: Shield },
     ],
   },
 ];
