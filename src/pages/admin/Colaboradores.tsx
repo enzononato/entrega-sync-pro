@@ -228,11 +228,16 @@ export default function Colaboradores() {
                     <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Mail className="h-3 w-3" />{u.email}
                     </span>
-                    {u.units?.nome && (
+                    {(u.user_units && u.user_units.length > 0) ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Building2 className="h-3 w-3" />
+                        {u.user_units.map(uu => uu.units?.nome).filter(Boolean).join(', ')}
+                      </span>
+                    ) : u.units?.nome ? (
                       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                         <Building2 className="h-3 w-3" />{u.units.nome}
                       </span>
-                    )}
+                    ) : null}
                     {u.routes?.nome && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hidden sm:inline-flex">
                         <MapPin className="h-3 w-3" />{u.routes.nome}
