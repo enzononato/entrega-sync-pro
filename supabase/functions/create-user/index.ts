@@ -12,28 +12,59 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    // Verify the caller is an admin
-    const authHeader = req.headers.get("Authorization")!;
-    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!);
-    const { data: { user: caller } } = await callerClient.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (!caller) {
-      return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "Configuração do Supabase ausente na função." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const { data: callerProfile } = await supabaseAdmin.from("users").select("role").eq("auth_user_id", caller.id).single();
-    if (callerProfile?.role !== "administrador") {
-      return new Response(JSON.stringify({ error: "Acesso negado" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Verify the caller is an authenticated admin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const callerAuthId = userData.user.id;
+    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
+      .from("users")
+      .select("role")
+      .eq("auth_user_id", callerAuthId)
+      .single();
+
+    if (callerProfileError || callerProfile?.role !== "administrador") {
+      return new Response(JSON.stringify({ error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const body = await req.json();
     const { email, password, nome, matricula, role, worker_type, unidade_id, rota_id } = body;
 
     if (!email || !password || !nome) {
-      return new Response(JSON.stringify({ error: "Campos obrigatórios: email, password, nome" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Campos obrigatórios: email, password, nome" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Create auth user
@@ -45,25 +76,42 @@ serve(async (req) => {
     });
 
     if (authError) {
-      return new Response(JSON.stringify({ error: authError.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: authError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Update the auto-created profile with full data
-    const { data: updatedUser, error: updateError } = await supabaseAdmin.from("users").update({
-      nome,
-      matricula: matricula || "",
-      role: role || "colaborador",
-      worker_type: worker_type || null,
-      unidade_id: unidade_id || null,
-      rota_id: rota_id || null,
-    }).eq("auth_user_id", authData.user.id).select("id").single();
+    // Update auto-created profile and return public.users.id
+    const { data: updatedUser, error: updateError } = await supabaseAdmin
+      .from("users")
+      .update({
+        nome,
+        matricula: matricula || "",
+        role: role || "colaborador",
+        worker_type: worker_type || null,
+        unidade_id: unidade_id || null,
+        rota_id: rota_id || null,
+      })
+      .eq("auth_user_id", authData.user.id)
+      .select("id")
+      .single();
 
-    if (updateError) {
-      return new Response(JSON.stringify({ error: updateError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (updateError || !updatedUser) {
+      return new Response(JSON.stringify({ error: updateError?.message || "Falha ao atualizar usuário." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authData.user.id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authData.user.id }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
