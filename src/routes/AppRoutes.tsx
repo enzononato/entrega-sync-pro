@@ -16,6 +16,7 @@ import DesempenhoAdmin from '@/pages/admin/Desempenho';
 import CausaRaizAdmin from '@/pages/admin/CausaRaiz';
 import PlanosDeAcaoAdmin from '@/pages/admin/PlanosDeAcao';
 import FeedbacksAdmin from '@/pages/admin/Feedbacks';
+import AuditoriaAdmin from '@/pages/admin/Auditoria';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import IndicadoresColaborador from '@/pages/colaborador/Indicadores';
 import IncentivoColaborador from '@/pages/colaborador/Incentivo';
@@ -50,6 +51,7 @@ export default function AppRoutes() {
         <Route path="causa-raiz" element={<CausaRaizAdmin />} />
         <Route path="planos-de-acao" element={<PlanosDeAcaoAdmin />} />
         <Route path="feedbacks" element={<FeedbacksAdmin />} />
+        <Route path="auditoria" element={<AuditoriaAdmin />} />
       </Route>
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>

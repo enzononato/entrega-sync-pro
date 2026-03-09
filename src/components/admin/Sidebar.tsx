@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
-  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck,
+  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck, Shield,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -41,6 +41,7 @@ const sections = [
       { title: 'Feedbacks', url: '/admin/feedbacks', icon: MessageSquare },
       { title: 'Planos de Ação', url: '/admin/planos-de-acao', icon: ClipboardCheck },
       { title: 'Causa Raiz', url: '/admin/causa-raiz', icon: AlertTriangle },
+      { title: 'Auditoria', url: '/admin/auditoria', icon: Shield },
     ],
   },
 ];
