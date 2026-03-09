@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -49,20 +49,20 @@ serve(async (req) => {
     }
 
     // Update the auto-created profile with full data
-    const { error: updateError } = await supabaseAdmin.from("users").update({
+    const { data: updatedUser, error: updateError } = await supabaseAdmin.from("users").update({
       nome,
       matricula: matricula || "",
       role: role || "colaborador",
       worker_type: worker_type || null,
       unidade_id: unidade_id || null,
       rota_id: rota_id || null,
-    }).eq("auth_user_id", authData.user.id);
+    }).eq("auth_user_id", authData.user.id).select("id").single();
 
     if (updateError) {
       return new Response(JSON.stringify({ error: updateError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ success: true, user_id: authData.user.id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authData.user.id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
