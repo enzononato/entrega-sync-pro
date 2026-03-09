@@ -65,7 +65,7 @@ export function AdminSidebar() {
           <div className="h-9 w-9 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0">
             <Truck className="h-5 w-5 text-sidebar-accent-foreground" />
           </div>
-          {!collapsed && <span className="font-bold text-lg text-sidebar-foreground">EntregaApp</span>}
+          {!collapsed && <span className="font-bold text-lg text-sidebar-foreground">RotaScore</span>}
         </div>
       </SidebarHeader>
 

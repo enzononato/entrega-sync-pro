@@ -51,7 +51,7 @@ export default function Login() {
             <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary">
               <Truck className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">EntregaApp</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">RotaScore</h1>
             <p className="text-sm text-muted-foreground mt-1">Acesse sua conta para continuar</p>
           </div>
 
