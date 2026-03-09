@@ -47,7 +47,7 @@ export default function PlanosDeAcaoColaborador() {
   const statusIcon = (s: string) => {
     if (s === 'aberto') return <Clock className="h-4 w-4 text-blue-500" />;
     if (s === 'em_andamento') return <Loader2 className="h-4 w-4 text-amber-500" />;
-    return <CheckCircle className="h-4 w-4 text-emerald-500" />;
+    return <CheckCircle className="h-4 w-4 text-blue-500" />;
   };
 
   const renderCard = (p: ActionPlanWithRelations, showUpdate = true) => (
