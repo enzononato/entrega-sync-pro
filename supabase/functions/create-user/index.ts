@@ -109,6 +109,13 @@ serve(async (req) => {
       });
     }
 
+    // Insert role into user_roles table
+    const appRole = (role === "administrador") ? "admin" : "colaborador";
+    await supabaseAdmin.from("user_roles").upsert(
+      { user_id: authData.user.id, role: appRole },
+      { onConflict: "user_id,role" }
+    );
+
     return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authData.user.id }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

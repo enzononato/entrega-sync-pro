@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
+import { validateCpf, formatCpf } from '@/lib/formatters';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useUsuarios, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, type UserWithRelations } from '@/hooks/useUsuarios';
+import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useUnidades } from '@/hooks/useUnidades';
 import { useRotas } from '@/hooks/useRotas';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
-  CheckCircle2, XCircle,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,10 +32,14 @@ const emptyForm = {
 export default function Colaboradores() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('todos');
-  const { data: usuarios = [], isLoading } = useUsuarios({
+  const [page, setPage] = useState(0);
+  const { data: paginatedResult, isLoading } = useUsuariosPaginated({
     nome: filters.search, worker_type: activeTab !== 'todos' && activeTab !== 'admins' ? activeTab : filters.worker_type,
-    unidade_id: filters.unidade_id, ativo: filters.ativo,
+    unidade_id: filters.unidade_id, ativo: filters.ativo, page, pageSize: DEFAULT_PAGE_SIZE,
   });
+  const usuarios = paginatedResult?.data ?? [];
+  const totalCount = paginatedResult?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
   const { data: units = [] } = useUnidades();
   const activeUnits = units.filter(u => u.ativo);
 
@@ -112,7 +117,7 @@ export default function Colaboradores() {
 
   const saving = createMut.isPending || updateMut.isPending;
   const isMotorista = form.role === 'colaborador' && form.worker_type === 'motorista';
-  const cpfValid = !isMotorista || form.cpf.replace(/\D/g, '').length === 11;
+  const cpfValid = !isMotorista || validateCpf(form.cpf);
   const unitValid = !isMotorista || form.unit_ids.length === 1;
   const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6) && cpfValid && unitValid;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
@@ -150,7 +155,7 @@ export default function Colaboradores() {
 
       {/* Tabs + Filters */}
       <div className="flex flex-col gap-3">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); setPage(0); }}>
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="todos">Todos</TabsTrigger>
             <TabsTrigger value="motorista" className="gap-1.5">
@@ -168,17 +173,17 @@ export default function Colaboradores() {
           <Input
             placeholder="Buscar nome ou matrícula..."
             value={filters.search ?? ''}
-            onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+            onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(0); }}
             className="h-9 w-full sm:w-64 text-xs"
           />
-          <Select value={filters.unidade_id ?? ''} onValueChange={v => setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v }))}>
+          <Select value={filters.unidade_id ?? ''} onValueChange={v => { setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v })); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-48 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
               {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filters.ativo ?? ''} onValueChange={v => setFilters(f => ({ ...f, ativo: v === 'all' ? '' : v }))}>
+          <Select value={filters.ativo ?? ''} onValueChange={v => { setFilters(f => ({ ...f, ativo: v === 'all' ? '' : v })); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-32 h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
@@ -273,7 +278,24 @@ export default function Colaboradores() {
         </div>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            {page * DEFAULT_PAGE_SIZE + 1}–{Math.min((page + 1) * DEFAULT_PAGE_SIZE, totalCount)} de {totalCount}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground px-2">{page + 1} / {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
           <div className="px-6 pt-6 pb-4 border-b border-border/50">
@@ -306,20 +328,10 @@ export default function Colaboradores() {
                     <Input
                       placeholder="000.000.000-00"
                       value={form.cpf}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-                        const formatted = raw.replace(/(\d{3})(\d{3})?(\d{3})?(\d{2})?/, (_m, a, b, c, d) => {
-                          let r = a;
-                          if (b) r += '.' + b;
-                          if (c) r += '.' + c;
-                          if (d) r += '-' + d;
-                          return r;
-                        });
-                        setForm(f => ({ ...f, cpf: formatted }));
-                      }}
+                      onChange={e => setForm(f => ({ ...f, cpf: formatCpf(e.target.value) }))}
                       className="h-9 font-mono"
                     />
-                    {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF deve ter 11 dígitos</p>}
+                    {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF inválido — verifique os dígitos</p>}
                   </div>
                 )}
                 {!editing && (
