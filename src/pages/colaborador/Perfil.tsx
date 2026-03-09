@@ -238,7 +238,7 @@ export default function PerfilColaborador() {
         <StatCard icon={<MessageSquare className="h-4 w-4 text-blue-500" />} value={feedbacks.length} label="Feedbacks enviados" />
         <StatCard icon={<ClipboardList className="h-4 w-4 text-amber-500" />} value={planos.length} label="Planos criados" />
         <StatCard icon={<AlertTriangle className="h-4 w-4 text-orange-500" />} value={causas.length} label="Causas raiz" />
-        <StatCard icon={<CheckCircle className="h-4 w-4blue-500" alblue/>} value={diasNaMeta} label="Dias na meta (30d)" />
+        <StatCard icon={<CheckCircle className="h-4 w-4 text-blue-500" />} value={diasNaMeta} label="Dias na meta (30d)" />
       </div>
 
       {/* Actions */}
