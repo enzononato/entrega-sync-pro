@@ -183,7 +183,7 @@ export default function Colaboradores() {
               {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filters.ativo ?? ''} onValueChange={v => setFilters(f => ({ ...f, ativo: v === 'all' ? '' : v }))}>
+          <Select value={filters.ativo ?? ''} onValueChange={v => { setFilters(f => ({ ...f, ativo: v === 'all' ? '' : v })); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-32 h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
