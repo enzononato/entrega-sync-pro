@@ -563,6 +563,7 @@ export type Database = {
           ativo: boolean
           auth_user_id: string
           avatar_url: string | null
+          cpf: string | null
           created_at: string
           email: string
           id: string
@@ -577,6 +578,7 @@ export type Database = {
           ativo?: boolean
           auth_user_id: string
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           email: string
           id?: string
@@ -591,6 +593,7 @@ export type Database = {
           ativo?: boolean
           auth_user_id?: string
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string
           id?: string
