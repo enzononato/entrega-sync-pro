@@ -300,6 +300,28 @@ export default function Colaboradores() {
                     <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} className="h-9 font-mono" />
                   </div>
                 </div>
+                {isMotorista && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">CPF *</Label>
+                    <Input
+                      placeholder="000.000.000-00"
+                      value={form.cpf}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        const formatted = raw.replace(/(\d{3})(\d{3})?(\d{3})?(\d{2})?/, (_m, a, b, c, d) => {
+                          let r = a;
+                          if (b) r += '.' + b;
+                          if (c) r += '.' + c;
+                          if (d) r += '-' + d;
+                          return r;
+                        });
+                        setForm(f => ({ ...f, cpf: formatted }));
+                      }}
+                      className="h-9 font-mono"
+                    />
+                    {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF deve ter 11 dígitos</p>}
+                  </div>
+                )}
                 {!editing && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Senha *</Label>
