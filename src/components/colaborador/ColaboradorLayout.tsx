@@ -10,18 +10,31 @@ export default function ColaboradorLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="h-14 bg-card/80 backdrop-blur-lg border-b border-border/60 flex items-center justify-between px-4 shrink-0 sticky top-0 z-30">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-            <Truck className="h-4 w-4 text-white" />
+      {/* Dark navy header matching reference */}
+      <header className="shrink-0 sticky top-0 z-30">
+        <div className="gradient-hero px-4 pt-3 pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/20">
+                <Truck className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <span className="font-bold text-white text-base tracking-tight">EntregaApp</span>
+                <p className="text-[10px] text-white/50 font-medium tracking-wider uppercase">Gestão de Entregas</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden min-[360px]:block">
+                <p className="text-xs text-white/90 font-medium leading-tight">{user?.nome?.split(' ')[0]}</p>
+                {user?.worker_type && (
+                  <p className="text-[10px] text-white/50">{user.worker_type === 'motorista' ? 'Motorista' : 'Ajudante'}</p>
+                )}
+              </div>
+              <Avatar className="h-9 w-9 ring-2 ring-white/30">
+                <AvatarFallback className="bg-white/20 text-white text-xs font-bold">{initials}</AvatarFallback>
+              </Avatar>
+            </div>
           </div>
-          <span className="font-bold text-foreground tracking-tight">EntregaApp</span>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm text-muted-foreground font-medium">{user?.nome?.split(' ')[0]}</span>
-          <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-            <AvatarFallback className="gradient-primary text-white text-xs font-semibold">{initials}</AvatarFallback>
-          </Avatar>
         </div>
       </header>
 
