@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCausaRaizPorColaborador, useCreateCausaRaiz, useCreateActionPlan } from '@/hooks/useCausaRaiz';
 import { useIndicadoresByWorkerType } from '@/hooks/useIndicadores';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { useDesempenhoDiario } from '@/hooks/useDesempenho';
+import { CircularProgress } from '@/components/shared/CircularProgress';
+import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, AlertTriangle, CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, AlertTriangle, CalendarIcon, ChevronLeft, ChevronRight, Loader2, DollarSign, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { IndicatorStatus } from '@/types';
 
 const CATEGORIAS = ['Logística', 'Qualidade', 'Processo', 'Externo', 'Equipamento', 'Pessoal', 'Outro'];
 
@@ -51,8 +54,10 @@ function DatePick({ value, onChange, placeholder, minDate }: { value: string; on
 
 export default function CausaRaizColaborador() {
   const { user } = useAuth();
+  const today = format(new Date(), 'yyyy-MM-dd');
   const { data: causas = [], isLoading } = useCausaRaizPorColaborador(user?.id);
   const { data: indicators = [] } = useIndicadoresByWorkerType(user?.worker_type ?? undefined);
+  const { data: desempenho = [] } = useDesempenhoDiario(today, { user_id: user?.id });
   const createCausa = useCreateCausaRaiz();
   const createPlan = useCreateActionPlan();
   const { toast } = useToast();
@@ -62,7 +67,7 @@ export default function CausaRaizColaborador() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    data_referencia: format(new Date(), 'yyyy-MM-dd'),
+    data_referencia: today,
     indicator_id: '',
     descricao_problema: '',
     impacto: '',
@@ -72,8 +77,35 @@ export default function CausaRaizColaborador() {
     prazo: '',
   });
 
+  // Stats
+  const totalCausas = causas.length;
+  const causasRecentes = causas.filter(c => {
+    const d = new Date(c.created_at);
+    const now = new Date();
+    return (now.getTime() - d.getTime()) < 30 * 24 * 60 * 60 * 1000;
+  }).length;
+
+  // Category breakdown
+  const catBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    causas.forEach(c => { map[c.categoria_causa] = (map[c.categoria_causa] || 0) + 1; });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [causas]);
+
+  // 5 Porquês completion rate
+  const porquesCompletos = useMemo(() => {
+    if (causas.length === 0) return 0;
+    const comCausaDetalhada = causas.filter(c => c.causa_raiz && c.causa_raiz.length >= 50).length;
+    return Math.round((comCausaDetalhada / causas.length) * 100);
+  }, [causas]);
+
+  // KPIs below target
+  const kpisBelowTarget = useMemo(() => {
+    return desempenho.filter(d => d.status === 'abaixo_meta');
+  }, [desempenho]);
+
   const openSheet = () => {
-    setForm({ data_referencia: format(new Date(), 'yyyy-MM-dd'), indicator_id: '', descricao_problema: '', impacto: '', categoria_causa: '', causa_raiz: '', acao: '', prazo: '' });
+    setForm({ data_referencia: today, indicator_id: '', descricao_problema: '', impacto: '', categoria_causa: '', causa_raiz: '', acao: '', prazo: '' });
     setStep(1);
     setSheetOpen(true);
   };
@@ -116,42 +148,116 @@ export default function CausaRaizColaborador() {
   const canSave = form.acao.length > 0;
 
   return (
-    <div className="relative min-h-[60vh]">
-      <h1 className="text-xl font-bold text-foreground mb-4">Causa Raiz</h1>
+    <div className="space-y-5 animate-fade-up relative min-h-[60vh]">
+      <h1 className="text-lg font-bold text-foreground">Análise de Causa Raiz</h1>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : causas.length === 0 ? (
-        <EmptyState
-          titulo="Nenhum registro de causa raiz"
-          descricao="Registre problemas e suas causas para acompanhamento"
-          icon={<AlertTriangle className="h-10 w-10" />}
-          actionLabel="Registrar Primeiro Problema"
-          onAction={openSheet}
-        />
-      ) : (
-        <div className="space-y-3 pb-20">
-          {causas.map((c: any) => (
-            <div key={c.id} className="rounded-xl border bg-card p-4 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
-                  {c.indicators?.codigo}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {format(new Date(c.data_referencia + 'T00:00:00'), "dd 'de' MMM", { locale: ptBR })}
+      {/* Hero card: 5 Porquês + Circular Progress */}
+      <div className="card-elevated overflow-hidden">
+        <div className="gradient-hero p-5">
+          <div className="flex items-center gap-5">
+            <CircularProgress value={porquesCompletos} size={80} strokeWidth={6}>
+              <span className="text-lg font-bold text-white">{porquesCompletos}%</span>
+            </CircularProgress>
+            <div className="flex-1 text-white">
+              <p className="text-xs text-white/60 uppercase tracking-wider font-semibold">5 Porquês</p>
+              <p className="text-sm mt-1 text-white/80">
+                Por quê até, Pearl e Inamos unidalevar
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="inline-flex items-center rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
+                  {totalCausas} Criado{totalCausas !== 1 ? 's' : ''}
                 </span>
               </div>
-              <p className="text-sm text-foreground line-clamp-2">{c.descricao_problema}</p>
-              <div className="flex items-center gap-2">
-                <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', catColors[c.categoria_causa] ?? catColors.Outro)}>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 divide-x divide-border/40">
+          <div className="p-4 text-center">
+            <p className="text-lg font-bold text-foreground">{fmtBRL(0)}</p>
+            <p className="text-[10px] text-muted-foreground">Bônus já aquirara</p>
+          </div>
+          <div className="p-4 text-center">
+            <p className="text-lg font-bold text-foreground">{causasRecentes}</p>
+            <p className="text-[10px] text-muted-foreground">Indicadores com chato</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Projeção Mensal */}
+      <div className="card-elevated p-4">
+        <h3 className="text-sm font-bold text-foreground mb-3">Projeção Mensal</h3>
+        <div className="flex items-baseline justify-between mb-2">
+          <div>
+            <span className="text-lg font-bold text-foreground">{fmtBRL(844)}</span>
+            <span className="text-sm text-muted-foreground"> / {fmtBRL(2500)}</span>
+          </div>
+          <span className="text-sm font-bold text-primary">34%</span>
+        </div>
+        <ProgressBar value={34} color="blue" className="h-2.5 mb-3" />
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Bônus já acumulado: <strong className="text-foreground">{fmtBRL(500)}</strong></span>
+          <span>Dias: <strong className="text-foreground">5</strong></span>
+        </div>
+      </div>
+
+      {/* KPIs abaixo da meta */}
+      {kpisBelowTarget.length > 0 && (
+        <section>
+          <h2 className="text-sm font-bold text-foreground mb-3">KPIs Abaixo da Meta</h2>
+          <div className="card-elevated divide-y divide-border/40">
+            {kpisBelowTarget.map(d => (
+              <div key={d.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground truncate">{d.indicators?.nome ?? ''}</span>
+                    <span className="text-sm font-bold text-foreground ml-2 shrink-0">{(d.percentual_atingimento ?? 0).toFixed(0)}%</span>
+                  </div>
+                  <ProgressBar value={d.percentual_atingimento ?? 0} color="red" className="h-1.5 mt-1" />
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Registros recentes */}
+      <section>
+        <h2 className="text-sm font-bold text-foreground mb-3">Registros Recentes</h2>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : causas.length === 0 ? (
+          <EmptyState
+            titulo="Nenhum registro de causa raiz"
+            descricao="Registre problemas e suas causas"
+            icon={<AlertTriangle className="h-10 w-10" />}
+            actionLabel="Registrar Problema"
+            onAction={openSheet}
+          />
+        ) : (
+          <div className="card-elevated divide-y divide-border/40">
+            {causas.slice(0, 5).map((c: any) => (
+              <div key={c.id} className="px-4 py-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+                    {c.indicators?.codigo}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {format(new Date(c.data_referencia + 'T00:00:00'), "dd 'de' MMM", { locale: ptBR })}
+                  </span>
+                </div>
+                <p className="text-sm text-foreground line-clamp-2 font-medium">{c.descricao_problema}</p>
+                <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium', catColors[c.categoria_causa] ?? catColors.Outro)}>
                   {c.categoria_causa}
                 </span>
               </div>
-              {c.impacto && <p className="text-xs text-muted-foreground line-clamp-1">{c.impacto}</p>}
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* FAB */}
       <Button className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50" onClick={openSheet}>
@@ -191,11 +297,11 @@ export default function CausaRaizColaborador() {
               </div>
               <div className="space-y-1">
                 <Label>Descrição do Problema * <span className="text-xs text-muted-foreground">(mín. 20 caracteres)</span></Label>
-                <Textarea value={form.descricao_problema} onChange={e => setForm(f => ({ ...f, descricao_problema: e.target.value }))} rows={4} placeholder="Descreva o problema..." />
+                <Textarea value={form.descricao_problema} onChange={e => setForm(f => ({ ...f, descricao_problema: e.target.value }))} rows={4} placeholder="Descreva o problema..." maxLength={500} />
               </div>
               <div className="space-y-1">
                 <Label>Impacto percebido</Label>
-                <Textarea value={form.impacto} onChange={e => setForm(f => ({ ...f, impacto: e.target.value }))} rows={2} placeholder="Qual foi o impacto?" />
+                <Textarea value={form.impacto} onChange={e => setForm(f => ({ ...f, impacto: e.target.value }))} rows={2} placeholder="Qual foi o impacto?" maxLength={300} />
               </div>
               <Button className="w-full" disabled={!canNext1} onClick={() => setStep(2)}>
                 Próximo <ChevronRight className="ml-2 h-4 w-4" />
@@ -217,7 +323,7 @@ export default function CausaRaizColaborador() {
               </div>
               <div className="space-y-1">
                 <Label>Causa Raiz * <span className="text-xs text-muted-foreground">(mín. 20 caracteres)</span></Label>
-                <Textarea value={form.causa_raiz} onChange={e => setForm(f => ({ ...f, causa_raiz: e.target.value }))} rows={4} placeholder="Por que aconteceu? Use os 5 Porquês..." />
+                <Textarea value={form.causa_raiz} onChange={e => setForm(f => ({ ...f, causa_raiz: e.target.value }))} rows={4} placeholder="Por que aconteceu? Use os 5 Porquês..." maxLength={500} />
               </div>
               <Button className="w-full" disabled={!canNext2} onClick={() => setStep(3)}>
                 Próximo <ChevronRight className="ml-2 h-4 w-4" />
@@ -232,7 +338,7 @@ export default function CausaRaizColaborador() {
               </Button>
               <div className="space-y-1">
                 <Label>Descrição da Ação *</Label>
-                <Textarea value={form.acao} onChange={e => setForm(f => ({ ...f, acao: e.target.value }))} rows={4} placeholder="O que será feito para resolver?" />
+                <Textarea value={form.acao} onChange={e => setForm(f => ({ ...f, acao: e.target.value }))} rows={4} placeholder="O que será feito para resolver?" maxLength={500} />
               </div>
               <div className="space-y-1">
                 <Label>Prazo</Label>
@@ -249,3 +355,5 @@ export default function CausaRaizColaborador() {
     </div>
   );
 }
+
+const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
