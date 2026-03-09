@@ -21,9 +21,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Clean CPF - digits only
+    // Clean CPF - digits only + validate check digits
     const cleanCpf = cpf.replace(/\D/g, "");
-    if (cleanCpf.length !== 11) {
+    if (cleanCpf.length !== 11 || /^(\d)\1{10}$/.test(cleanCpf)) {
+      return new Response(
+        JSON.stringify({ error: "CPF inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate CPF check digits
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(cleanCpf[i]) * (10 - i);
+    let rem = (sum * 10) % 11;
+    if (rem === 10) rem = 0;
+    if (rem !== parseInt(cleanCpf[9])) {
+      return new Response(
+        JSON.stringify({ error: "CPF inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(cleanCpf[i]) * (11 - i);
+    rem = (sum * 10) % 11;
+    if (rem === 10) rem = 0;
+    if (rem !== parseInt(cleanCpf[10])) {
       return new Response(
         JSON.stringify({ error: "CPF inválido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

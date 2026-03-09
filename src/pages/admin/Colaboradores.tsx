@@ -307,20 +307,10 @@ export default function Colaboradores() {
                     <Input
                       placeholder="000.000.000-00"
                       value={form.cpf}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-                        const formatted = raw.replace(/(\d{3})(\d{3})?(\d{3})?(\d{2})?/, (_m, a, b, c, d) => {
-                          let r = a;
-                          if (b) r += '.' + b;
-                          if (c) r += '.' + c;
-                          if (d) r += '-' + d;
-                          return r;
-                        });
-                        setForm(f => ({ ...f, cpf: formatted }));
-                      }}
+                      onChange={e => setForm(f => ({ ...f, cpf: formatCpf(e.target.value) }))}
                       className="h-9 font-mono"
                     />
-                    {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF deve ter 11 dígitos</p>}
+                    {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF inválido — verifique os dígitos</p>}
                   </div>
                 )}
                 {!editing && (
