@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import ProtectedRoute from './ProtectedRoute';
 import Login from '@/pages/auth/Login';
+import LoginAdmin from '@/pages/auth/LoginAdmin';
+import LoginColaborador from '@/pages/auth/LoginColaborador';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ColaboradorLayout from '@/components/colaborador/ColaboradorLayout';
 import Dashboard from '@/pages/admin/Dashboard';
@@ -38,6 +40,8 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/login/admin" element={<LoginAdmin />} />
+      <Route path="/login/colaborador" element={<LoginColaborador />} />
 
       <Route path="/admin" element={<ProtectedRoute allowedRole="administrador"><AdminLayout /></ProtectedRoute>}>
         <Route path="dashboard" element={<Dashboard />} />
