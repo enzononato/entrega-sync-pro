@@ -44,6 +44,7 @@ export default function FeedbacksAdmin() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('todos');
   const { data: feedbacks = [], isLoading } = useFeedbacks({
+
     status: activeTab !== 'todos' ? activeTab : filters.status,
     urgencia: filters.urgencia,
     tipo: filters.tipo,
