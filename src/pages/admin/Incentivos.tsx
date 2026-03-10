@@ -73,6 +73,7 @@ export default function Incentivos() {
   const [form, setForm] = useState(emptyForm);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<IncentiveRuleWithRelations | null>(null);
+  const pg = usePagination(regras);
 
   // KPIs
   const { data: allRegras = [] } = useIncentivos({});
