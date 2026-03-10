@@ -28,6 +28,7 @@ export default function ColaboradorLayout() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <NotificationPopover variant="colaborador" />
               <div className="text-right hidden min-[360px]:block">
                 <p className="text-xs text-white/90 font-medium leading-tight">{user?.nome?.split(' ')[0]}</p>
                 {user?.worker_type && (

@@ -171,7 +171,7 @@ export default function Colaboradores() {
         </Tabs>
         <div className="flex flex-wrap gap-2">
           <Input
-            placeholder="Buscar nome ou matrícula..."
+            placeholder="Buscar nome, CPF ou matrícula..."
             value={filters.search ?? ''}
             onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(0); }}
             className="h-9 w-full sm:w-64 text-xs"

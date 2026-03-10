@@ -20,9 +20,7 @@ export default function AdminLayout() {
               <h2 className="text-sm font-medium text-muted-foreground hidden md:block tracking-tight">Painel Administrativo</h2>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground">
-                <Bell className="h-4 w-4" />
-              </Button>
+              <NotificationPopover variant="admin" />
               <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
               <div className="flex items-center gap-2.5">
                 <div className="text-right hidden sm:block">
