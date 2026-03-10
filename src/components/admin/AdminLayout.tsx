@@ -3,8 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/Sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { NotificationPopover } from '@/components/shared/NotificationPopover';
 
 export default function AdminLayout() {
   const { user } = useAuth();
