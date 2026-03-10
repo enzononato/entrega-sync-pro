@@ -215,7 +215,43 @@ export default function Incentivos() {
           <p className="text-xs text-muted-foreground/70 mt-1">Crie uma nova regra de incentivo</p>
         </div>
       ) : (
-        <IncentivosListPaginated regras={regras} openEdit={openEdit} setToggleTarget={setToggleTarget} setConfirmOpen={setConfirmOpen} />
+        <>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+            {pg.paginatedItems.map(r => {
+              const isMot = r.worker_type === 'motorista';
+              return (
+                <div key={r.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !r.ativo && 'opacity-50')}>
+                  <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', isMot ? 'bg-emerald-100' : 'bg-violet-100')}>
+                    {isMot ? <Truck className="h-5 w-5 text-emerald-600" /> : <Users className="h-5 w-5 text-violet-600" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-bold">{r.indicators?.nome ?? '—'}</span>
+                      <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>{isMot ? 'Motorista' : 'Ajudante'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><DollarSign className="h-3 w-3" />{fmtBRL(r.valor_minimo)} → {fmtBRL(r.valor_maximo)}</span>
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Weight className="h-3 w-3" />Peso {r.peso}</span>
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Target className="h-3 w-3" />Meta {r.meta}</span>
+                      {r.units?.nome && <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Building2 className="h-3 w-3" />{r.units.nome}</span>}
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hidden sm:inline-flex">
+                        <CalendarIcon className="h-3 w-3" />{format(new Date(r.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}<ArrowRight className="h-3 w-3" />{r.vigencia_fim ? format(new Date(r.vigencia_fim + 'T00:00:00'), 'dd/MM/yy') : '∞'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={r.ativo ? 'ativo' : 'inativo'} />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(r); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       {/* Create/Edit Dialog */}

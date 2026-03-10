@@ -147,7 +147,46 @@ export default function Auditoria() {
           <p className="text-xs text-muted-foreground/70 mt-1">As alterações aparecerão aqui automaticamente</p>
         </div>
       ) : (
-        <AuditListPaginated logs={logs} grouped={grouped} setDetailLog={setDetailLog} />
+        <>
+          <div className="space-y-6">
+            {grouped.map(([day, dayLogs]) => (
+              <div key={day}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(new Date(day + 'T00:00:00'), "EEEE, dd 'de' MMMM", { locale: ptBR })}</span>
+                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{dayLogs.length}</span>
+                </div>
+                <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+                  {dayLogs.map(log => {
+                    const tbl = TABLE_CONFIG[log.table_name] ?? { label: log.table_name, icon: Database, color: 'text-muted-foreground bg-muted' };
+                    const act = ACTION_CONFIG[log.action] ?? { label: log.action, icon: FileText, color: 'text-muted-foreground bg-muted' };
+                    const TblIcon = tbl.icon;
+                    const ActIcon = act.icon;
+                    const changes = getChangedFields(log);
+                    return (
+                      <div key={log.id} className="flex items-center gap-4 px-5 py-3 transition-colors group hover:bg-muted/30">
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', act.color.split(' ')[1])}><ActIcon className={cn('h-4 w-4', act.color.split(' ')[0])} /></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', tbl.color)}><TblIcon className="h-3 w-3" />{tbl.label}</span>
+                            <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold', act.color)}>{act.label}</span>
+                            <span className="text-sm font-medium text-foreground truncate">{getRecordLabel(log)}</span>
+                          </div>
+                          {changes.length > 0 && <p className="text-[11px] text-muted-foreground truncate">Campos: {changes.map(c => c.field).join(', ')}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[11px] text-muted-foreground hidden sm:inline">{formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}</span>
+                          <span className="text-[10px] text-muted-foreground/60 font-mono">{format(new Date(log.created_at), 'HH:mm:ss')}</span>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDetailLog(log)}><Eye className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       {/* Detail Dialog */}

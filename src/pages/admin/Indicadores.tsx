@@ -203,7 +203,41 @@ export default function Indicadores() {
           <p className="text-xs text-muted-foreground/70 mt-1">Ajuste os filtros ou crie um novo indicador</p>
         </div>
       ) : (
-        <IndicadoresListPaginated filtered={filtered} openEdit={openEdit} setToggleTarget={setToggleTarget} setConfirmOpen={setConfirmOpen} />
+        <>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+            {pg.paginatedItems.map(ind => {
+              const catConf = CAT_CONFIG[ind.categoria] ?? { icon: BarChart3, color: 'text-muted-foreground', bg: 'bg-muted' };
+              const CatIcon = catConf.icon;
+              const workerConf = WORKER_CONFIG[ind.applies_to_worker_type] ?? WORKER_CONFIG.ambos;
+              return (
+                <div key={ind.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !ind.ativo && 'opacity-50')}>
+                  <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', catConf.bg)}><CatIcon className={cn('h-5 w-5', catConf.color)} /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-mono font-bold">{ind.codigo}</span>
+                      <p className="text-sm font-semibold text-foreground truncate">{ind.nome}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', catConf.bg, catConf.color)}><CatIcon className="h-3 w-3" />{ind.categoria || 'Sem categoria'}</span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium', workerConf.bg, workerConf.color)}>{workerConf.label}</span>
+                      {ind.unidade_medida && (<><span className="text-muted-foreground/40">•</span><span className="text-[11px] text-muted-foreground">{ind.unidade_medida}</span></>)}
+                      {ind.descricao && (<><span className="text-muted-foreground/40 hidden sm:inline">•</span><span className="text-[11px] text-muted-foreground truncate max-w-[200px] hidden sm:inline">{ind.descricao}</span></>)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={ind.ativo ? 'ativo' : 'inativo'} />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(ind)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       {/* Create/Edit Dialog */}

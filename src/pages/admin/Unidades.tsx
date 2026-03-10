@@ -138,7 +138,36 @@ export default function Unidades() {
           <p className="text-sm font-medium text-muted-foreground">Nenhuma unidade encontrada</p>
         </div>
       ) : (
-        <UnidadesListPaginated filtered={filtered} userCountMap={userCountMap} openEdit={openEdit} setToggleTarget={setToggleTarget} setConfirmOpen={setConfirmOpen} />
+        <>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+            {pg.paginatedItems.map(u => {
+              const count = userCountMap[u.id] || 0;
+              return (
+                <div key={u.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !u.ativo && 'opacity-50')}>
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-5 w-5 text-primary" /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm text-foreground truncate">{u.nome}</span>
+                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary font-mono">{u.codigo}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {u.cidade && <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="h-3 w-3" />{u.cidade}{u.estado ? `, ${u.estado}` : ''}</span>}
+                      <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium', count > 0 ? 'text-emerald-600' : 'text-muted-foreground')}><Users className="h-3 w-3" />{count} colaborador{count !== 1 ? 'es' : ''}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={u.ativo ? 'ativo' : 'inativo'} />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       {/* Create/Edit Dialog */}
