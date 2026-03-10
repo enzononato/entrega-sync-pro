@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Pencil, Power, Loader2, CalendarIcon, DollarSign, Truck, Users,
-  Target, ArrowRight, TrendingUp, Weight, Building2, Layers, Zap,
+  Target, ArrowRight, TrendingUp, Weight, Building2, Layers, Zap, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
