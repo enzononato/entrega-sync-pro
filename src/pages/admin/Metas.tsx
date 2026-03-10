@@ -108,6 +108,7 @@ export default function Metas() {
     if (activeTab === 'geral') return metas.filter(g => !g.user_id && !g.worker_type);
     return metas;
   }, [metas, activeTab]);
+  const pg = usePagination(filteredMetas);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
