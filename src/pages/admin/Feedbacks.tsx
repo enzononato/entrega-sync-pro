@@ -60,6 +60,7 @@ export default function FeedbacksAdmin() {
   const [respStatus, setRespStatus] = useState('');
   const [resposta, setResposta] = useState('');
   const [confirmEncerrar, setConfirmEncerrar] = useState<FeedbackWithRelations | null>(null);
+  const pg = usePagination(feedbacks);
 
   const today = new Date().toISOString().split('T')[0];
   const thisMonth = new Date().toISOString().slice(0, 7);
