@@ -338,71 +338,7 @@ export default function Desempenho() {
           <p className="text-xs text-muted-foreground/70 mt-1">Selecione outra data ou faça um lançamento</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
-          {desempenho.map(d => {
-            const isMot = d.users?.worker_type === 'motorista';
-            const pct = d.percentual_atingimento ?? 0;
-            const statusColor = d.status === 'acima_meta' ? 'text-emerald-600' : d.status === 'dentro_meta' ? 'text-blue-600' : 'text-red-600';
-            const barColor = d.status === 'acima_meta' ? 'green' : d.status === 'dentro_meta' ? 'blue' : 'red';
-
-            return (
-              <div key={d.id} className="flex items-center gap-4 px-5 py-4 transition-colors group hover:bg-muted/30">
-                {/* Avatar */}
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className={cn(
-                    'text-xs font-bold',
-                    isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                  )}>
-                    {getInitials(d.users?.nome ?? '')}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground truncate">{d.users?.nome}</span>
-                    <span className={cn(
-                      'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-                      isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                    )}>
-                      {isMot ? 'Mot' : 'Aj'}
-                    </span>
-                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono">
-                      {d.indicators?.codigo}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground hidden sm:inline">{d.indicators?.nome}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {/* Values */}
-                    <span className="text-xs text-muted-foreground">
-                      <strong className="text-foreground">{d.valor}</strong> / {d.meta ?? '—'} {d.indicators?.unidade_medida}
-                    </span>
-                    {/* Progress bar */}
-                    <div className="flex items-center gap-2 flex-1 max-w-[200px]">
-                      <ProgressBar value={pct} color={barColor} className="flex-1" />
-                      <span className={cn('text-xs font-bold w-12 text-right', statusColor)}>
-                        {pct.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right side */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusBadge status={d.status ?? 'abaixo_meta'} />
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openSingle(d)}>
-                      <Pencil className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(d)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DesempenhoList desempenho={desempenho} getInitials={getInitials} openSingle={openSingle} setDeleteTarget={setDeleteTarget} />
       )}
 
       {/* Single modal */}
