@@ -132,7 +132,19 @@ export default function Colaboradores() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" actionLabel="Novo Colaborador" onAction={openCreate} />
+      <div className="flex items-center justify-between">
+        <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" actionLabel="Novo Colaborador" onAction={openCreate} />
+        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
+          const rows = filteredByTab.map(u => [
+            u.nome, u.matricula, u.cpf ?? '', u.worker_type ?? u.role,
+            u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join('; ') || u.units?.nome || '',
+            u.routes?.nome ?? '', u.ativo ? 'Ativo' : 'Inativo',
+          ]);
+          exportToCsv('colaboradores.csv', ['Nome', 'Matrícula', 'CPF', 'Tipo', 'Unidade', 'Rota', 'Status'], rows);
+        }}>
+          <Download className="h-4 w-4" /> CSV
+        </Button>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
