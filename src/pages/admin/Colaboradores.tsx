@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { validateCpf, formatCpf } from '@/lib/formatters';
+import { exportToCsv } from '@/lib/exportCsv';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -19,7 +20,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -131,7 +132,19 @@ export default function Colaboradores() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" actionLabel="Novo Colaborador" onAction={openCreate} />
+      <div className="flex items-center justify-between">
+        <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" actionLabel="Novo Colaborador" onAction={openCreate} />
+        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
+          const rows = filteredByTab.map(u => [
+            u.nome, u.matricula, u.cpf ?? '', u.worker_type ?? u.role,
+            u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join('; ') || u.units?.nome || '',
+            u.routes?.nome ?? '', u.ativo ? 'Ativo' : 'Inativo',
+          ]);
+          exportToCsv('colaboradores.csv', ['Nome', 'Matrícula', 'CPF', 'Tipo', 'Unidade', 'Rota', 'Status'], rows);
+        }}>
+          <Download className="h-4 w-4" /> CSV
+        </Button>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -171,7 +184,7 @@ export default function Colaboradores() {
         </Tabs>
         <div className="flex flex-wrap gap-2">
           <Input
-            placeholder="Buscar nome ou matrícula..."
+            placeholder="Buscar nome, CPF ou matrícula..."
             value={filters.search ?? ''}
             onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(0); }}
             className="h-9 w-full sm:w-64 text-xs"

@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { exportToCsv } from '@/lib/exportCsv';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -23,7 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle, Pencil, Trash2,
   Loader2, CalendarIcon, Users, Truck, UserCheck, BarChart3, Layers,
-  ChevronRight,
+  ChevronRight, Download,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -214,10 +215,22 @@ export default function Desempenho() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <PageHeader
-        title="Desempenho Operacional"
-        subtitle={`Data: ${format(new Date(dateFilter + 'T00:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`}
-      />
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <PageHeader
+          title="Desempenho Operacional"
+          subtitle={`Data: ${format(new Date(dateFilter + 'T00:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`}
+        />
+        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
+          const rows = desempenho.map(d => [
+            d.users?.nome ?? '', d.indicators?.codigo ?? '', d.indicators?.nome ?? '',
+            d.valor, d.meta ?? '', d.percentual_atingimento != null ? `${d.percentual_atingimento}%` : '',
+            d.status ?? '', d.data_referencia,
+          ]);
+          exportToCsv(`desempenho-${dateFilter}.csv`, ['Colaborador', 'Código', 'Indicador', 'Valor', 'Meta', '% Ating.', 'Status', 'Data'], rows);
+        }}>
+          <Download className="h-4 w-4" /> CSV
+        </Button>
+      </div>
 
       {/* Action buttons */}
       <div className="flex gap-2">

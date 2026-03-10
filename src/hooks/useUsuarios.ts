@@ -47,7 +47,10 @@ export function useUsuariosPaginated(filters?: UsersFilters) {
       const to = from + size - 1;
 
       let query = supabase.from('users').select('*, units(nome), routes(nome), user_units(unit_id, units(nome))', { count: 'exact' }).order('nome').range(from, to);
-      if (filters?.nome) query = query.ilike('nome', `%${filters.nome}%`);
+      if (filters?.nome) {
+        const search = filters.nome.trim();
+        query = query.or(`nome.ilike.%${search}%,cpf.ilike.%${search}%,matricula.ilike.%${search}%`);
+      }
       if (filters?.worker_type) query = query.eq('worker_type', filters.worker_type);
       if (filters?.unidade_id) query = query.eq('unidade_id', filters.unidade_id);
       if (filters?.ativo === 'true') query = query.eq('ativo', true);
