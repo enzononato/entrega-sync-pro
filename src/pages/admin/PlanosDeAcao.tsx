@@ -83,6 +83,7 @@ export default function PlanosDeAcaoAdmin() {
   const filteredPlanos = activeTab === 'atrasados'
     ? planos.filter(isAtrasado)
     : planos;
+  const pg = usePagination(filteredPlanos);
 
   const kpis = [
     { label: 'Abertos', value: totalAbertos, icon: ClipboardList, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
