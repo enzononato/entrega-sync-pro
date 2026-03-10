@@ -54,6 +54,7 @@ export default function Unidades() {
     const matchTab = activeTab === 'todos' || (activeTab === 'ativas' && u.ativo) || (activeTab === 'inativas' && !u.ativo);
     return matchSearch && matchTab;
   });
+  const pg = usePagination(filtered);
 
   const openCreate = () => { setEditingUnit(null); setForm(emptyUnit); setDialogOpen(true); };
   const openEdit = (u: Unit) => {
