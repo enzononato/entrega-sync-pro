@@ -60,6 +60,7 @@ export default function Rotas() {
     const matchTab = activeTab === 'todos' || (activeTab === 'ativas' && r.ativo) || (activeTab === 'inativas' && !r.ativo);
     return matchSearch && matchTab;
   });
+  const pg = usePagination(filtered);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (r: RouteWithUnit) => {
