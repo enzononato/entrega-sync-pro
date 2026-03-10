@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from './BottomNav';
 import { PageTransition } from './PageTransition';
 import { Truck } from 'lucide-react';
+import { NotificationPopover } from '@/components/shared/NotificationPopover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { AnimatePresence } from 'framer-motion';
