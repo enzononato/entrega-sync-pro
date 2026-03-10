@@ -62,6 +62,7 @@ export default function Indicadores() {
       return matchSearch && matchType && matchCat;
     });
   }, [indicators, filters, activeTab]);
+  const pg = usePagination(filtered);
 
   // KPIs
   const totalAtivos = indicators.filter(i => i.ativo).length;
