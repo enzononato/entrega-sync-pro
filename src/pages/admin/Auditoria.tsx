@@ -65,6 +65,7 @@ export default function Auditoria() {
   });
 
   const [detailLog, setDetailLog] = useState<AuditLog | null>(null);
+  const pg = usePagination(logs);
 
   // KPIs
   const totalLogs = logs.length;
