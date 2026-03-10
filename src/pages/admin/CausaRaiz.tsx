@@ -235,6 +235,7 @@ export default function CausaRaizAdmin() {
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
   const [detailCausa, setDetailCausa] = useState<CausaRaizRow | null>(null);
+  const pg = usePagination(causas);
 
   // KPIs
   const { data: allCausas = [] } = useCausaRaiz({});
