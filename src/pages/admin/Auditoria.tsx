@@ -83,13 +83,13 @@ export default function Auditoria() {
   // Group by date
   const grouped = useMemo(() => {
     const map = new Map<string, AuditLog[]>();
-    logs.forEach(l => {
+    pg.paginatedItems.forEach(l => {
       const day = format(new Date(l.created_at), 'yyyy-MM-dd');
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(l);
     });
     return Array.from(map.entries());
-  }, [logs]);
+  }, [pg.paginatedItems]);
 
   return (
     <div className="space-y-6 animate-fade-up">
