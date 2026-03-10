@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/shared/ListPagination';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -235,6 +237,7 @@ export default function CausaRaizAdmin() {
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
   const [detailCausa, setDetailCausa] = useState<CausaRaizRow | null>(null);
+  const pg = usePagination(causas);
 
   // KPIs
   const { data: allCausas = [] } = useCausaRaiz({});
@@ -361,76 +364,38 @@ export default function CausaRaizAdmin() {
           <p className="text-xs text-muted-foreground/70 mt-1">Ajuste os filtros para ver outros registros</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
-          {causas.map(c => {
-            const catConf = CAT_CONFIG[c.categoria_causa] ?? CAT_CONFIG.Outro;
-            const CatIcon = catConf.icon;
-
-            return (
-              <div
-                key={c.id}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
-                onClick={() => setDetailCausa(c)}
-              >
-                {/* Category icon */}
-                <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', catConf.bg)}>
-                  <CatIcon className={cn('h-4 w-4', catConf.color)} />
-                </div>
-
-                {/* Main content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{c.descricao_problema}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* User */}
-                    <div className="flex items-center gap-1.5">
-                      <Avatar className="h-5 w-5">
-                        <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-semibold">
-                          {getInitials(c.users?.nome ?? '?')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs text-muted-foreground">{c.users?.nome}</span>
+        <>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+            {pg.paginatedItems.map(c => {
+              const catConf = CAT_CONFIG[c.categoria_causa] ?? CAT_CONFIG.Outro;
+              const CatIcon = catConf.icon;
+              return (
+                <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer group" onClick={() => setDetailCausa(c)}>
+                  <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', catConf.bg)}><CatIcon className={cn('h-4 w-4', catConf.color)} /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1"><p className="text-sm font-semibold text-foreground truncate">{c.descricao_problema}</p></div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <Avatar className="h-5 w-5"><AvatarFallback className="bg-primary/10 text-primary text-[8px] font-semibold">{getInitials(c.users?.nome ?? '?')}</AvatarFallback></Avatar>
+                        <span className="text-xs text-muted-foreground">{c.users?.nome}</span>
+                      </div>
+                      {c.indicators && (<><span className="text-muted-foreground/40">•</span><span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-medium"><Target className="h-3 w-3" />{c.indicators.codigo}</span></>)}
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', catConf.bg, catConf.color)}><CatIcon className="h-3 w-3" />{c.categoria_causa}</span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Clock className="h-3 w-3" />{formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}</span>
                     </div>
-
-                    {/* Indicator */}
-                    {c.indicators && (
-                      <>
-                        <span className="text-muted-foreground/40">•</span>
-                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-medium">
-                          <Target className="h-3 w-3" />
-                          {c.indicators.codigo}
-                        </span>
-                      </>
-                    )}
-
-                    {/* Category */}
-                    <span className="text-muted-foreground/40">•</span>
-                    <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', catConf.bg, catConf.color)}>
-                      <CatIcon className="h-3 w-3" />
-                      {c.categoria_causa}
-                    </span>
-
-                    {/* Date */}
-                    <span className="text-muted-foreground/40">•</span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}
-                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {c.indicators && <span className="text-xs text-muted-foreground hidden lg:block">{c.indicators.nome}</span>}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
                   </div>
                 </div>
-
-                {/* Right */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {c.indicators && (
-                    <span className="text-xs text-muted-foreground hidden lg:block">{c.indicators.nome}</span>
-                  )}
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       <DetailModal causa={detailCausa} open={!!detailCausa} onClose={() => setDetailCausa(null)} />

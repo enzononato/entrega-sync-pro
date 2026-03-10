@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/shared/ListPagination';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -60,6 +62,7 @@ export default function Rotas() {
     const matchTab = activeTab === 'todos' || (activeTab === 'ativas' && r.ativo) || (activeTab === 'inativas' && !r.ativo);
     return matchSearch && matchTab;
   });
+  const pg = usePagination(filtered);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (r: RouteWithUnit) => {
@@ -154,56 +157,37 @@ export default function Rotas() {
           <p className="text-sm font-medium text-muted-foreground">Nenhuma rota encontrada</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
-          {filtered.map(r => {
-            const count = userCountMap[r.id] || 0;
-            return (
-              <div key={r.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !r.ativo && 'opacity-50')}>
-                {/* Icon */}
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-sm text-foreground truncate">{r.nome}</span>
-                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary font-mono">{r.codigo}</span>
+        <>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+            {pg.paginatedItems.map(r => {
+              const count = userCountMap[r.id] || 0;
+              return (
+                <div key={r.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !r.ativo && 'opacity-50')}>
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><MapPin className="h-5 w-5 text-primary" /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm text-foreground truncate">{r.nome}</span>
+                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary font-mono">{r.codigo}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Building2 className="h-3 w-3" />{r.units?.nome ?? '—'}</span>
+                      <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium', count > 0 ? 'text-emerald-600' : 'text-muted-foreground')}><Users className="h-3 w-3" />{count} colaborador{count !== 1 ? 'es' : ''}</span>
+                      {r.descricao && <span className="inline-flex items-center text-[11px] text-muted-foreground truncate max-w-[200px] hidden sm:inline-flex">{r.descricao.length > 50 ? r.descricao.slice(0, 50) + '…' : r.descricao}</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Building2 className="h-3 w-3" />{r.units?.nome ?? '—'}
-                    </span>
-                    <span className={cn(
-                      'inline-flex items-center gap-1 text-[11px] font-medium',
-                      count > 0 ? 'text-emerald-600' : 'text-muted-foreground'
-                    )}>
-                      <Users className="h-3 w-3" />{count} colaborador{count !== 1 ? 'es' : ''}
-                    </span>
-                    {r.descricao && (
-                      <span className="inline-flex items-center text-[11px] text-muted-foreground truncate max-w-[200px] hidden sm:inline-flex">
-                        {r.descricao.length > 50 ? r.descricao.slice(0, 50) + '…' : r.descricao}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={r.ativo ? 'ativo' : 'inativo'} />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(r); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Right side */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusBadge status={r.ativo ? 'ativo' : 'inativo'} />
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}>
-                      <Pencil className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(r); setConfirmOpen(true); }}>
-                      <Power className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       {/* Create/Edit Dialog */}

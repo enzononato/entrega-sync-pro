@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/shared/ListPagination';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -44,6 +46,7 @@ export default function FeedbacksAdmin() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('todos');
   const { data: feedbacks = [], isLoading } = useFeedbacks({
+
     status: activeTab !== 'todos' ? activeTab : filters.status,
     urgencia: filters.urgencia,
     tipo: filters.tipo,
@@ -59,6 +62,7 @@ export default function FeedbacksAdmin() {
   const [respStatus, setRespStatus] = useState('');
   const [resposta, setResposta] = useState('');
   const [confirmEncerrar, setConfirmEncerrar] = useState<FeedbackWithRelations | null>(null);
+  const pg = usePagination(feedbacks);
 
   const today = new Date().toISOString().split('T')[0];
   const thisMonth = new Date().toISOString().slice(0, 7);
@@ -167,65 +171,45 @@ export default function FeedbacksAdmin() {
           <p className="text-xs text-muted-foreground/70 mt-1">Ajuste os filtros ou aguarde novos envios</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
-          {feedbacks.map(f => {
-            const tipo = getTipoConfig(f.tipo);
-            const TipoIcon = tipo.icon;
-            return (
-              <div
-                key={f.id}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
-                onClick={() => openDetail(f)}
-              >
-                {/* Avatar */}
-                <Avatar className="h-9 w-9 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
-                    {getInitials(f.users?.nome ?? '?')}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Main content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{f.titulo}</p>
-                    {f.urgencia !== 'baixa' && (
-                      <span className={cn('h-2 w-2 rounded-full shrink-0', URGENCIA_DOT[f.urgencia])} title={f.urgencia} />
-                    )}
+        <>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+            {pg.paginatedItems.map(f => {
+              const tipo = getTipoConfig(f.tipo);
+              const TipoIcon = tipo.icon;
+              return (
+                <div key={f.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer group" onClick={() => openDetail(f)}>
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">{getInitials(f.users?.nome ?? '?')}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-foreground truncate">{f.titulo}</p>
+                      {f.urgencia !== 'baixa' && <span className={cn('h-2 w-2 rounded-full shrink-0', URGENCIA_DOT[f.urgencia])} title={f.urgencia} />}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">{f.users?.nome}</span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', tipo.color)}><TipoIcon className="h-3 w-3" />{tipo.label}</span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Clock className="h-3 w-3" />{formatDistanceToNow(new Date(f.created_at), { addSuffix: true, locale: ptBR })}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-muted-foreground">{f.users?.nome}</span>
-                    <span className="text-muted-foreground/40">•</span>
-                    <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', tipo.color)}>
-                      <TipoIcon className="h-3 w-3" />{tipo.label}
-                    </span>
-                    <span className="text-muted-foreground/40">•</span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(new Date(f.created_at), { addSuffix: true, locale: ptBR })}
-                    </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <StatusBadge status={f.status} />
+                    <StatusBadge status={f.urgencia} />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {f.status !== 'encerrado' && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setConfirmEncerrar(f); }}><XCircle className="h-4 w-4 text-muted-foreground" /></Button>
+                      )}
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
                   </div>
                 </div>
-
-                {/* Right side */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <StatusBadge status={f.status} />
-                  <StatusBadge status={f.urgencia} />
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {f.status !== 'encerrado' && (
-                      <Button
-                        variant="ghost" size="icon" className="h-8 w-8"
-                        onClick={e => { e.stopPropagation(); setConfirmEncerrar(f); }}
-                      >
-                        <XCircle className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    )}
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
+        </>
       )}
 
       {/* Detail + respond modal */}
