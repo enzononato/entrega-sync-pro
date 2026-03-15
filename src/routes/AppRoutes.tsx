@@ -19,6 +19,7 @@ import CausaRaizAdmin from '@/pages/admin/CausaRaiz';
 import PlanosDeAcaoAdmin from '@/pages/admin/PlanosDeAcao';
 import FeedbacksAdmin from '@/pages/admin/Feedbacks';
 import AuditoriaAdmin from '@/pages/admin/Auditoria';
+import DescontosAdmin from '@/pages/admin/Descontos';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import IndicadoresColaborador from '@/pages/colaborador/Indicadores';
 import IncentivoColaborador from '@/pages/colaborador/Incentivo';
@@ -52,6 +53,7 @@ export default function AppRoutes() {
         <Route path="indicadores" element={<IndicadoresAdmin />} />
         <Route path="metas" element={<MetasAdmin />} />
         <Route path="incentivos" element={<IncentivosAdmin />} />
+        <Route path="descontos" element={<DescontosAdmin />} />
         <Route path="causa-raiz" element={<CausaRaizAdmin />} />
         <Route path="planos-de-acao" element={<PlanosDeAcaoAdmin />} />
         <Route path="feedbacks" element={<FeedbacksAdmin />} />

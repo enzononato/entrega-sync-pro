@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
-  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck, Shield,
+  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck, Shield, TrendingDown,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -31,6 +31,7 @@ const sections = [
       { title: 'Indicadores', url: '/admin/indicadores', icon: Target },
       { title: 'Metas', url: '/admin/metas', icon: Flag },
       { title: 'Incentivos', url: '/admin/incentivos', icon: Award },
+      { title: 'Descontos', url: '/admin/descontos', icon: TrendingDown },
       { title: 'Unidades', url: '/admin/unidades', icon: Building2 },
       { title: 'Rotas', url: '/admin/rotas', icon: MapPin },
     ],
