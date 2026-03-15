@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
-  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck, Shield,
+  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck, Shield, TrendingDown,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
