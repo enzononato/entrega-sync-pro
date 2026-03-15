@@ -242,6 +242,70 @@ export type Database = {
           },
         ]
       }
+      incentive_deductions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_referencia: string
+          id: string
+          indicator_id: string
+          motivo: string
+          percentual_atingimento: number
+          user_id: string
+          valor_desconto: number
+          valor_meta: number
+          valor_realizado: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string
+          id?: string
+          indicator_id: string
+          motivo?: string
+          percentual_atingimento?: number
+          user_id: string
+          valor_desconto?: number
+          valor_meta?: number
+          valor_realizado?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string
+          id?: string
+          indicator_id?: string
+          motivo?: string
+          percentual_atingimento?: number
+          user_id?: string
+          valor_desconto?: number
+          valor_meta?: number
+          valor_realizado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incentive_deductions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_deductions_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_deductions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incentive_rules: {
         Row: {
           ativo: boolean
