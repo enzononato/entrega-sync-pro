@@ -53,6 +53,7 @@ export default function AppRoutes() {
         <Route path="indicadores" element={<IndicadoresAdmin />} />
         <Route path="metas" element={<MetasAdmin />} />
         <Route path="incentivos" element={<IncentivosAdmin />} />
+        <Route path="descontos" element={<DescontosAdmin />} />
         <Route path="causa-raiz" element={<CausaRaizAdmin />} />
         <Route path="planos-de-acao" element={<PlanosDeAcaoAdmin />} />
         <Route path="feedbacks" element={<FeedbacksAdmin />} />
