@@ -19,11 +19,11 @@ export default function ColaboradorLayout() {
         <div className="gradient-hero px-4 pt-3 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-white/12 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/15">
-                <Truck className="h-5 w-5 text-white" />
+              <div className="h-10 w-10 rounded-xl bg-white/12 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/15 overflow-hidden">
+                <img src="/logo.png" alt="IncentivosPro" className="h-10 w-10 object-cover" />
               </div>
               <div>
-                <span className="font-bold text-white text-base tracking-tight">RotaScore</span>
+                <span className="font-bold text-white text-base tracking-tight">IncentivosPro</span>
                 <p className="text-[9px] text-white/50 font-medium tracking-[0.15em] uppercase">Gestão de Entregas</p>
               </div>
             </div>

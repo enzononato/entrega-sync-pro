@@ -31,10 +31,10 @@ export default function Login() {
         <div className="absolute -inset-4 bg-white/5 rounded-3xl blur-2xl" />
         <div className="relative rounded-2xl bg-card/95 backdrop-blur-2xl p-8 shadow-elevated border border-white/10">
           <div className="flex flex-col items-center mb-8">
-            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary ring-1 ring-white/10">
-              <Truck className="h-8 w-8 text-white" />
+            <div className="h-16 w-16 rounded-2xl overflow-hidden mb-5 shadow-glow-primary ring-1 ring-white/10">
+              <img src="/logo.png" alt="IncentivosPro" className="h-16 w-16 object-cover" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">RotaScore</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">IncentivosPro</h1>
             <p className="text-sm text-muted-foreground mt-1">Selecione seu perfil para continuar</p>
           </div>
 
@@ -67,7 +67,7 @@ export default function Login() {
           </div>
 
           <p className="text-center text-[10px] text-muted-foreground/50 mt-6 tracking-wide">
-            © {new Date().getFullYear()} RotaScore · Gestão de Entregas
+            © {new Date().getFullYear()} IncentivosPro · Gestão de Entregas
           </p>
         </div>
       </div>
