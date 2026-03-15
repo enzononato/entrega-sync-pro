@@ -80,8 +80,8 @@ export default function LoginColaborador() {
           </button>
 
           <div className="flex flex-col items-center mb-8">
-            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-glow-primary ring-1 ring-white/10">
-              <Truck className="h-8 w-8 text-white" />
+            <div className="h-16 w-16 rounded-2xl overflow-hidden mb-5 shadow-glow-primary ring-1 ring-white/10">
+              <img src="/logo.png" alt="IncentivosPro" className="h-16 w-16 object-cover" />
             </div>
             <h1 className="text-xl font-bold text-foreground tracking-tight">Área do Colaborador</h1>
             <p className="text-sm text-muted-foreground mt-1">Motoristas e Ajudantes</p>
