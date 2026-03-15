@@ -67,7 +67,7 @@ export default function Login() {
           </div>
 
           <p className="text-center text-[10px] text-muted-foreground/50 mt-6 tracking-wide">
-            © {new Date().getFullYear()} RotaScore · Gestão de Entregas
+            © {new Date().getFullYear()} IncentivosPro · Gestão de Entregas
           </p>
         </div>
       </div>
