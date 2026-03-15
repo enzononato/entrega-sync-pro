@@ -5,13 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico, type IncentiveDailyRow } from '@/hooks/useIncentivoDiario';
 import { useIncentivos } from '@/hooks/useIncentivos';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
+import { useDescontosColaborador } from '@/hooks/useDescontos';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Loader2, TrendingUp, Calendar, Target } from 'lucide-react';
+import { DollarSign, Loader2, TrendingUp, Calendar, Target, AlertTriangle, TrendingDown, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -24,6 +25,7 @@ export default function IncentivoColaborador() {
   const { data: historico = [], isLoading: loadHist } = useIncentivoDiarioHistorico(user?.id, 30);
   const { data: regras = [] } = useIncentivos({ worker_type: user?.worker_type ?? undefined, ativo: 'true' });
   const { data: desempenho = [] } = useDesempenhoDiario(today, { user_id: user?.id });
+  const { data: descontos = [] } = useDescontosColaborador(user?.id, 60);
 
   const breakdown = useMemo(() => {
     return regras.map(r => {
@@ -57,6 +59,15 @@ export default function IncentivoColaborador() {
   const diasComDados = mesHistorico.length;
   const metaMensal = 1000;
   const pctProjecao = metaMensal > 0 ? Math.min(100, (bonusAcumulado / metaMensal) * 100) : 0;
+
+  // Descontos do mês atual
+  const mesAtualStr = format(new Date(), 'yyyy-MM');
+  const descontosMes = useMemo(() => {
+    return descontos.filter(d => d.data_referencia.startsWith(mesAtualStr));
+  }, [descontos, mesAtualStr]);
+
+  const totalDescontos = descontosMes.reduce((s, d) => s + d.valor_desconto, 0);
+  const liquidoMes = bonusAcumulado - totalDescontos;
 
   const chartData = useMemo(() =>
     [...historico].slice(0, 7).reverse().map(h => ({
@@ -93,17 +104,41 @@ export default function IncentivoColaborador() {
             </div>
           </div>
         </div>
-        <div className="bg-card p-4 grid grid-cols-2 divide-x divide-border/40">
-          <div className="text-center pr-4">
+        <div className="bg-card p-4 grid grid-cols-3 divide-x divide-border/40">
+          <div className="text-center pr-3">
             <p className="text-[10px] text-muted-foreground uppercase font-medium">Hoje</p>
-            <p className="text-lg font-bold text-foreground mt-0.5">{fmtBRL(valorHoje)}</p>
+            <p className="text-base font-bold text-foreground mt-0.5">{fmtBRL(valorHoje)}</p>
           </div>
-          <div className="text-center pl-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-medium">Metas atingidas</p>
-            <p className="text-lg font-bold text-foreground mt-0.5">{metaDiariaAtingida}</p>
+          <div className="text-center px-3">
+            <p className="text-[10px] text-muted-foreground uppercase font-medium">Descontos</p>
+            <p className={cn("text-base font-bold mt-0.5", totalDescontos > 0 ? "text-destructive" : "text-foreground")}>
+              {totalDescontos > 0 ? `-${fmtBRL(totalDescontos)}` : fmtBRL(0)}
+            </p>
+          </div>
+          <div className="text-center pl-3">
+            <p className="text-[10px] text-muted-foreground uppercase font-medium">Metas</p>
+            <p className="text-base font-bold text-foreground mt-0.5">{metaDiariaAtingida}</p>
           </div>
         </div>
       </div>
+
+      {/* Líquido do mês */}
+      {totalDescontos > 0 && (
+        <div className="card-elevated p-4 border-l-[3px] border-l-destructive">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+              <TrendingDown className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">Líquido estimado no mês</p>
+              <p className="text-xs text-muted-foreground">Bônus - Descontos por metas não atingidas</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-foreground">{fmtBRL(liquidoMes)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Projeção Mensal */}
       <div className="card-elevated p-4 space-y-3">
@@ -203,7 +238,105 @@ export default function IncentivoColaborador() {
         </div>
       )}
 
-      {/* Histórico */}
+      {/* Descontos - Transparência */}
+      <div className="card-elevated overflow-hidden">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <h3 className="text-sm font-bold text-foreground">Descontos por Meta</h3>
+          <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium ml-auto">
+            {descontosMes.length} desconto{descontosMes.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {descontosMes.length > 0 ? (
+          <div className="divide-y divide-border/40">
+            {descontosMes.map(d => (
+              <div key={d.id} className="px-4 py-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      {d.indicators?.nome ?? '—'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+                      {format(new Date(d.data_referencia + 'T00:00:00'), 'dd/MM/yyyy')}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-destructive">-{fmtBRL(d.valor_desconto)}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div>
+                    <p className="text-muted-foreground">Meta</p>
+                    <p className="font-semibold text-foreground">{d.valor_meta}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Resultado</p>
+                    <p className="font-semibold text-foreground">{d.valor_realizado}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Atingimento</p>
+                    <p className={cn('font-semibold', d.percentual_atingimento >= 100 ? 'text-success' : 'text-destructive')}>
+                      {d.percentual_atingimento.toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+                {d.motivo && (
+                  <div className="flex items-start gap-1.5 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-2.5">
+                    <Info className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-amber-800 dark:text-amber-200">{d.motivo}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center justify-between px-4 py-3.5 bg-destructive/5">
+              <span className="text-sm font-bold text-foreground">Total descontos no mês</span>
+              <span className="text-lg font-bold text-destructive">-{fmtBRL(totalDescontos)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-8 text-center">
+            <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
+              <Target className="h-5 w-5 text-emerald-600" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Nenhum desconto no mês</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Continue mantendo suas metas em dia! 🎯</p>
+          </div>
+        )}
+      </div>
+
+      {/* Descontos anteriores */}
+      {descontos.filter(d => !d.data_referencia.startsWith(mesAtualStr)).length > 0 && (
+        <div className="card-elevated overflow-hidden">
+          <div className="px-4 pt-4 pb-2">
+            <h3 className="text-sm font-bold text-foreground">Histórico de Descontos</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="text-left px-4 py-2 font-medium">Data</th>
+                  <th className="text-left px-4 py-2 font-medium">Indicador</th>
+                  <th className="text-right px-4 py-2 font-medium">Desconto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {descontos
+                  .filter(d => !d.data_referencia.startsWith(mesAtualStr))
+                  .slice(0, 10)
+                  .map(d => (
+                    <tr key={d.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-2.5 text-foreground font-medium">
+                        {format(new Date(d.data_referencia + 'T00:00:00'), 'dd/MM')}
+                      </td>
+                      <td className="px-4 py-2.5 text-foreground">{d.indicators?.nome ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-destructive font-bold">-{fmtBRL(d.valor_desconto)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Histórico de Incentivos */}
       {historico.length > 0 && (
         <div className="card-elevated overflow-hidden">
           <div className="px-4 pt-4 pb-2 flex items-center justify-between">
