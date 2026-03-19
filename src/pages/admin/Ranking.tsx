@@ -80,6 +80,14 @@ export default function RankingAdmin() {
         subtitle="Top performers por unidade e período"
       />
 
+      {/* Cargo tabs */}
+      <Tabs value={workerType} onValueChange={setWorkerType}>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="motorista" className="flex-1 sm:flex-none gap-1.5">🚛 Motoristas</TabsTrigger>
+          <TabsTrigger value="ajudante" className="flex-1 sm:flex-none gap-1.5">📦 Ajudantes</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <Select value={periodo} onValueChange={setPeriodo}>
