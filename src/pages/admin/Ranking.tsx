@@ -5,6 +5,7 @@ import { useRanking } from '@/hooks/useRanking';
 import { useUnidades } from '@/hooks/useUnidades';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
