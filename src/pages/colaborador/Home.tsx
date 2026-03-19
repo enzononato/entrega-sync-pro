@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,8 @@ import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { useMetas } from '@/hooks/useMetas';
+import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
+import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -43,6 +45,10 @@ export default function ColaboradorHome() {
   const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: metas = [] } = useMetas({ vigentes: true, worker_type: user?.worker_type ?? undefined });
+  const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+
+  const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
@@ -75,6 +81,13 @@ export default function ColaboradorHome() {
 
   return (
     <div className="space-y-5 stagger-children">
+      {/* Mandatory Feedback Modal */}
+      {showMandatoryModal && (
+        <MandatoryFeedbackModal
+          pendingIndicators={pendingFeedback}
+          onComplete={() => setFeedbackDismissed(true)}
+        />
+      )}
       {/* Greeting + Date */}
       <div className="flex items-center justify-between">
         <div>
