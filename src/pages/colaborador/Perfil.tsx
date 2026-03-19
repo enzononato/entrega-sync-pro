@@ -9,6 +9,7 @@ import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { useCausaRaizPorColaborador } from '@/hooks/useCausaRaiz';
 import { useDesempenhoPorColaborador } from '@/hooks/useDesempenho';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { ExtratoDescontos } from '@/components/colaborador/ExtratoDescontos';
 import { ChangePasswordDialog } from '@/components/colaborador/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
