@@ -48,7 +48,6 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             worker_type: u.worker_type,
             unidade_id: u.unidade_id,
             unidade_nome: u.units?.nome ?? null,
-            rota_nome: u.routes?.nome ?? null,
             avatar_url: u.avatar_url,
             pcts: [],
             onTarget: 0,
