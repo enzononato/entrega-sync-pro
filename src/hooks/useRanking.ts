@@ -19,7 +19,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       // Get performance data in the period
       let q = supabase
         .from('user_indicator_daily')
-        .select('user_id, percentual_atingimento, status, users(nome, worker_type, avatar_url, unidade_id, units(nome), routes(nome))')
+        .select('user_id, percentual_atingimento, status, users(nome, worker_type, avatar_url, unidade_id, units(nome))')
         .gte('data_referencia', filters.dataInicio)
         .lte('data_referencia', filters.dataFim);
 
