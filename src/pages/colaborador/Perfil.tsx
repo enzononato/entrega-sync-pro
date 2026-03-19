@@ -242,6 +242,9 @@ export default function PerfilColaborador() {
         <StatCard icon={<CheckCircle className="h-4 w-4 text-blue-500" />} value={diasNaMeta} label="Dias na meta (30d)" />
       </div>
 
+      {/* Extrato de Descontos */}
+      <ExtratoDescontos userId={user.id} />
+
       {/* Actions */}
       <div className="space-y-2">
         <Button 
