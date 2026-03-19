@@ -327,7 +327,7 @@ export default function Dashboard() {
             </div>
             <div className="space-y-3">
               {topCritical.map((c, i) => (
-                <div key={i} className="flex items-center gap-3">
+                <div key={i} onClick={() => navigate('/admin/desempenho')} className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 rounded-lg p-1 -mx-1 transition-colors active:scale-[0.98]">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary font-mono">{c.codigo}</span>
