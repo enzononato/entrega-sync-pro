@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,8 @@ import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { useMetas } from '@/hooks/useMetas';
+import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
+import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
