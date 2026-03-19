@@ -400,13 +400,17 @@ export default function Dashboard() {
           {latePlans.length > 0 ? (
             <div className="space-y-3">
               {latePlans.map(p => (
-                <div key={p.id} className={cn(
-                  'rounded-lg border p-3',
-                  p.diasAtraso > 3 ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50'
-                )}>
+                <div
+                  key={p.id}
+                  onClick={() => navigate('/admin/planos-de-acao')}
+                  className={cn(
+                    'rounded-lg border p-3 transition-all cursor-pointer hover:shadow-sm active:scale-[0.98]',
+                    p.diasAtraso > 3 ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50 hover:border-border'
+                  )}
+                >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-foreground truncate max-w-[150px]">{p.users?.nome ?? '—'}</span>
-                    <span className="inline-flex items-center rounded-md bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="inline-flex items-center rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-bold">
                       {p.diasAtraso}d atraso
                     </span>
                   </div>
