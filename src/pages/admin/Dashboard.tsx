@@ -359,10 +359,14 @@ export default function Dashboard() {
           {recentFeedbacks.length > 0 ? (
             <div className="space-y-3">
               {recentFeedbacks.map(f => (
-                <div key={f.id} className={cn(
-                  'rounded-lg border p-3 transition-colors',
-                  f.urgencia === 'critica' ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50'
-                )}>
+                <div
+                  key={f.id}
+                  onClick={() => navigate('/admin/feedbacks')}
+                  className={cn(
+                    'rounded-lg border p-3 transition-all cursor-pointer hover:shadow-sm active:scale-[0.98]',
+                    f.urgencia === 'critica' ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50 hover:border-border'
+                  )}
+                >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-foreground truncate max-w-[150px]">{f.users?.nome ?? '—'}</span>
                     <StatusBadge status={f.urgencia} />
