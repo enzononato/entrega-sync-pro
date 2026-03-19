@@ -178,48 +178,61 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main KPI Cards */}
+      {/* Main KPI Cards - Clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Colaboradores Ativos', value: activeUsers.length, sub: `${motoristas} mot · ${ajudantes} aj`, icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
-          { label: 'Média Atingimento', value: `${avgAtingimento}%`, sub: `${acimaMeta} acima · ${abaixoMeta} abaixo`, icon: Target, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
-          { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: `${feedbacksCriticos} críticos`, icon: MessageSquare, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', borderColor: 'border-l-amber-500' },
-          { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100', iconColor: 'text-green-600', borderColor: 'border-l-green-500', isText: true },
+          { label: 'Colaboradores Ativos', value: activeUsers.length, sub: `${motoristas} mot · ${ajudantes} aj`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
+          { label: 'Média Atingimento', value: `${avgAtingimento}%`, sub: `${acimaMeta} acima · ${abaixoMeta} abaixo`, icon: Target, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-l-emerald-500', href: '/admin/desempenho' },
+          { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: feedbacksCriticos > 0 ? `⚠️ ${feedbacksCriticos} críticos` : 'Nenhum crítico', icon: MessageSquare, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400', borderColor: 'border-l-amber-500', href: '/admin/feedbacks' },
+          { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400', borderColor: 'border-l-green-500', isText: true, href: '/admin/incentivos' },
         ].map(k => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className={cn('rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all hover:shadow-md', k.borderColor)}>
+            <button
+              key={k.label}
+              onClick={() => navigate(k.href)}
+              className={cn(
+                'rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] text-left group cursor-pointer',
+                k.borderColor
+              )}
+            >
               <div className="flex items-center gap-3">
-                <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', k.iconBg)}>
+                <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-110', k.iconBg)}>
                   <Icon className={cn('h-5 w-5', k.iconColor)} />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className={cn('font-bold text-foreground leading-none', 'isText' in k ? 'text-lg' : 'text-2xl')}>{k.value}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{k.sub}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 truncate">{k.sub}</p>
                 </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
               </div>
-            </div>
+              <p className="text-[10px] text-muted-foreground mt-2 font-medium uppercase tracking-wider">{k.label}</p>
+            </button>
           );
         })}
       </div>
 
-      {/* Secondary stats row */}
+      {/* Secondary stats row - Clickable */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Planos Pendentes', value: planosPendentes, icon: ClipboardList, color: 'text-blue-600' },
-          { label: 'Planos Atrasados', value: planosAtrasados, icon: Clock, color: 'text-red-600' },
-          { label: 'Motoristas', value: motoristas, icon: Truck, color: 'text-emerald-600' },
-          { label: 'Ajudantes', value: ajudantes, icon: UserCheck, color: 'text-violet-600' },
+          { label: 'Planos Pendentes', value: planosPendentes, icon: ClipboardList, color: 'text-blue-600 dark:text-blue-400', href: '/admin/planos-de-acao' },
+          { label: 'Planos Atrasados', value: planosAtrasados, icon: Clock, color: 'text-destructive', href: '/admin/planos-de-acao' },
+          { label: 'Motoristas', value: motoristas, icon: Truck, color: 'text-emerald-600 dark:text-emerald-400', href: '/admin/colaboradores' },
+          { label: 'Ajudantes', value: ajudantes, icon: UserCheck, color: 'text-violet-600 dark:text-violet-400', href: '/admin/colaboradores' },
         ].map(s => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="rounded-xl border bg-card p-3 shadow-sm flex items-center gap-3">
-              <Icon className={cn('h-4 w-4 shrink-0', s.color)} />
+            <button
+              key={s.label}
+              onClick={() => navigate(s.href)}
+              className="rounded-xl border bg-card p-3 shadow-sm flex items-center gap-3 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all text-left group cursor-pointer"
+            >
+              <Icon className={cn('h-4 w-4 shrink-0 transition-transform group-hover:scale-110', s.color)} />
               <div>
                 <p className="text-lg font-bold text-foreground leading-none">{s.value}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
