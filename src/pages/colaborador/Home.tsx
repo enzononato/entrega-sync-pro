@@ -45,6 +45,10 @@ export default function ColaboradorHome() {
   const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: metas = [] } = useMetas({ vigentes: true, worker_type: user?.worker_type ?? undefined });
+  const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+
+  const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
