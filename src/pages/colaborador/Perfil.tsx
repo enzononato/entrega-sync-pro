@@ -9,6 +9,7 @@ import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { useCausaRaizPorColaborador } from '@/hooks/useCausaRaiz';
 import { useDesempenhoPorColaborador } from '@/hooks/useDesempenho';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { ExtratoDescontos } from '@/components/colaborador/ExtratoDescontos';
 import { ChangePasswordDialog } from '@/components/colaborador/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -240,6 +241,9 @@ export default function PerfilColaborador() {
         <StatCard icon={<AlertTriangle className="h-4 w-4 text-orange-500" />} value={causas.length} label="Causas raiz" />
         <StatCard icon={<CheckCircle className="h-4 w-4 text-blue-500" />} value={diasNaMeta} label="Dias na meta (30d)" />
       </div>
+
+      {/* Extrato de Descontos */}
+      <ExtratoDescontos userId={user.id} />
 
       {/* Actions */}
       <div className="space-y-2">
