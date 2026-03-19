@@ -5,6 +5,7 @@ import { useRanking } from '@/hooks/useRanking';
 import { useUnidades } from '@/hooks/useUnidades';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,6 +58,7 @@ function getPerformanceColor(pct: number) {
 export default function RankingAdmin() {
   const [periodo, setPeriodo] = useState('mes_atual');
   const [unidadeId, setUnidadeId] = useState('todas');
+  const [workerType, setWorkerType] = useState('motorista');
   const { data: unidades = [] } = useUnidades();
 
   const { start, end } = useMemo(() => getDateRange(periodo), [periodo]);
@@ -64,6 +66,7 @@ export default function RankingAdmin() {
     dataInicio: start,
     dataFim: end,
     unidade_id: unidadeId === 'todas' ? undefined : unidadeId,
+    worker_type: workerType,
   });
 
   const top10 = ranking.slice(0, 10);
@@ -76,6 +79,14 @@ export default function RankingAdmin() {
         title="Ranking de Desempenho"
         subtitle="Top performers por unidade e período"
       />
+
+      {/* Cargo tabs */}
+      <Tabs value={workerType} onValueChange={setWorkerType}>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="motorista" className="flex-1 sm:flex-none gap-1.5">🚛 Motoristas</TabsTrigger>
+          <TabsTrigger value="ajudante" className="flex-1 sm:flex-none gap-1.5">📦 Ajudantes</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

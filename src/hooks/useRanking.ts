@@ -13,7 +13,7 @@ export interface RankingEntry {
   on_target_count: number;
 }
 
-export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string }) {
+export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string; worker_type?: string }) {
   return useQuery({
     queryKey: ['ranking', filters],
     queryFn: async () => {
@@ -40,8 +40,8 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         const u = row.users;
         if (!u) continue;
 
-        // Filter by unidade if specified
         if (filters.unidade_id && u.unidade_id !== filters.unidade_id) continue;
+        if (filters.worker_type && u.worker_type !== filters.worker_type) continue;
 
         if (!map.has(uid)) {
           map.set(uid, {
