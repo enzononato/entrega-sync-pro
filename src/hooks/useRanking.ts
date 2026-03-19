@@ -70,7 +70,6 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           nome: e.nome,
           worker_type: e.worker_type,
           unidade_nome: e.unidade_nome,
-          rota_nome: e.rota_nome,
           avatar_url: e.avatar_url,
           total_indicators: e.pcts.length,
           avg_atingimento: Math.round(avg * 10) / 10,
