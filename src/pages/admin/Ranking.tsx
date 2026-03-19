@@ -58,6 +58,7 @@ function getPerformanceColor(pct: number) {
 export default function RankingAdmin() {
   const [periodo, setPeriodo] = useState('mes_atual');
   const [unidadeId, setUnidadeId] = useState('todas');
+  const [workerType, setWorkerType] = useState('motorista');
   const { data: unidades = [] } = useUnidades();
 
   const { start, end } = useMemo(() => getDateRange(periodo), [periodo]);
@@ -65,6 +66,7 @@ export default function RankingAdmin() {
     dataInicio: start,
     dataFim: end,
     unidade_id: unidadeId === 'todas' ? undefined : unidadeId,
+    worker_type: workerType,
   });
 
   const top10 = ranking.slice(0, 10);
