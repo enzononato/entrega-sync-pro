@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Trophy, Medal, TrendingUp, Users, Crown, Star, Flame } from 'lucide-react';
+import { Medal, TrendingUp, Users, Crown, Star, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const PERIODOS = [
