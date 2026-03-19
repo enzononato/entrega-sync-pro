@@ -13,7 +13,7 @@ export interface RankingEntry {
   on_target_count: number;
 }
 
-export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string }) {
+export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string; worker_type?: string }) {
   return useQuery({
     queryKey: ['ranking', filters],
     queryFn: async () => {
