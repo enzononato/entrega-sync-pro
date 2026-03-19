@@ -16,7 +16,10 @@ import { NavLink } from '@/components/NavLink';
 const sections = [
   {
     label: 'VISÃO GERAL',
-    items: [{ title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard }],
+    items: [
+      { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
+      { title: 'Ranking', url: '/admin/ranking', icon: Award },
+    ],
   },
   {
     label: 'OPERAÇÃO',

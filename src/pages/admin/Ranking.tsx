@@ -73,9 +73,8 @@ export default function RankingAdmin() {
   return (
     <div className="space-y-6">
       <PageHeader
-        titulo="Ranking de Desempenho"
-        subtitulo="Top performers por unidade e período"
-        icone={<Trophy className="h-6 w-6" />}
+        title="Ranking de Desempenho"
+        subtitle="Top performers por unidade e período"
       />
 
       {/* Filters */}

@@ -59,6 +59,7 @@ export default function AppRoutes() {
         <Route path="planos-de-acao" element={<PlanosDeAcaoAdmin />} />
         <Route path="feedbacks" element={<FeedbacksAdmin />} />
         <Route path="auditoria" element={<AuditoriaAdmin />} />
+        <Route path="ranking" element={<RankingAdmin />} />
       </Route>
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
