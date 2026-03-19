@@ -6,7 +6,6 @@ export interface RankingEntry {
   nome: string;
   worker_type: string | null;
   unidade_nome: string | null;
-  rota_nome: string | null;
   avatar_url: string | null;
   total_indicators: number;
   avg_atingimento: number;
@@ -20,7 +19,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       // Get performance data in the period
       let q = supabase
         .from('user_indicator_daily')
-        .select('user_id, percentual_atingimento, status, users(nome, worker_type, avatar_url, unidade_id, units(nome), routes(nome))')
+        .select('user_id, percentual_atingimento, status, users(nome, worker_type, avatar_url, unidade_id, units(nome))')
         .gte('data_referencia', filters.dataInicio)
         .lte('data_referencia', filters.dataFim);
 
@@ -31,7 +30,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       // Group by user
       const map = new Map<string, {
         nome: string; worker_type: string | null; unidade_id: string | null;
-        unidade_nome: string | null; rota_nome: string | null; avatar_url: string | null;
+        unidade_nome: string | null; avatar_url: string | null;
         pcts: number[]; onTarget: number;
       }>();
 
@@ -49,7 +48,6 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             worker_type: u.worker_type,
             unidade_id: u.unidade_id,
             unidade_nome: u.units?.nome ?? null,
-            rota_nome: u.routes?.nome ?? null,
             avatar_url: u.avatar_url,
             pcts: [],
             onTarget: 0,
@@ -72,7 +70,6 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           nome: e.nome,
           worker_type: e.worker_type,
           unidade_nome: e.unidade_nome,
-          rota_nome: e.rota_nome,
           avatar_url: e.avatar_url,
           total_indicators: e.pcts.length,
           avg_atingimento: Math.round(avg * 10) / 10,
