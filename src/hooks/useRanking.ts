@@ -30,7 +30,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       // Group by user
       const map = new Map<string, {
         nome: string; worker_type: string | null; unidade_id: string | null;
-        unidade_nome: string | null; rota_nome: string | null; avatar_url: string | null;
+        unidade_nome: string | null; avatar_url: string | null;
         pcts: number[]; onTarget: number;
       }>();
 
