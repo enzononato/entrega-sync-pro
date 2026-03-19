@@ -20,6 +20,7 @@ import PlanosDeAcaoAdmin from '@/pages/admin/PlanosDeAcao';
 import FeedbacksAdmin from '@/pages/admin/Feedbacks';
 import AuditoriaAdmin from '@/pages/admin/Auditoria';
 import DescontosAdmin from '@/pages/admin/Descontos';
+import RankingAdmin from '@/pages/admin/Ranking';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import IndicadoresColaborador from '@/pages/colaborador/Indicadores';
 import IncentivoColaborador from '@/pages/colaborador/Incentivo';
