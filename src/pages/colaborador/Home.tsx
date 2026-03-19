@@ -81,6 +81,13 @@ export default function ColaboradorHome() {
 
   return (
     <div className="space-y-5 stagger-children">
+      {/* Mandatory Feedback Modal */}
+      {showMandatoryModal && (
+        <MandatoryFeedbackModal
+          pendingIndicators={pendingFeedback}
+          onComplete={() => setFeedbackDismissed(true)}
+        />
+      )}
       {/* Greeting + Date */}
       <div className="flex items-center justify-between">
         <div>
