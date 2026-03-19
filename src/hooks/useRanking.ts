@@ -6,7 +6,6 @@ export interface RankingEntry {
   nome: string;
   worker_type: string | null;
   unidade_nome: string | null;
-  rota_nome: string | null;
   avatar_url: string | null;
   total_indicators: number;
   avg_atingimento: number;
