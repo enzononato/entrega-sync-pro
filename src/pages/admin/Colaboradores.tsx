@@ -43,8 +43,6 @@ export default function Colaboradores() {
   const usuarios = paginatedResult?.data ?? [];
   const totalCount = paginatedResult?.count ?? 0;
   const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
-  const { data: units = [] } = useUnidades();
-  const activeUnits = units.filter(u => u.ativo);
   const { user: currentUser } = useAuth();
   const { allowedUnits } = useAllowedUnits();
 
