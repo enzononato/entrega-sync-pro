@@ -81,7 +81,7 @@ export default function Metas() {
     ativo: filters.ativo,
   });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits } = useAllowedUnits();
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const createMut = useCreateMeta();
   const updateMut = useUpdateMeta();
