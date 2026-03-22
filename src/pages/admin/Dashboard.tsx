@@ -175,7 +175,7 @@ export default function Dashboard() {
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
   const activeUnits = units.filter(u => u.ativo);
-  const activeRotas = rotas.filter(r => r.ativo);
+  
 
   return (
     <div className="space-y-6 animate-fade-up">
