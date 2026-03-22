@@ -298,9 +298,9 @@ export default function FeedbacksAdmin() {
                   <span className="text-sm font-medium text-foreground">{selected.users?.nome}</span>
                   {selected.users?.worker_type && (
                     <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium',
-                      selected.users.worker_type === 'motorista' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                      selected.users.worker_type === 'motorista' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : selected.users.worker_type === 'distribuicao' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
                     )}>
-                      {selected.users.worker_type === 'motorista' ? 'Motorista' : 'Ajudante'}
+                      {selected.users.worker_type === 'motorista' ? 'Motorista' : selected.users.worker_type === 'distribuicao' ? 'Distribuição' : 'Ajudante'}
                     </span>
                   )}
                   {selected.units?.nome && (

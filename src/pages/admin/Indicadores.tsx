@@ -161,6 +161,9 @@ export default function Indicadores() {
             <TabsTrigger value="ajudante" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-violet-500" /> Ajudante
             </TabsTrigger>
+            <TabsTrigger value="distribuicao" className="gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
+            </TabsTrigger>
             <TabsTrigger value="ambos" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-primary" /> Ambos
             </TabsTrigger>
@@ -322,6 +325,7 @@ export default function Indicadores() {
                 {[
                   { v: 'motorista', l: 'Motorista', bg: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
                   { v: 'ajudante', l: 'Ajudante', bg: 'bg-violet-100 text-violet-700 border-violet-300' },
+                  { v: 'distribuicao', l: 'Distribuição', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
                   { v: 'ambos', l: 'Ambos', bg: 'bg-primary/10 text-primary border-primary/30' },
                 ].map(o => (
                   <button

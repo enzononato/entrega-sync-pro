@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Download,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Download, Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -91,6 +91,7 @@ export default function Colaboradores() {
   const totalInativos = allUsers.filter(u => !u.ativo).length;
   const motoristas = allUsers.filter(u => u.ativo && u.worker_type === 'motorista').length;
   const ajudantes = allUsers.filter(u => u.ativo && u.worker_type === 'ajudante').length;
+  const distribuicaoCount = allUsers.filter(u => u.ativo && u.worker_type === 'distribuicao').length;
   const admins = allUsers.filter(u => u.role === 'administrador').length;
 
   // Filter by tab
@@ -207,6 +208,9 @@ export default function Colaboradores() {
             <TabsTrigger value="ajudante" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-violet-500" /> Ajudantes
             </TabsTrigger>
+            <TabsTrigger value="distribuicao" className="gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
+            </TabsTrigger>
             <TabsTrigger value="admins" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-amber-500" /> Admins
             </TabsTrigger>
@@ -249,24 +253,26 @@ export default function Colaboradores() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredByTab.map(u => {
             const isMot = u.worker_type === 'motorista';
+            const isDist = u.worker_type === 'distribuicao';
             const isAdmin = u.role === 'administrador';
             const unitNames = u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join(', ') || u.units?.nome || '';
+            const borderTop = isAdmin ? 'border-t-amber-400' : isMot ? 'border-t-emerald-400' : isDist ? 'border-t-blue-400' : 'border-t-violet-400';
+            const badgeBg = isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : isDist ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700';
+            const typeLabel = isAdmin ? 'Admin' : isMot ? 'Motorista' : isDist ? 'Distribuição' : 'Ajudante';
+            const TypeIcon = isAdmin ? Shield : isMot ? Truck : isDist ? Package : UserCheck;
             return (
               <div
                 key={u.id}
                 className={cn(
                   'rounded-xl border bg-card shadow-sm overflow-hidden transition-all hover:shadow-md',
                   !u.ativo && 'opacity-50',
-                  isAdmin ? 'border-t-[3px] border-t-amber-400' : isMot ? 'border-t-[3px] border-t-emerald-400' : 'border-t-[3px] border-t-violet-400'
+                  'border-t-[3px]', borderTop
                 )}
               >
                 <div className="px-4 pt-4 pb-3">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-11 w-11 shrink-0 ring-2 ring-background shadow-sm">
-                      <AvatarFallback className={cn(
-                        'text-xs font-bold',
-                        isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                      )}>
+                      <AvatarFallback className={cn('text-xs font-bold', badgeBg)}>
                         {getInitials(u.nome)}
                       </AvatarFallback>
                     </Avatar>
@@ -275,10 +281,10 @@ export default function Colaboradores() {
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className={cn(
                           'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                          isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
+                          badgeBg
                         )}>
-                          {isAdmin ? <Shield className="h-3 w-3" /> : isMot ? <Truck className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-                          {isAdmin ? 'Admin' : isMot ? 'Motorista' : 'Ajudante'}
+                          <TypeIcon className="h-3 w-3" />
+                          {typeLabel}
                         </span>
                         <StatusBadge status={u.ativo ? 'ativo' : 'inativo'} />
                       </div>
@@ -425,6 +431,7 @@ export default function Colaboradores() {
                       {[
                         { v: 'motorista', l: 'Motorista', bg: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
                         { v: 'ajudante', l: 'Ajudante', bg: 'bg-violet-100 text-violet-700 border-violet-300' },
+                        { v: 'distribuicao', l: 'Distribuição', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
                       ].map(o => (
                         <button key={o.v} type="button"
                           className={cn('flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',

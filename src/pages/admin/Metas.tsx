@@ -195,6 +195,9 @@ export default function Metas() {
             <TabsTrigger value="ajudante" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-violet-500" /> Ajudante
             </TabsTrigger>
+            <TabsTrigger value="distribuicao" className="gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
+            </TabsTrigger>
             <TabsTrigger value="individual" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-orange-500" /> Individual
             </TabsTrigger>

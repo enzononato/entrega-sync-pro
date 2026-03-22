@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
-  UserCheck, Zap, Clock, ArrowUpRight, MapPin,
+  UserCheck, Zap, Clock, ArrowUpRight, MapPin, Package,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -101,6 +101,7 @@ export default function Dashboard() {
   // KPI calculations
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
   const ajudantes = filteredUsers.filter(u => u.worker_type === 'ajudante').length;
+  const distribuicao = filteredUsers.filter(u => u.worker_type === 'distribuicao').length;
 
   const feedbacksAbertos = filteredFeedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).length;
   const feedbacksCriticos = filteredFeedbacks.filter(f => f.urgencia === 'critica' && ['aberto', 'em_analise'].includes(f.status)).length;
@@ -197,7 +198,7 @@ export default function Dashboard() {
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="motorista">Motorista</SelectItem><SelectItem value="ajudante">Ajudante</SelectItem></SelectContent>
+            <SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="motorista">Motorista</SelectItem><SelectItem value="ajudante">Ajudante</SelectItem><SelectItem value="distribuicao">Distribuição</SelectItem></SelectContent>
           </Select>
         </div>
       </div>
@@ -208,18 +209,16 @@ export default function Dashboard() {
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
-          {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter}</span>}
+          {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter === 'distribuicao' ? 'Distribuição' : tipoFilter}</span>}
           {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
           <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
-        </div>
-      )}
         </div>
       )}
 
       {/* Main KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Colaboradores Ativos', value: filteredUsers.length, sub: `${motoristas} mot · ${ajudantes} aj`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
+          { label: 'Colaboradores Ativos', value: filteredUsers.length, sub: `${motoristas} mot · ${ajudantes} aj · ${distribuicao} dist`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
           { label: 'Média Atingimento', value: `${avgAtingimento}%`, sub: `${acimaMeta} acima · ${abaixoMeta} abaixo`, icon: Target, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-l-emerald-500', href: '/admin/desempenho' },
           { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: feedbacksCriticos > 0 ? `⚠️ ${feedbacksCriticos} críticos` : 'Nenhum crítico', icon: MessageSquare, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400', borderColor: 'border-l-amber-500', href: '/admin/feedbacks' },
           { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400', borderColor: 'border-l-green-500', isText: true, href: '/admin/incentivos' },
@@ -251,12 +250,13 @@ export default function Dashboard() {
       </div>
 
       {/* Secondary stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           { label: 'Planos Pendentes', value: planosPendentes, icon: ClipboardList, color: 'text-blue-600 dark:text-blue-400', href: '/admin/planos-de-acao' },
           { label: 'Planos Atrasados', value: planosAtrasados, icon: Clock, color: 'text-destructive', href: '/admin/planos-de-acao' },
           { label: 'Motoristas', value: motoristas, icon: Truck, color: 'text-emerald-600 dark:text-emerald-400', href: '/admin/colaboradores' },
           { label: 'Ajudantes', value: ajudantes, icon: UserCheck, color: 'text-violet-600 dark:text-violet-400', href: '/admin/colaboradores' },
+          { label: 'Distribuição', value: distribuicao, icon: Package, color: 'text-blue-600 dark:text-blue-400', href: '/admin/colaboradores' },
         ].map(s => {
           const Icon = s.icon;
           return (

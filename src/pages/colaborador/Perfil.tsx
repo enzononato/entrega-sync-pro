@@ -142,7 +142,7 @@ export default function PerfilColaborador() {
             <AvatarImage src={user.avatar_url || undefined} alt={user.nome} />
             <AvatarFallback className={cn(
               'text-2xl font-bold text-white',
-              user.worker_type === 'motorista' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-purple-500 to-purple-600'
+              user.worker_type === 'motorista' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : user.worker_type === 'distribuicao' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-purple-500 to-purple-600'
             )}>
               {getInitials(user.nome)}
             </AvatarFallback>
@@ -165,9 +165,9 @@ export default function PerfilColaborador() {
         <p className="text-lg font-semibold text-foreground mt-4">{user.nome}</p>
         {user.worker_type && (
           <span className={cn('inline-flex rounded-lg px-3 py-1 text-xs font-semibold mt-2',
-            user.worker_type === 'motorista' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+            user.worker_type === 'motorista' ? 'bg-blue-50 text-blue-700' : user.worker_type === 'distribuicao' ? 'bg-cyan-50 text-cyan-700' : 'bg-purple-50 text-purple-700'
           )}>
-            {user.worker_type === 'motorista' ? '🚛 Motorista' : '📦 Ajudante'}
+            {user.worker_type === 'motorista' ? '🚛 Motorista' : user.worker_type === 'distribuicao' ? '📋 Distribuição' : '📦 Ajudante'}
           </span>
         )}
       </div>

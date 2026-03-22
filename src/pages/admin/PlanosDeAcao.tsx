@@ -227,8 +227,8 @@ export default function PlanosDeAcaoAdmin() {
                     <span className="text-sm font-medium text-foreground">{selected.users?.nome}</span>
                     {selected.users?.worker_type && (
                       <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-                        selected.users.worker_type === 'motorista' ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                      )}>{selected.users.worker_type === 'motorista' ? 'Motorista' : 'Ajudante'}</span>
+                        selected.users.worker_type === 'motorista' ? 'bg-emerald-100 text-emerald-700' : selected.users.worker_type === 'distribuicao' ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'
+                      )}>{selected.users.worker_type === 'motorista' ? 'Motorista' : selected.users.worker_type === 'distribuicao' ? 'Distribuição' : 'Ajudante'}</span>
                     )}
                     <div className="ml-auto flex gap-2">
                       <StatusBadge status={selected.status} />
