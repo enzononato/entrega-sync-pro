@@ -77,10 +77,12 @@ export default function Dashboard() {
   // Filter usuarios by unidade
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
+    // Restrict to allowed units
+    list = list.filter(u => !u.unidade_id || allowedUnitIds.has(u.unidade_id));
     if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
     if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
     return list;
-  }, [usuarios, unidadeFilter, tipoFilter]);
+  }, [usuarios, unidadeFilter, tipoFilter, allowedUnitIds]);
 
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
 
