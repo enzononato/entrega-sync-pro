@@ -283,12 +283,12 @@ export default function Descontos() {
             </div>
 
             {/* Preview */}
-            {form.valor_meta > 0 && form.valor_realizado > 0 && (
+            {Number(form.valor_meta) > 0 && Number(form.valor_realizado) > 0 && (
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-xs font-bold text-foreground">Prévia</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Atingimento: <strong className={cn((form.valor_realizado / form.valor_meta) * 100 >= 100 ? 'text-emerald-600' : 'text-red-600')}>
-                    {((form.valor_realizado / form.valor_meta) * 100).toFixed(1)}%
+                  Atingimento: <strong className={cn((Number(form.valor_realizado) / Number(form.valor_meta)) * 100 >= 100 ? 'text-emerald-600' : 'text-red-600')}>
+                    {((Number(form.valor_realizado) / Number(form.valor_meta)) * 100).toFixed(1)}%
                   </strong>
                 </p>
               </div>
