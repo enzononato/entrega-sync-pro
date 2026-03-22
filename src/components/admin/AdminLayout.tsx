@@ -22,6 +22,7 @@ export default function AdminLayout() {
               <h2 className="text-sm font-medium text-muted-foreground hidden md:block tracking-tight">Painel Administrativo</h2>
             </div>
             <div className="flex items-center gap-2">
+              <GlobalSearch />
               <NotificationPopover variant="admin" />
               <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
               <div className="flex items-center gap-2.5">
