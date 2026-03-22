@@ -74,7 +74,6 @@ export default function Dashboard() {
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
   const { data: units = [] } = useUnidades();
-  const { data: rotas = [] } = useRotas(unidadeFilter || undefined);
 
   // Filter usuarios by unidade + rota
   const filteredUsers = useMemo(() => {
