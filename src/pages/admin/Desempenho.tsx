@@ -10,7 +10,7 @@ import { ProgressBar } from '@/components/shared/ProgressBar';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useDesempenhoDiario, useCreateLancamento, useUpdateLancamento, useDeleteLancamento, useBatchCreateLancamentos, type DesempenhoRow } from '@/hooks/useDesempenho';
 import { useIndicadores } from '@/hooks/useIndicadores';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useMetas } from '@/hooks/useMetas';
 import { Button } from '@/components/ui/button';
