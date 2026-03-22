@@ -72,9 +72,9 @@ export default function Dashboard() {
     worker_type: tipoFilter || undefined,
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits, allowedUnitIds } = useAllowedUnits();
 
-  // Filter usuarios by unidade + rota
+  // Filter usuarios by unidade
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
     if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
