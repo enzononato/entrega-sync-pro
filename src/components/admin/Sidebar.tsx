@@ -68,8 +68,8 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 ring-1 ring-white/10 overflow-hidden">
-            <img src="/logo.png" alt="IncentivosPro" className="h-9 w-9 object-cover" />
+          <div className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 ring-1 ring-white/10">
+            <TrendingUp className="h-5 w-5 text-sidebar-foreground" />
           </div>
           {!collapsed && (
             <div>
