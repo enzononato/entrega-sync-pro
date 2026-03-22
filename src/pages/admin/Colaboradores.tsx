@@ -253,24 +253,26 @@ export default function Colaboradores() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredByTab.map(u => {
             const isMot = u.worker_type === 'motorista';
+            const isDist = u.worker_type === 'distribuicao';
             const isAdmin = u.role === 'administrador';
             const unitNames = u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join(', ') || u.units?.nome || '';
+            const borderTop = isAdmin ? 'border-t-amber-400' : isMot ? 'border-t-emerald-400' : isDist ? 'border-t-blue-400' : 'border-t-violet-400';
+            const badgeBg = isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : isDist ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700';
+            const typeLabel = isAdmin ? 'Admin' : isMot ? 'Motorista' : isDist ? 'Distribuição' : 'Ajudante';
+            const TypeIcon = isAdmin ? Shield : isMot ? Truck : isDist ? Package : UserCheck;
             return (
               <div
                 key={u.id}
                 className={cn(
                   'rounded-xl border bg-card shadow-sm overflow-hidden transition-all hover:shadow-md',
                   !u.ativo && 'opacity-50',
-                  isAdmin ? 'border-t-[3px] border-t-amber-400' : isMot ? 'border-t-[3px] border-t-emerald-400' : 'border-t-[3px] border-t-violet-400'
+                  'border-t-[3px]', borderTop
                 )}
               >
                 <div className="px-4 pt-4 pb-3">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-11 w-11 shrink-0 ring-2 ring-background shadow-sm">
-                      <AvatarFallback className={cn(
-                        'text-xs font-bold',
-                        isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                      )}>
+                      <AvatarFallback className={cn('text-xs font-bold', badgeBg)}>
                         {getInitials(u.nome)}
                       </AvatarFallback>
                     </Avatar>
@@ -279,10 +281,10 @@ export default function Colaboradores() {
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className={cn(
                           'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                          isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
+                          badgeBg
                         )}>
-                          {isAdmin ? <Shield className="h-3 w-3" /> : isMot ? <Truck className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-                          {isAdmin ? 'Admin' : isMot ? 'Motorista' : 'Ajudante'}
+                          <TypeIcon className="h-3 w-3" />
+                          {typeLabel}
                         </span>
                         <StatusBadge status={u.ativo ? 'ativo' : 'inativo'} />
                       </div>
