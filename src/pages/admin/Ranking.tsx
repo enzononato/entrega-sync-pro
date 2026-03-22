@@ -74,7 +74,7 @@ export default function RankingAdmin() {
   const [unidadeId, setUnidadeId] = useState('todas');
   const [workerType, setWorkerType] = useState('motorista');
   const [selectedEntry, setSelectedEntry] = useState<RankingEntry | null>(null);
-  const { data: unidades = [] } = useUnidades();
+  const { allowedUnits: unidades } = useAllowedUnits();
 
   const { start, end } = useMemo(() => getDateRange(periodo), [periodo]);
   const { data: ranking = [], isLoading } = useRanking({

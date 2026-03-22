@@ -83,7 +83,7 @@ export default function Desempenho() {
   const [batchDate, setBatchDate] = useState(today);
   const [batchRows, setBatchRows] = useState<{ user_id: string; nome: string; valor: number; meta: number }[]>([]);
 
-  const activeUnits = units.filter(u => u.ativo);
+  const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
   const pg = usePagination(desempenho);

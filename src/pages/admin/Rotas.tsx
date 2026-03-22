@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useRotas, useCreateRota, useUpdateRota, useToggleRotaAtivo, type RouteWithUnit } from '@/hooks/useRotas';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';

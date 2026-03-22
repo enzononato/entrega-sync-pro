@@ -149,7 +149,7 @@ export default function Metas() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const activeUnits = units.filter(u => u.ativo);
+  const activeUnits = allowedUnits;
   const activeColabs = usuarios.filter(u => u.role === 'colaborador');
   const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 

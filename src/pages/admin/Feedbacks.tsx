@@ -57,7 +57,7 @@ export default function FeedbacksAdmin() {
     tipo: filters.tipo,
     unidade_id: filters.unidade_id,
   });
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits } = useAllowedUnits();
   const { user } = useAuth();
   const responderMut = useResponderFeedback();
   const encerrarMut = useEncerrarFeedback();

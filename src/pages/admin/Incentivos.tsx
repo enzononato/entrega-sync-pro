@@ -63,8 +63,7 @@ export default function Incentivos() {
     ativo: filters.ativo,
   });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
-  const { data: units = [] } = useUnidades();
-  const activeUnits = units.filter(u => u.ativo);
+  const { allowedUnits: activeUnits } = useAllowedUnits();
 
   const createMut = useCreateIncentivo();
   const updateMut = useUpdateIncentivo();
