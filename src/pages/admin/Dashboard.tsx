@@ -9,6 +9,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useUnidades } from '@/hooks/useUnidades';
+import { useRotas } from '@/hooks/useRotas';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,9 +19,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
-  UserCheck, Zap, Clock, ArrowUpRight, ArrowDownRight,
+  UserCheck, Zap, Clock, ArrowUpRight, MapPin,
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
 function DatePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -60,10 +61,12 @@ export default function Dashboard() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [dateFilter, setDateFilter] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
+  const [rotaFilter, setRotaFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
 
+  // Data sources
   const { data: usuarios = [] } = useUsuarios();
-  const { data: feedbacks = [] } = useFeedbacks();
+  const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
   const { data: planos = [] } = usePlanosDeAcao();
   const { data: desempenho = [] } = useDesempenhoDiario(dateFilter, {
     unidade_id: unidadeFilter || undefined,
@@ -71,36 +74,71 @@ export default function Dashboard() {
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
   const { data: units = [] } = useUnidades();
+  const { data: rotas = [] } = useRotas(unidadeFilter || undefined);
 
-  const activeUsers = usuarios.filter(u => u.ativo && u.role === 'colaborador');
-  const motoristas = activeUsers.filter(u => u.worker_type === 'motorista').length;
-  const ajudantes = activeUsers.filter(u => u.worker_type === 'ajudante').length;
+  // Filter usuarios by unidade + rota
+  const filteredUsers = useMemo(() => {
+    let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
+    if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
+    if (rotaFilter) list = list.filter(u => u.rota_id === rotaFilter);
+    if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
+    return list;
+  }, [usuarios, unidadeFilter, rotaFilter, tipoFilter]);
 
-  const feedbacksAbertos = feedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).length;
-  const feedbacksCriticos = feedbacks.filter(f => f.urgencia === 'critica' && ['aberto', 'em_analise'].includes(f.status)).length;
+  const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
+
+  // Filter desempenho by rota (unidade+tipo already filtered server-side)
+  const filteredDesempenho = useMemo(() => {
+    if (!rotaFilter) return desempenho;
+    return desempenho.filter(d => filteredUserIds.has(d.user_id));
+  }, [desempenho, rotaFilter, filteredUserIds]);
+
+  // Filter incentivos by unidade + rota
+  const filteredIncentivos = useMemo(() => {
+    let list = incentivos;
+    if (unidadeFilter || rotaFilter) {
+      list = list.filter(i => filteredUserIds.has(i.user_id));
+    }
+    return list;
+  }, [incentivos, unidadeFilter, rotaFilter, filteredUserIds]);
+
+  // Filter feedbacks by rota (unidade already filtered server-side)
+  const filteredFeedbacks = useMemo(() => {
+    if (!rotaFilter) return feedbacks;
+    return feedbacks.filter(f => f.rota_id === rotaFilter);
+  }, [feedbacks, rotaFilter]);
+
+  // Filter planos by unidade + rota (client-side via user matching)
+  const filteredPlanos = useMemo(() => {
+    if (!unidadeFilter && !rotaFilter) return planos;
+    return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
+  }, [planos, unidadeFilter, rotaFilter, filteredUserIds]);
+
+  // KPI calculations
+  const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
+  const ajudantes = filteredUsers.filter(u => u.worker_type === 'ajudante').length;
+
+  const feedbacksAbertos = filteredFeedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).length;
+  const feedbacksCriticos = filteredFeedbacks.filter(f => f.urgencia === 'critica' && ['aberto', 'em_analise'].includes(f.status)).length;
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const planosPendentes = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
-  const planosAtrasados = planos.filter(p => p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status)).length;
+  const planosPendentes = filteredPlanos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
+  const planosAtrasados = filteredPlanos.filter(p => p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status)).length;
 
-  const incentivoTotal = useMemo(() => {
-    if (!incentivos.length) return 0;
-    return incentivos.reduce((s, i) => s + (i.valor_estimado ?? 0), 0);
-  }, [incentivos]);
-  const incentivoMedio = incentivos.length ? Math.round(incentivoTotal / incentivos.length * 100) / 100 : 0;
+  const incentivoTotal = useMemo(() => filteredIncentivos.reduce((s, i) => s + (i.valor_estimado ?? 0), 0), [filteredIncentivos]);
+  const incentivoMedio = filteredIncentivos.length ? Math.round(incentivoTotal / filteredIncentivos.length * 100) / 100 : 0;
 
-  // Performance stats
   const avgAtingimento = useMemo(() => {
-    if (!desempenho.length) return 0;
-    const vals = desempenho.filter(d => d.percentual_atingimento != null).map(d => d.percentual_atingimento!);
+    if (!filteredDesempenho.length) return 0;
+    const vals = filteredDesempenho.filter(d => d.percentual_atingimento != null).map(d => d.percentual_atingimento!);
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : 0;
-  }, [desempenho]);
-  const acimaMeta = desempenho.filter(d => d.status === 'acima_meta').length;
-  const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
+  }, [filteredDesempenho]);
+  const acimaMeta = filteredDesempenho.filter(d => d.status === 'acima_meta').length;
+  const abaixoMeta = filteredDesempenho.filter(d => d.status === 'abaixo_meta').length;
 
   const barData = useMemo(() => {
     const byInd: Record<string, { codigo: string; nome: string; vals: number[] }> = {};
-    desempenho.forEach(d => {
+    filteredDesempenho.forEach(d => {
       if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { codigo: d.indicators?.codigo ?? '', nome: d.indicators?.nome ?? '', vals: [] };
       if (d.percentual_atingimento != null) byInd[d.indicator_id].vals.push(d.percentual_atingimento);
     });
@@ -108,18 +146,18 @@ export default function Dashboard() {
       indicador: v.codigo, nome: v.nome,
       media: Math.round(v.vals.reduce((a, b) => a + b, 0) / v.vals.length * 10) / 10,
     })).sort((a, b) => a.media - b.media);
-  }, [desempenho]);
+  }, [filteredDesempenho]);
 
   const pieData = useMemo(() => {
     const byUrg: Record<string, number> = { baixa: 0, media: 0, alta: 0, critica: 0 };
-    feedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).forEach(f => { byUrg[f.urgencia] = (byUrg[f.urgencia] ?? 0) + 1; });
+    filteredFeedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).forEach(f => { byUrg[f.urgencia] = (byUrg[f.urgencia] ?? 0) + 1; });
     return Object.entries(byUrg).filter(([, v]) => v > 0).map(([k, v]) => ({ name: k, label: PIE_LABELS[k] ?? k, value: v }));
-  }, [feedbacks]);
+  }, [filteredFeedbacks]);
   const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   const topCritical = useMemo(() => {
     const byInd: Record<string, { nome: string; codigo: string; vals: number[] }> = {};
-    desempenho.forEach(d => {
+    filteredDesempenho.forEach(d => {
       if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { nome: d.indicators?.nome ?? '', codigo: d.indicators?.codigo ?? '', vals: [] };
       if (d.percentual_atingimento != null) byInd[d.indicator_id].vals.push(d.percentual_atingimento);
     });
@@ -131,19 +169,19 @@ export default function Dashboard() {
       .filter(v => v.gap < 0)
       .sort((a, b) => a.gap - b.gap)
       .slice(0, 5);
-  }, [desempenho]);
+  }, [filteredDesempenho]);
 
   const recentFeedbacks = useMemo(() =>
-    feedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).slice(0, 5),
-  [feedbacks]);
+    filteredFeedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).slice(0, 5),
+  [filteredFeedbacks]);
 
   const latePlans = useMemo(() =>
-    planos
+    filteredPlanos
       .filter(p => p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status))
       .map(p => ({ ...p, diasAtraso: Math.ceil((Date.now() - new Date(p.prazo + 'T00:00:00').getTime()) / 86400000) }))
       .sort((a, b) => b.diasAtraso - a.diasAtraso)
       .slice(0, 5),
-  [planos, todayStr]);
+  [filteredPlanos, todayStr]);
 
   const getBarColor = (media: number) => {
     if (media >= 100) return 'hsl(160, 84%, 39%)';
@@ -152,6 +190,8 @@ export default function Dashboard() {
   };
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
+  const activeUnits = units.filter(u => u.ativo);
+  const activeRotas = rotas.filter(r => r.ativo);
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -167,9 +207,16 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <DatePick value={dateFilter} onChange={setDateFilter} />
-          <Select value={unidadeFilter} onValueChange={v => setUnidadeFilter(v === 'all' ? '' : v)}>
+          <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); setRotaFilter(''); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Todas</SelectItem>{units.filter(u => u.ativo).map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
+            <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={rotaFilter} onValueChange={v => setRotaFilter(v === 'all' ? '' : v)}>
+            <SelectTrigger className="w-full sm:w-40 h-9 text-xs"><SelectValue placeholder="Rota" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {activeRotas.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
+            </SelectContent>
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
@@ -178,10 +225,23 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main KPI Cards - Clickable */}
+      {/* Active filters indicator */}
+      {(unidadeFilter || rotaFilter || tipoFilter || dateFilter !== today) && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>Filtros ativos:</span>
+          {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
+          {rotaFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeRotas.find(r => r.id === rotaFilter)?.nome}</span>}
+          {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter}</span>}
+          {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
+          <button onClick={() => { setUnidadeFilter(''); setRotaFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+        </div>
+      )}
+
+      {/* Main KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Colaboradores Ativos', value: activeUsers.length, sub: `${motoristas} mot · ${ajudantes} aj`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
+          { label: 'Colaboradores Ativos', value: filteredUsers.length, sub: `${motoristas} mot · ${ajudantes} aj`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
           { label: 'Média Atingimento', value: `${avgAtingimento}%`, sub: `${acimaMeta} acima · ${abaixoMeta} abaixo`, icon: Target, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-l-emerald-500', href: '/admin/desempenho' },
           { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: feedbacksCriticos > 0 ? `⚠️ ${feedbacksCriticos} críticos` : 'Nenhum crítico', icon: MessageSquare, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400', borderColor: 'border-l-amber-500', href: '/admin/feedbacks' },
           { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400', borderColor: 'border-l-green-500', isText: true, href: '/admin/incentivos' },
@@ -212,7 +272,7 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* Secondary stats row - Clickable */}
+      {/* Secondary stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Planos Pendentes', value: planosPendentes, icon: ClipboardList, color: 'text-blue-600 dark:text-blue-400', href: '/admin/planos-de-acao' },
@@ -239,7 +299,6 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Bar chart - 2 cols */}
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -272,7 +331,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Pie chart - 1 col */}
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -313,12 +371,11 @@ export default function Dashboard() {
 
       {/* Bottom panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Critical indicators */}
         {topCritical.length > 0 && (
           <div className="rounded-xl border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-red-500" />
+                <TrendingDown className="h-4 w-4 text-destructive" />
                 <h3 className="text-sm font-bold text-foreground">Indicadores Críticos</h3>
               </div>
               <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/desempenho')}>
@@ -336,7 +393,7 @@ export default function Dashboard() {
                     <ProgressBar value={c.media} color="red" className="h-1.5" />
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-red-600">{c.media}%</p>
+                    <p className="text-sm font-bold text-destructive">{c.media}%</p>
                     <p className="text-[10px] text-muted-foreground">{c.afetados} col.</p>
                   </div>
                 </div>
@@ -345,7 +402,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Recent feedbacks */}
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -364,7 +420,7 @@ export default function Dashboard() {
                   onClick={() => navigate('/admin/feedbacks')}
                   className={cn(
                     'rounded-lg border p-3 transition-all cursor-pointer hover:shadow-sm active:scale-[0.98]',
-                    f.urgencia === 'critica' ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50 hover:border-border'
+                    f.urgencia === 'critica' ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 hover:border-border'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -386,11 +442,10 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Late plans */}
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-red-500" />
+              <Clock className="h-4 w-4 text-destructive" />
               <h3 className="text-sm font-bold text-foreground">Planos Atrasados</h3>
             </div>
             <Button variant="ghost" size="sm" className="text-xs gap-1 text-primary" onClick={() => navigate('/admin/planos-de-acao')}>
@@ -405,12 +460,12 @@ export default function Dashboard() {
                   onClick={() => navigate('/admin/planos-de-acao')}
                   className={cn(
                     'rounded-lg border p-3 transition-all cursor-pointer hover:shadow-sm active:scale-[0.98]',
-                    p.diasAtraso > 3 ? 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' : 'border-border/50 hover:border-border'
+                    p.diasAtraso > 3 ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 hover:border-border'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-foreground truncate max-w-[150px]">{p.users?.nome ?? '—'}</span>
-                    <span className="inline-flex items-center rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="inline-flex items-center rounded-md bg-destructive/10 text-destructive px-1.5 py-0.5 text-[10px] font-bold">
                       {p.diasAtraso}d atraso
                     </span>
                   </div>
