@@ -4,6 +4,8 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/Sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationPopover } from '@/components/shared/NotificationPopover';
+import { GlobalSearch } from '@/components/admin/GlobalSearch';
+import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 export default function AdminLayout() {
   const { user } = useAuth();
@@ -20,6 +22,7 @@ export default function AdminLayout() {
               <h2 className="text-sm font-medium text-muted-foreground hidden md:block tracking-tight">Painel Administrativo</h2>
             </div>
             <div className="flex items-center gap-2">
+              <GlobalSearch />
               <NotificationPopover variant="admin" />
               <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
               <div className="flex items-center gap-2.5">
@@ -33,6 +36,7 @@ export default function AdminLayout() {
               </div>
             </div>
           </header>
+          <OfflineBanner />
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             <Outlet />
           </main>

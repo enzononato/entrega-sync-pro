@@ -2,8 +2,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from './BottomNav';
 import { PageTransition } from './PageTransition';
-import { Truck } from 'lucide-react';
 import { NotificationPopover } from '@/components/shared/NotificationPopover';
+import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { AnimatePresence } from 'framer-motion';
@@ -48,6 +48,8 @@ export default function ColaboradorLayout() {
           </div>
         </div>
       </header>
+
+      <OfflineBanner />
 
       <main className="flex-1 overflow-auto pb-20 p-4">
         <AnimatePresence mode="wait">
