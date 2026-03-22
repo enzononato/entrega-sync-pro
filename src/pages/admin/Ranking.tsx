@@ -321,7 +321,7 @@ export default function RankingAdmin() {
                         <span className={cn('text-xs font-bold', getPerformanceColor(u.avg))}>{u.avg.toFixed(1)}%</span>
                       </div>
                     </div>
-                    <ProgressBar value={Math.min(u.avg, 120)} max={120} color={getBarColor(u.avg)} className="h-2" />
+                    <ProgressBar value={Math.min(u.avg, 100)} color={getBarColor(u.avg)} className="h-2" />
                   </div>
                 ))}
               </div>
