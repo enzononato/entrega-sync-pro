@@ -78,7 +78,7 @@ export function useCreateDesconto() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['incentive_deductions'] });
+      qc.invalidateQueries({ queryKey: ['incentive_deductions'], refetchType: 'all' });
       toast({ title: 'Desconto registrado!' });
     },
     onError: () => {
