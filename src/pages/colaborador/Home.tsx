@@ -11,6 +11,7 @@ import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
+import { MiniRanking } from '@/components/colaborador/MiniRanking';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -162,6 +163,16 @@ export default function ColaboradorHome() {
 
       {/* Gráficos de Evolução */}
       <EvolutionCharts userId={user?.id} />
+
+      {/* Mini Ranking */}
+      {user?.worker_type && (
+        <section>
+          <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+            <Trophy className="h-4 w-4 text-yellow-500" /> Ranking {user.worker_type === 'motorista' ? 'Motoristas' : 'Ajudantes'}
+          </h2>
+          <MiniRanking workerType={user.worker_type} userId={user.id} />
+        </section>
+      )}
 
       {/* KPIs do Dia */}
       <section>

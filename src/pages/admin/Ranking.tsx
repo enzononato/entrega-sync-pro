@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRanking } from '@/hooks/useRanking';
+import { useRanking, type RankingEntry } from '@/hooks/useRanking';
 import { useUnidades } from '@/hooks/useUnidades';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,8 +9,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Medal, TrendingUp, Users, Crown, Star, Flame } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ProgressBar } from '@/components/shared/ProgressBar';
+import {
+  Medal, TrendingUp, TrendingDown, Users, Crown, Star, Flame,
+  ChevronRight, BarChart3, Target, ArrowUp, ArrowDown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const PERIODOS = [
@@ -55,10 +61,19 @@ function getPerformanceColor(pct: number) {
   return 'text-destructive';
 }
 
+function getBarColor(pct: number): 'green' | 'yellow' | 'red' {
+  if (pct >= 100) return 'green';
+  if (pct >= 80) return 'yellow';
+  return 'red';
+}
+
+const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
 export default function RankingAdmin() {
   const [periodo, setPeriodo] = useState('mes_atual');
   const [unidadeId, setUnidadeId] = useState('todas');
   const [workerType, setWorkerType] = useState('motorista');
+  const [selectedEntry, setSelectedEntry] = useState<RankingEntry | null>(null);
   const { data: unidades = [] } = useUnidades();
 
   const { start, end } = useMemo(() => getDateRange(periodo), [periodo]);
@@ -73,8 +88,27 @@ export default function RankingAdmin() {
   const topThree = top10.slice(0, 3);
   const rest = top10.slice(3);
 
+  // Stats
+  const avgGeral = ranking.length > 0 ? ranking.reduce((s, r) => s + r.avg_atingimento, 0) / ranking.length : 0;
+  const acimaMeta = ranking.filter(r => r.avg_atingimento >= 100).length;
+  const abaixo80 = ranking.filter(r => r.avg_atingimento < 80).length;
+
+  // Per-unit breakdown
+  const unitBreakdown = useMemo(() => {
+    const map = new Map<string, { nome: string; count: number; avg: number; total: number }>();
+    ranking.forEach(r => {
+      const key = r.unidade_nome ?? 'Sem unidade';
+      if (!map.has(key)) map.set(key, { nome: key, count: 0, avg: 0, total: 0 });
+      const u = map.get(key)!;
+      u.count++;
+      u.total += r.avg_atingimento;
+      u.avg = u.total / u.count;
+    });
+    return Array.from(map.values()).sort((a, b) => b.avg - a.avg);
+  }, [ranking]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-up">
       <PageHeader
         title="Ranking de Desempenho"
         subtitle="Top performers por unidade e período"
@@ -126,6 +160,31 @@ export default function RankingAdmin() {
         />
       ) : (
         <>
+          {/* Stats summary cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Colaboradores', value: ranking.length, icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
+              { label: 'Média Geral', value: `${avgGeral.toFixed(1)}%`, icon: BarChart3, iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-l-primary' },
+              { label: 'Acima da Meta', value: acimaMeta, icon: ArrowUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+              { label: 'Abaixo de 80%', value: abaixo80, icon: ArrowDown, iconBg: 'bg-destructive/10', iconColor: 'text-destructive', borderColor: 'border-l-destructive' },
+            ].map(k => {
+              const Icon = k.icon;
+              return (
+                <div key={k.label} className={cn('rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all hover:shadow-md', k.borderColor)}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', k.iconBg)}>
+                      <Icon className={cn('h-5 w-5', k.iconColor)} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground leading-none">{k.value}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">{k.label}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* Podium - Top 3 */}
           {topThree.length > 0 && (
             <div className="grid grid-cols-3 gap-3 items-end">
@@ -135,16 +194,17 @@ export default function RankingAdmin() {
                 const position = idx + 1;
                 const medal = getMedalConfig(position)!;
                 const isFirst = position === 1;
-                const initials = entry.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                const initials = getInitials(entry.nome);
 
                 return (
                   <div
                     key={entry.user_id}
                     className={cn(
-                      'relative rounded-2xl border p-4 text-center transition-all',
+                      'relative rounded-2xl border p-4 text-center transition-all cursor-pointer hover:shadow-lg',
                       medal.bg,
                       isFirst ? 'py-6 scale-105 shadow-lg' : 'py-4'
                     )}
+                    onClick={() => setSelectedEntry(entry)}
                   >
                     {isFirst && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -174,6 +234,19 @@ export default function RankingAdmin() {
                     {entry.unidade_nome && (
                       <p className="text-[9px] text-muted-foreground mt-1 truncate">📍 {entry.unidade_nome}</p>
                     )}
+                    {/* Best/Worst indicators */}
+                    <div className="mt-2 space-y-0.5">
+                      {entry.best_indicator && (
+                        <p className="text-[9px] text-success flex items-center justify-center gap-0.5 truncate">
+                          <TrendingUp className="h-2.5 w-2.5 shrink-0" /> {entry.best_indicator}
+                        </p>
+                      )}
+                      {entry.worst_indicator && entry.worst_indicator !== entry.best_indicator && (
+                        <p className="text-[9px] text-destructive flex items-center justify-center gap-0.5 truncate">
+                          <TrendingDown className="h-2.5 w-2.5 shrink-0" /> {entry.worst_indicator}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -185,37 +258,38 @@ export default function RankingAdmin() {
             <div className="rounded-2xl border bg-card overflow-hidden divide-y divide-border/40">
               {rest.map((entry, i) => {
                 const position = i + 4;
-                const initials = entry.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                const initials = getInitials(entry.nome);
                 return (
-                  <div key={entry.user_id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-                    {/* Position */}
+                  <div
+                    key={entry.user_id}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => setSelectedEntry(entry)}
+                  >
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                       <span className="text-sm font-bold text-muted-foreground">{position}º</span>
                     </div>
-
-                    {/* Avatar */}
                     <Avatar className="h-9 w-9 shrink-0">
                       <AvatarImage src={entry.avatar_url ?? undefined} />
                       <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
                     </Avatar>
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{entry.nome}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {entry.worker_type && (
-                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">
-                            {entry.worker_type}
-                          </Badge>
-                        )}
                         {entry.unidade_nome && (
                           <span className="text-[10px] text-muted-foreground truncate">📍 {entry.unidade_nome}</span>
                         )}
                       </div>
                     </div>
-
-                    {/* Score */}
-                    <div className="text-right shrink-0">
+                    {/* Mini indicator breakdown */}
+                    <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+                      {entry.indicators_breakdown.slice(0, 3).map(ind => (
+                        <div key={ind.indicator_id} className="text-center">
+                          <p className="text-[9px] text-muted-foreground truncate max-w-[60px]">{ind.indicator_nome}</p>
+                          <p className={cn('text-[10px] font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(0)}%</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-right shrink-0 ml-2">
                       <p className={cn('text-sm font-bold', getPerformanceColor(entry.avg_atingimento))}>
                         {entry.avg_atingimento.toFixed(1)}%
                       </p>
@@ -223,36 +297,111 @@ export default function RankingAdmin() {
                         {entry.on_target_count}/{entry.total_indicators}
                       </p>
                     </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
                   </div>
                 );
               })}
             </div>
           )}
 
-          {/* Stats summary */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border bg-card p-4 text-center">
-              <Users className="h-5 w-5 text-primary mx-auto mb-1" />
-              <p className="text-xl font-bold text-foreground">{ranking.length}</p>
-              <p className="text-[10px] text-muted-foreground font-medium">Colaboradores</p>
+          {/* Per-unit breakdown */}
+          {unitBreakdown.length > 1 && (
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Desempenho por Unidade</span>
+              </div>
+              <div className="space-y-3">
+                {unitBreakdown.map(u => (
+                  <div key={u.nome} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground">{u.nome}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground">{u.count} colab.</span>
+                        <span className={cn('text-xs font-bold', getPerformanceColor(u.avg))}>{u.avg.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <ProgressBar value={Math.min(u.avg, 100)} color={getBarColor(u.avg)} className="h-2" />
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="rounded-xl border bg-card p-4 text-center">
-              <TrendingUp className="h-5 w-5 text-success mx-auto mb-1" />
-              <p className="text-xl font-bold text-foreground">
-                {ranking.length > 0 ? (ranking.reduce((s, r) => s + r.avg_atingimento, 0) / ranking.length).toFixed(1) : 0}%
-              </p>
-              <p className="text-[10px] text-muted-foreground font-medium">Média Geral</p>
-            </div>
-            <div className="rounded-xl border bg-card p-4 text-center">
-              <Star className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
-              <p className="text-xl font-bold text-foreground">
-                {ranking.filter(r => r.avg_atingimento >= 100).length}
-              </p>
-              <p className="text-[10px] text-muted-foreground font-medium">Acima da Meta</p>
-            </div>
-          </div>
+          )}
         </>
       )}
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(null)}>
+        <DialogContent className="max-w-md p-0">
+          {selectedEntry && (() => {
+            const pos = ranking.findIndex(r => r.user_id === selectedEntry.user_id) + 1;
+            const medal = getMedalConfig(pos);
+            return (
+              <>
+                <div className={cn('px-6 pt-6 pb-4 border-b border-border/50', medal ? medal.bg : '')}>
+                  <DialogHeader>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={selectedEntry.avatar_url ?? undefined} />
+                        <AvatarFallback className="font-bold">{getInitials(selectedEntry.nome)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <DialogTitle className="text-base">{selectedEntry.nome}</DialogTitle>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{selectedEntry.worker_type}</Badge>
+                          {selectedEntry.unidade_nome && <span className="text-[10px] text-muted-foreground">📍 {selectedEntry.unidade_nome}</span>}
+                        </div>
+                      </div>
+                      <div className="ml-auto text-right">
+                        <p className="text-xs text-muted-foreground">{pos}º lugar</p>
+                        <p className={cn('text-xl font-bold', getPerformanceColor(selectedEntry.avg_atingimento))}>
+                          {selectedEntry.avg_atingimento.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  </DialogHeader>
+                </div>
+                <div className="px-6 py-5 space-y-4">
+                  {/* Summary */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg bg-muted/40 p-3 text-center">
+                      <p className="text-lg font-bold text-foreground">{selectedEntry.total_indicators}</p>
+                      <p className="text-[10px] text-muted-foreground">Lançamentos</p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 p-3 text-center">
+                      <p className="text-lg font-bold text-success">{selectedEntry.on_target_count}</p>
+                      <p className="text-[10px] text-muted-foreground">Na Meta</p>
+                    </div>
+                    <div className="rounded-lg bg-red-50 dark:bg-red-950/20 p-3 text-center">
+                      <p className="text-lg font-bold text-destructive">{selectedEntry.total_indicators - selectedEntry.on_target_count}</p>
+                      <p className="text-[10px] text-muted-foreground">Fora</p>
+                    </div>
+                  </div>
+
+                  {/* Indicator breakdown */}
+                  <div>
+                    <p className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                      <Target className="h-3.5 w-3.5 text-primary" /> Desempenho por Indicador
+                    </p>
+                    <div className="space-y-2.5">
+                      {selectedEntry.indicators_breakdown.map(ind => (
+                        <div key={ind.indicator_id} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
+                            <span className={cn('text-xs font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(1)}%</span>
+                          </div>
+                          <ProgressBar value={Math.min(ind.avg_pct, 100)} color={getBarColor(ind.avg_pct)} className="h-1.5" />
+                          <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

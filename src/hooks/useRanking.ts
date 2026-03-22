@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface IndicatorBreakdown {
+  indicator_id: string;
+  indicator_nome: string;
+  avg_pct: number;
+  count: number;
+}
+
 export interface RankingEntry {
   user_id: string;
   nome: string;
@@ -10,16 +17,18 @@ export interface RankingEntry {
   total_indicators: number;
   avg_atingimento: number;
   on_target_count: number;
+  best_indicator: string | null;
+  worst_indicator: string | null;
+  indicators_breakdown: IndicatorBreakdown[];
 }
 
 export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string; worker_type?: string }) {
   return useQuery({
     queryKey: ['ranking', filters],
     queryFn: async () => {
-      // Get performance data in the period
       let q = supabase
         .from('user_indicator_daily')
-        .select('user_id, percentual_atingimento, status, users(nome, worker_type, avatar_url, unidade_id, units(nome))')
+        .select('user_id, indicator_id, percentual_atingimento, status, indicators(nome), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
         .gte('data_referencia', filters.dataInicio)
         .lte('data_referencia', filters.dataFim);
 
@@ -32,6 +41,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         nome: string; worker_type: string | null; unidade_id: string | null;
         unidade_nome: string | null; avatar_url: string | null;
         pcts: number[]; onTarget: number;
+        byIndicator: Map<string, { nome: string; pcts: number[] }>;
       }>();
 
       for (const row of data as any[]) {
@@ -51,6 +61,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             avatar_url: u.avatar_url,
             pcts: [],
             onTarget: 0,
+            byIndicator: new Map(),
           });
         }
         const entry = map.get(uid)!;
@@ -59,12 +70,33 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         if (row.status === 'acima_meta' || row.status === 'dentro_meta') {
           entry.onTarget++;
         }
+
+        // Track per-indicator
+        const indId = row.indicator_id;
+        const indNome = row.indicators?.nome ?? '—';
+        if (!entry.byIndicator.has(indId)) {
+          entry.byIndicator.set(indId, { nome: indNome, pcts: [] });
+        }
+        entry.byIndicator.get(indId)!.pcts.push(pct);
       }
 
-      // Convert to array and sort by avg atingimento
       const result: RankingEntry[] = [];
       for (const [user_id, e] of map) {
         const avg = e.pcts.length > 0 ? e.pcts.reduce((a, b) => a + b, 0) / e.pcts.length : 0;
+
+        const breakdown: IndicatorBreakdown[] = [];
+        let bestPct = -1, worstPct = Infinity;
+        let bestName: string | null = null, worstName: string | null = null;
+
+        for (const [ind_id, ind] of e.byIndicator) {
+          const indAvg = ind.pcts.reduce((a, b) => a + b, 0) / ind.pcts.length;
+          breakdown.push({ indicator_id: ind_id, indicator_nome: ind.nome, avg_pct: Math.round(indAvg * 10) / 10, count: ind.pcts.length });
+          if (indAvg > bestPct) { bestPct = indAvg; bestName = ind.nome; }
+          if (indAvg < worstPct) { worstPct = indAvg; worstName = ind.nome; }
+        }
+
+        breakdown.sort((a, b) => b.avg_pct - a.avg_pct);
+
         result.push({
           user_id,
           nome: e.nome,
@@ -74,6 +106,9 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           total_indicators: e.pcts.length,
           avg_atingimento: Math.round(avg * 10) / 10,
           on_target_count: e.onTarget,
+          best_indicator: bestName,
+          worst_indicator: worstName,
+          indicators_breakdown: breakdown,
         });
       }
 
