@@ -119,6 +119,7 @@ export default function RankingAdmin() {
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="motorista" className="flex-1 sm:flex-none gap-1.5">🚛 Motoristas</TabsTrigger>
           <TabsTrigger value="ajudante" className="flex-1 sm:flex-none gap-1.5">📦 Ajudantes</TabsTrigger>
+          <TabsTrigger value="distribuicao" className="flex-1 sm:flex-none gap-1.5">📋 Distribuição</TabsTrigger>
         </TabsList>
       </Tabs>
 
