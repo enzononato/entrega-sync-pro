@@ -46,8 +46,28 @@ export default function Colaboradores() {
   const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
   const { data: units = [] } = useUnidades();
   const activeUnits = units.filter(u => u.ativo);
+  const { user: currentUser } = useAuth();
 
-  const createMut = useCreateUsuario();
+  // Fetch current admin user's allowed units
+  const { data: myUserUnits } = useQuery({
+    queryKey: ['my-user-units', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const { data, error } = await supabase
+        .from('user_units')
+        .select('unit_id')
+        .eq('user_id', currentUser.id);
+      if (error) throw error;
+      return data.map(r => r.unit_id);
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  // If user has user_units entries, only show those; otherwise show all
+  const allowedUnits = useMemo(() => {
+    if (!myUserUnits || myUserUnits.length === 0) return activeUnits;
+    return activeUnits.filter(u => myUserUnits.includes(u.id));
+  }, [activeUnits, myUserUnits]);
   const updateMut = useUpdateUsuario();
   const toggleMut = useToggleUsuarioAtivo();
 
