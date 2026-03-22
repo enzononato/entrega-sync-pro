@@ -7,6 +7,7 @@ import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { AnimatePresence } from 'framer-motion';
+import { TrendingUp } from 'lucide-react';
 
 export default function ColaboradorLayout() {
   const { user } = useAuth();
