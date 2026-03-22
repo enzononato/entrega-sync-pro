@@ -164,6 +164,16 @@ export default function ColaboradorHome() {
       {/* Gráficos de Evolução */}
       <EvolutionCharts userId={user?.id} />
 
+      {/* Mini Ranking */}
+      {user?.worker_type && (
+        <section>
+          <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+            <Trophy className="h-4 w-4 text-yellow-500" /> Ranking {user.worker_type === 'motorista' ? 'Motoristas' : 'Ajudantes'}
+          </h2>
+          <MiniRanking workerType={user.worker_type} userId={user.id} />
+        </section>
+      )}
+
       {/* KPIs do Dia */}
       <section>
         <div className="flex items-center justify-between mb-3">
