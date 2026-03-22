@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
-  UserCheck, Zap, Clock, ArrowUpRight, MapPin,
+  UserCheck, Zap, Clock, ArrowUpRight, MapPin, Package,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
