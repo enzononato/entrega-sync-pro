@@ -445,7 +445,7 @@ export default function Colaboradores() {
                     <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
                       <SelectContent>
-                        {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                        {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   ) : (
