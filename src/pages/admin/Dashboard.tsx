@@ -101,6 +101,7 @@ export default function Dashboard() {
   // KPI calculations
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
   const ajudantes = filteredUsers.filter(u => u.worker_type === 'ajudante').length;
+  const distribuicao = filteredUsers.filter(u => u.worker_type === 'distribuicao').length;
 
   const feedbacksAbertos = filteredFeedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).length;
   const feedbacksCriticos = filteredFeedbacks.filter(f => f.urgencia === 'critica' && ['aberto', 'em_analise'].includes(f.status)).length;
