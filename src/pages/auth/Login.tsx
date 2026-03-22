@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { Truck, Shield, Users } from 'lucide-react';
+import { Truck, Shield, Users, TrendingUp } from 'lucide-react';
 
 export default function Login() {
   const { user, loading } = useAuth();
