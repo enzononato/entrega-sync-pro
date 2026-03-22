@@ -99,7 +99,7 @@ export function useDeleteDesconto() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['incentive_deductions'] });
+      qc.invalidateQueries({ queryKey: ['incentive_deductions'], refetchType: 'all' });
       toast({ title: 'Desconto removido!' });
     },
     onError: () => {
