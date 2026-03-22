@@ -61,7 +61,7 @@ export default function Desempenho() {
     user_id: filters.user_id, indicator_id: filters.indicator_id,
   });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits } = useAllowedUnits();
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const { data: metas = [] } = useMetas({ vigentes: true });
 
