@@ -3,6 +3,7 @@ import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useFeedbacksDoColaborador } from '@/hooks/useFeedbacks';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
