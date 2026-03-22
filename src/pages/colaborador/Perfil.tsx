@@ -14,6 +14,7 @@ import { ExtratoDescontos } from '@/components/colaborador/ExtratoDescontos';
 import { ChangePasswordDialog } from '@/components/colaborador/ChangePasswordDialog';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Hash, Mail, Building2, MapPin, Calendar, LogOut,
