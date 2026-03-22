@@ -9,7 +9,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useUnidades } from '@/hooks/useUnidades';
-import { useRotas } from '@/hooks/useRotas';
+
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -61,7 +61,6 @@ export default function Dashboard() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [dateFilter, setDateFilter] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
-  const [rotaFilter, setRotaFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
 
   // Data sources
@@ -74,45 +73,30 @@ export default function Dashboard() {
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
   const { data: units = [] } = useUnidades();
-  const { data: rotas = [] } = useRotas(unidadeFilter || undefined);
 
   // Filter usuarios by unidade + rota
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
     if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
-    if (rotaFilter) list = list.filter(u => u.rota_id === rotaFilter);
     if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
     return list;
-  }, [usuarios, unidadeFilter, rotaFilter, tipoFilter]);
+  }, [usuarios, unidadeFilter, tipoFilter]);
 
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
 
-  // Filter desempenho by rota (unidade+tipo already filtered server-side)
-  const filteredDesempenho = useMemo(() => {
-    if (!rotaFilter) return desempenho;
-    return desempenho.filter(d => filteredUserIds.has(d.user_id));
-  }, [desempenho, rotaFilter, filteredUserIds]);
+  const filteredDesempenho = desempenho;
 
-  // Filter incentivos by unidade + rota
   const filteredIncentivos = useMemo(() => {
-    let list = incentivos;
-    if (unidadeFilter || rotaFilter) {
-      list = list.filter(i => filteredUserIds.has(i.user_id));
-    }
-    return list;
-  }, [incentivos, unidadeFilter, rotaFilter, filteredUserIds]);
+    if (!unidadeFilter) return incentivos;
+    return incentivos.filter(i => filteredUserIds.has(i.user_id));
+  }, [incentivos, unidadeFilter, filteredUserIds]);
 
-  // Filter feedbacks by rota (unidade already filtered server-side)
-  const filteredFeedbacks = useMemo(() => {
-    if (!rotaFilter) return feedbacks;
-    return feedbacks.filter(f => f.rota_id === rotaFilter);
-  }, [feedbacks, rotaFilter]);
+  const filteredFeedbacks = feedbacks;
 
-  // Filter planos by unidade + rota (client-side via user matching)
   const filteredPlanos = useMemo(() => {
-    if (!unidadeFilter && !rotaFilter) return planos;
+    if (!unidadeFilter) return planos;
     return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
-  }, [planos, unidadeFilter, rotaFilter, filteredUserIds]);
+  }, [planos, unidadeFilter, filteredUserIds]);
 
   // KPI calculations
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
@@ -191,7 +175,7 @@ export default function Dashboard() {
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
   const activeUnits = units.filter(u => u.ativo);
-  const activeRotas = rotas.filter(r => r.ativo);
+  
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -207,16 +191,9 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <DatePick value={dateFilter} onChange={setDateFilter} />
-          <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); setRotaFilter(''); }}>
+          <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={rotaFilter} onValueChange={v => setRotaFilter(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-40 h-9 text-xs"><SelectValue placeholder="Rota" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {activeRotas.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
-            </SelectContent>
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
@@ -226,15 +203,16 @@ export default function Dashboard() {
       </div>
 
       {/* Active filters indicator */}
-      {(unidadeFilter || rotaFilter || tipoFilter || dateFilter !== today) && (
+      {(unidadeFilter || tipoFilter || dateFilter !== today) && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
-          {rotaFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeRotas.find(r => r.id === rotaFilter)?.nome}</span>}
           {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter}</span>}
           {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
-          <button onClick={() => { setUnidadeFilter(''); setRotaFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+          <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+        </div>
+      )}
         </div>
       )}
 
