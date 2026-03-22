@@ -431,6 +431,7 @@ export default function Colaboradores() {
                       {[
                         { v: 'motorista', l: 'Motorista', bg: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
                         { v: 'ajudante', l: 'Ajudante', bg: 'bg-violet-100 text-violet-700 border-violet-300' },
+                        { v: 'distribuicao', l: 'Distribuição', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
                       ].map(o => (
                         <button key={o.v} type="button"
                           className={cn('flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
