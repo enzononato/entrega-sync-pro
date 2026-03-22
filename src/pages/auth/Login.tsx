@@ -31,8 +31,8 @@ export default function Login() {
         <div className="absolute -inset-4 bg-white/5 rounded-3xl blur-2xl" />
         <div className="relative rounded-2xl bg-card/95 backdrop-blur-2xl p-8 shadow-elevated border border-white/10">
           <div className="flex flex-col items-center mb-8">
-            <div className="h-16 w-16 rounded-2xl overflow-hidden mb-5 shadow-glow-primary ring-1 ring-white/10">
-              <img src="/logo.png" alt="IncentivosPro" className="h-16 w-16 object-cover" />
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 mb-5 shadow-glow-primary ring-1 ring-white/10 flex items-center justify-center">
+              <TrendingUp className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">IncentivosPro</h1>
             <p className="text-sm text-muted-foreground mt-1">Selecione seu perfil para continuar</p>
