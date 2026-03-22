@@ -48,10 +48,10 @@ const emptyForm = {
   user_id: '',
   indicator_id: '',
   data_referencia: format(new Date(), 'yyyy-MM-dd'),
-  valor_meta: 0,
-  valor_realizado: 0,
+  valor_meta: '',
+  valor_realizado: '',
   percentual_atingimento: 0,
-  valor_desconto: 0,
+  valor_desconto: '',
   motivo: '',
 };
 
@@ -82,9 +82,18 @@ export default function Descontos() {
   };
 
   const handleSave = async () => {
-    const pct = form.valor_meta > 0 ? (form.valor_realizado / form.valor_meta) * 100 : 0;
+    const meta = Number(form.valor_meta) || 0;
+    const realizado = Number(form.valor_realizado) || 0;
+    const desconto = Number(form.valor_desconto) || 0;
+    const pct = meta > 0 ? (realizado / meta) * 100 : 0;
     await createMut.mutateAsync({
-      ...form,
+      user_id: form.user_id,
+      indicator_id: form.indicator_id,
+      data_referencia: form.data_referencia,
+      valor_meta: meta,
+      valor_realizado: realizado,
+      valor_desconto: desconto,
+      motivo: form.motivo,
       percentual_atingimento: Math.round(pct * 100) / 100,
       created_by: user?.id,
     });
@@ -249,17 +258,17 @@ export default function Descontos() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Meta</Label>
-                <Input type="number" min={0} step={0.01} value={form.valor_meta} onChange={e => setForm(f => ({ ...f, valor_meta: Number(e.target.value) }))} className="h-9" />
+                <Input type="number" min={0} step={0.01} value={form.valor_meta} onChange={e => setForm(f => ({ ...f, valor_meta: e.target.value }))} className="h-9" placeholder="0" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Realizado</Label>
-                <Input type="number" min={0} step={0.01} value={form.valor_realizado} onChange={e => setForm(f => ({ ...f, valor_realizado: Number(e.target.value) }))} className="h-9" />
+                <Input type="number" min={0} step={0.01} value={form.valor_realizado} onChange={e => setForm(f => ({ ...f, valor_realizado: e.target.value }))} className="h-9" placeholder="0" />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs">Valor do Desconto (R$) *</Label>
-              <Input type="number" min={0} step={0.01} value={form.valor_desconto} onChange={e => setForm(f => ({ ...f, valor_desconto: Number(e.target.value) }))} className="h-9" />
+              <Input type="number" min={0} step={0.01} value={form.valor_desconto} onChange={e => setForm(f => ({ ...f, valor_desconto: e.target.value }))} className="h-9" placeholder="0,00" />
             </div>
 
             <div className="space-y-1.5">
@@ -274,12 +283,12 @@ export default function Descontos() {
             </div>
 
             {/* Preview */}
-            {form.valor_meta > 0 && form.valor_realizado > 0 && (
+            {Number(form.valor_meta) > 0 && Number(form.valor_realizado) > 0 && (
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-xs font-bold text-foreground">Prévia</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Atingimento: <strong className={cn((form.valor_realizado / form.valor_meta) * 100 >= 100 ? 'text-emerald-600' : 'text-red-600')}>
-                    {((form.valor_realizado / form.valor_meta) * 100).toFixed(1)}%
+                  Atingimento: <strong className={cn((Number(form.valor_realizado) / Number(form.valor_meta)) * 100 >= 100 ? 'text-emerald-600' : 'text-red-600')}>
+                    {((Number(form.valor_realizado) / Number(form.valor_meta)) * 100).toFixed(1)}%
                   </strong>
                 </p>
               </div>
