@@ -142,7 +142,7 @@ export default function PerfilColaborador() {
             <AvatarImage src={user.avatar_url || undefined} alt={user.nome} />
             <AvatarFallback className={cn(
               'text-2xl font-bold text-white',
-              user.worker_type === 'motorista' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-purple-500 to-purple-600'
+              user.worker_type === 'motorista' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : user.worker_type === 'distribuicao' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-purple-500 to-purple-600'
             )}>
               {getInitials(user.nome)}
             </AvatarFallback>
