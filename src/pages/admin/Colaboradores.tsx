@@ -223,7 +223,7 @@ export default function Colaboradores() {
             <SelectTrigger className="w-full sm:w-48 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
-              {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filters.ativo ?? ''} onValueChange={v => { setFilters(f => ({ ...f, ativo: v === 'all' ? '' : v })); setPage(0); }}>
