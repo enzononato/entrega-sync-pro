@@ -55,61 +55,44 @@ export function MiniRanking({ workerType, userId }: MiniRankingProps) {
   if (top3.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      {/* Podium cards */}
-      <div className="grid grid-cols-3 gap-2 items-end">
-        {[1, 0, 2].map(idx => {
-          const entry = top3[idx];
-          if (!entry) return <div key={idx} />;
-          const position = idx + 1;
-          const medal = getMedalConfig(position)!;
-          const isFirst = position === 1;
-          const isMe = entry.user_id === userId;
+    <div className="space-y-1.5">
+      {top3.map((entry, idx) => {
+        const position = idx + 1;
+        const medal = getMedalConfig(position);
+        const isMe = entry.user_id === userId;
+        const MedalIcon = medal?.icon ?? Medal;
 
-          return (
-            <div
-              key={entry.user_id}
-              className={cn(
-                'relative rounded-xl border p-3 text-center transition-all',
-                medal.bg,
-                isFirst ? 'py-4 shadow-md' : 'py-3',
-                isMe && 'ring-2 ring-primary'
-              )}
-            >
-              {isFirst && (
-                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                  <div className="bg-yellow-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-0.5">
-                    <Flame className="h-2.5 w-2.5" /> TOP 1
-                  </div>
-                </div>
-              )}
-              <Avatar className={cn('mx-auto mb-1.5 ring-2', medal.ring, isFirst ? 'h-11 w-11' : 'h-9 w-9')}>
-                <AvatarImage src={entry.avatar_url ?? undefined} />
-                <AvatarFallback className="text-[10px] font-bold">{getInitials(entry.nome)}</AvatarFallback>
-              </Avatar>
-              <medal.icon className={cn('h-3.5 w-3.5 mx-auto mb-0.5', medal.color)} />
-              <p className="text-[11px] font-semibold text-foreground truncate">
-                {entry.nome.split(' ')[0]}
-              </p>
-              <p className={cn('font-bold', isFirst ? 'text-lg' : 'text-base', getPerformanceColor(entry.avg_atingimento))}>
-                {entry.avg_atingimento.toFixed(1)}%
-              </p>
-              {isMe && <span className="text-[8px] font-bold text-primary">VOCÊ</span>}
+        return (
+          <div
+            key={entry.user_id}
+            className={cn(
+              'flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all',
+              isMe ? 'bg-primary/10 ring-1 ring-primary/30' : 'bg-muted/40'
+            )}
+          >
+            <div className={cn('flex items-center justify-center h-6 w-6 rounded-full shrink-0', medal?.bg ?? 'bg-muted')}>
+              <MedalIcon className={cn('h-3.5 w-3.5', medal?.color ?? 'text-muted-foreground')} />
             </div>
-          );
-        })}
-      </div>
-
-      {/* My position if not in top 3 */}
-      {myPosition > 3 && (
-        <div className="rounded-xl border bg-primary/5 border-primary/20 px-3 py-2 flex items-center gap-2">
-          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-primary">{myPosition}º</span>
+            <span className="text-sm font-semibold text-foreground truncate flex-1">
+              {position}º {entry.nome}
+              {isMe && <span className="text-[10px] text-primary font-bold ml-1">(Você)</span>}
+            </span>
+            <span className={cn('text-sm font-bold shrink-0', getPerformanceColor(entry.avg_atingimento))}>
+              {entry.avg_atingimento.toFixed(1)}%
+            </span>
           </div>
-          <p className="text-xs text-foreground font-medium flex-1">Sua posição no ranking</p>
-          <p className={cn('text-sm font-bold', getPerformanceColor(ranking[myPosition - 1]?.avg_atingimento ?? 0))}>
+        );
+      })}
+
+      {myPosition > 3 && (
+        <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 bg-primary/5 border border-primary/20">
+          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold text-primary">{myPosition}º</span>
+          </div>
+          <span className="text-sm font-medium text-foreground flex-1">Sua posição</span>
+          <span className={cn('text-sm font-bold', getPerformanceColor(ranking[myPosition - 1]?.avg_atingimento ?? 0))}>
             {ranking[myPosition - 1]?.avg_atingimento.toFixed(1) ?? 0}%
-          </p>
+          </span>
         </div>
       )}
     </div>
