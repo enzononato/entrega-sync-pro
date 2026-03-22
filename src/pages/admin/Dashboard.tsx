@@ -85,11 +85,7 @@ export default function Dashboard() {
 
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
 
-  // Filter desempenho by rota (unidade+tipo already filtered server-side)
-  const filteredDesempenho = useMemo(() => {
-    if (!rotaFilter) return desempenho;
-    return desempenho.filter(d => filteredUserIds.has(d.user_id));
-  }, [desempenho, rotaFilter, filteredUserIds]);
+  const filteredDesempenho = desempenho;
 
   // Filter incentivos by unidade + rota
   const filteredIncentivos = useMemo(() => {
