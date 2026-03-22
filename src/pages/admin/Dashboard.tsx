@@ -87,14 +87,10 @@ export default function Dashboard() {
 
   const filteredDesempenho = desempenho;
 
-  // Filter incentivos by unidade + rota
   const filteredIncentivos = useMemo(() => {
-    let list = incentivos;
-    if (unidadeFilter || rotaFilter) {
-      list = list.filter(i => filteredUserIds.has(i.user_id));
-    }
-    return list;
-  }, [incentivos, unidadeFilter, rotaFilter, filteredUserIds]);
+    if (!unidadeFilter) return incentivos;
+    return incentivos.filter(i => filteredUserIds.has(i.user_id));
+  }, [incentivos, unidadeFilter, filteredUserIds]);
 
   // Filter feedbacks by rota (unidade already filtered server-side)
   const filteredFeedbacks = useMemo(() => {
