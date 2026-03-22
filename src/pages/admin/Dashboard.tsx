@@ -191,16 +191,9 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <DatePick value={dateFilter} onChange={setDateFilter} />
-          <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); setRotaFilter(''); }}>
+          <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={rotaFilter} onValueChange={v => setRotaFilter(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-40 h-9 text-xs"><SelectValue placeholder="Rota" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {activeRotas.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
-            </SelectContent>
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
