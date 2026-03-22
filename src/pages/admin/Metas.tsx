@@ -229,35 +229,91 @@ export default function Metas() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {pg.paginatedItems.map(g => {
               const scope = getScope(g);
               const scopeConf = SCOPE_CONFIG[scope];
               const ScopeIcon = scopeConf.icon;
               const periodo = PERIODOS.find(p => p.value === g.periodo_tipo);
+              const indicatorName = g.indicators?.nome ?? '—';
+              const unitName = g.units?.nome;
+              const userName = g.users?.nome;
+
               return (
-                <div key={g.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !g.ativo && 'opacity-50')}>
-                  <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', scopeConf.bg)}><ScopeIcon className={cn('h-5 w-5', scopeConf.color)} /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-mono font-bold">{g.indicators?.nome ?? '—'}</span>
-                      <span className="text-sm font-bold text-foreground">{g.valor_meta} {g.indicators?.unidade_medida ?? ''}</span>
+                <div
+                  key={g.id}
+                  className={cn(
+                    'group relative rounded-xl border bg-card shadow-sm transition-all hover:shadow-md overflow-hidden',
+                    !g.ativo && 'opacity-60'
+                  )}
+                >
+                  {/* Top color bar */}
+                  <div className={cn('h-1.5', scope === 'motorista' ? 'bg-emerald-500' : scope === 'ajudante' ? 'bg-violet-500' : scope === 'individual' ? 'bg-orange-500' : 'bg-primary/40')} />
+
+                  <div className="p-4 space-y-3">
+                    {/* Header: indicator + status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', scopeConf.bg)}>
+                          <ScopeIcon className={cn('h-4 w-4', scopeConf.color)} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{indicatorName}</p>
+                          <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium', scopeConf.color)}>
+                            {scopeConf.label}
+                          </span>
+                        </div>
+                      </div>
+                      <StatusBadge status={g.ativo ? 'ativo' : 'inativo'} />
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', scopeConf.bg, scopeConf.color)}><ScopeIcon className="h-3 w-3" />{scopeConf.label}</span>
-                      {g.user_id && g.users?.nome && (<><span className="text-muted-foreground/40">•</span><div className="flex items-center gap-1"><Avatar className="h-4 w-4"><AvatarFallback className="bg-primary/10 text-primary text-[7px] font-semibold">{getInitials(g.users.nome)}</AvatarFallback></Avatar><span className="text-xs text-muted-foreground">{g.users.nome}</span></div></>)}
-                      {g.units?.nome && (<><span className="text-muted-foreground/40">•</span><span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Building2 className="h-3 w-3" />{g.units.nome}</span></>)}
-                      <span className="text-muted-foreground/40">•</span>
-                      <span className="text-[11px] text-muted-foreground">{periodo?.label ?? g.periodo_tipo}</span>
-                      <span className="text-muted-foreground/40 hidden sm:inline">•</span>
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hidden sm:inline-flex"><CalendarIcon className="h-3 w-3" />{format(new Date(g.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}<ArrowRight className="h-3 w-3" />{g.vigencia_fim ? format(new Date(g.vigencia_fim + 'T00:00:00'), 'dd/MM/yy') : '∞'}</span>
+
+                    {/* Value highlight */}
+                    <div className="flex items-baseline gap-1.5 bg-muted/40 rounded-lg px-3 py-2.5">
+                      <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <span className="text-2xl font-bold text-foreground">{g.valor_meta}</span>
+                      <span className="text-xs text-muted-foreground">{g.indicators?.unidade_medida ?? ''}</span>
+                      <span className="ml-auto text-xs text-muted-foreground bg-background rounded-md px-2 py-0.5 border">
+                        {periodo?.label ?? g.periodo_tipo}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusBadge status={g.ativo ? 'ativo' : 'inativo'} />
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(g); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+
+                    {/* Details */}
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      {userName && (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-semibold">
+                              {getInitials(userName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{userName}</span>
+                        </div>
+                      )}
+                      {unitName && (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{unitName}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {format(new Date(g.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}
+                          {' → '}
+                          {g.vigencia_fim ? format(new Date(g.vigencia_fim + 'T00:00:00'), 'dd/MM/yy') : 'Sem fim'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <Separator />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(g)}>
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(g); setConfirmOpen(true); }}>
+                        <Power className="h-3.5 w-3.5" /> {g.ativo ? 'Inativar' : 'Ativar'}
+                      </Button>
                     </div>
                   </div>
                 </div>
