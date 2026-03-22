@@ -250,7 +250,7 @@ export default function Dashboard() {
       </div>
 
       {/* Secondary stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           { label: 'Planos Pendentes', value: planosPendentes, icon: ClipboardList, color: 'text-blue-600 dark:text-blue-400', href: '/admin/planos-de-acao' },
           { label: 'Planos Atrasados', value: planosAtrasados, icon: Clock, color: 'text-destructive', href: '/admin/planos-de-acao' },
