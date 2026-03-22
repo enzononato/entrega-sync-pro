@@ -376,11 +376,11 @@ export default function Incentivos() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Peso</Label>
-                    <Input type="number" min={0.1} step={0.1} value={form.peso} onChange={e => setForm(f => ({ ...f, peso: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="1" value={form.peso || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, peso: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Meta Ref.</Label>
-                    <Input type="number" value={form.meta} onChange={e => setForm(f => ({ ...f, meta: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="0" value={form.meta || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, meta: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                   <div />
                 </div>
@@ -388,11 +388,11 @@ export default function Incentivos() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor Mínimo (R$)</Label>
-                    <Input type="number" min={0} step={0.01} value={form.valor_minimo} onChange={e => setForm(f => ({ ...f, valor_minimo: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="0,00" value={form.valor_minimo || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, valor_minimo: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor Máximo (R$)</Label>
-                    <Input type="number" min={0} step={0.01} value={form.valor_maximo} onChange={e => setForm(f => ({ ...f, valor_maximo: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="0,00" value={form.valor_maximo || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, valor_maximo: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                 </div>
 
