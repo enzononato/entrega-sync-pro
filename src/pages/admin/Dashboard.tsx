@@ -92,17 +92,12 @@ export default function Dashboard() {
     return incentivos.filter(i => filteredUserIds.has(i.user_id));
   }, [incentivos, unidadeFilter, filteredUserIds]);
 
-  // Filter feedbacks by rota (unidade already filtered server-side)
-  const filteredFeedbacks = useMemo(() => {
-    if (!rotaFilter) return feedbacks;
-    return feedbacks.filter(f => f.rota_id === rotaFilter);
-  }, [feedbacks, rotaFilter]);
+  const filteredFeedbacks = feedbacks;
 
-  // Filter planos by unidade + rota (client-side via user matching)
   const filteredPlanos = useMemo(() => {
-    if (!unidadeFilter && !rotaFilter) return planos;
+    if (!unidadeFilter) return planos;
     return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
-  }, [planos, unidadeFilter, rotaFilter, filteredUserIds]);
+  }, [planos, unidadeFilter, filteredUserIds]);
 
   // KPI calculations
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
