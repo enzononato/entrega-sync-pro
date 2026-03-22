@@ -3,6 +3,7 @@ import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useFeedbacksDoColaborador } from '@/hooks/useFeedbacks';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
@@ -13,11 +14,12 @@ import { ExtratoDescontos } from '@/components/colaborador/ExtratoDescontos';
 import { ChangePasswordDialog } from '@/components/colaborador/ChangePasswordDialog';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Hash, Mail, Building2, MapPin, Calendar, LogOut,
   MessageSquare, ClipboardList, AlertTriangle, CheckCircle,
-  Camera, Lock, Trophy, ChevronRight, Sparkles, Star,
+  Camera, Lock, Trophy, ChevronRight, Sparkles, Star, Moon, Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -43,6 +45,7 @@ const BADGES: Badge[] = [
 export default function PerfilColaborador() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -257,8 +260,15 @@ export default function PerfilColaborador() {
       {/* ── Extrato de Descontos ───────────────────── */}
       <ExtratoDescontos userId={user.id} />
 
-      {/* ── Ações ──────────────────────────────────── */}
+      {/* ── Configurações ─────────────────────────── */}
       <section className="space-y-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 h-12 shadow-sm">
+          <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+            {theme === 'dark' ? <Moon className="h-4 w-4 text-muted-foreground" /> : <Sun className="h-4 w-4 text-warning" />}
+            Modo Escuro
+          </span>
+          <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+        </div>
         <Button
           variant="outline"
           className="w-full justify-between gap-2 h-12 rounded-xl"
