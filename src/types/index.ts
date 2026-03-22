@@ -1,6 +1,6 @@
 export type UserRole = 'colaborador' | 'administrador'
-export type WorkerType = 'motorista' | 'ajudante'
-export type WorkerTypeAll = 'motorista' | 'ajudante' | 'ambos'
+export type WorkerType = 'motorista' | 'ajudante' | 'distribuicao'
+export type WorkerTypeAll = 'motorista' | 'ajudante' | 'distribuicao' | 'ambos'
 export type IndicatorStatus = 'abaixo_meta' | 'dentro_meta' | 'acima_meta'
 export type PlanStatus = 'aberto' | 'em_andamento' | 'concluido' | 'atrasado' | 'cancelado'
 export type FeedbackType = 'operacao' | 'sistema' | 'processo' | 'seguranca' | 'sugestao' | 'incidente'

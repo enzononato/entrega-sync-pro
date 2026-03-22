@@ -256,6 +256,7 @@ export default function Dashboard() {
           { label: 'Planos Atrasados', value: planosAtrasados, icon: Clock, color: 'text-destructive', href: '/admin/planos-de-acao' },
           { label: 'Motoristas', value: motoristas, icon: Truck, color: 'text-emerald-600 dark:text-emerald-400', href: '/admin/colaboradores' },
           { label: 'Ajudantes', value: ajudantes, icon: UserCheck, color: 'text-violet-600 dark:text-violet-400', href: '/admin/colaboradores' },
+          { label: 'Distribuição', value: distribuicao, icon: Package, color: 'text-blue-600 dark:text-blue-400', href: '/admin/colaboradores' },
         ].map(s => {
           const Icon = s.icon;
           return (
