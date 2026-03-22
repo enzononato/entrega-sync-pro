@@ -161,6 +161,9 @@ export default function Indicadores() {
             <TabsTrigger value="ajudante" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-violet-500" /> Ajudante
             </TabsTrigger>
+            <TabsTrigger value="distribuicao" className="gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
+            </TabsTrigger>
             <TabsTrigger value="ambos" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-primary" /> Ambos
             </TabsTrigger>
