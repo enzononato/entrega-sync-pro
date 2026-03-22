@@ -62,7 +62,6 @@ export default function Dashboard() {
   const [dateFilter, setDateFilter] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
-  const [tipoFilter, setTipoFilter] = useState('');
 
   // Data sources
   const { data: usuarios = [] } = useUsuarios();
