@@ -198,7 +198,7 @@ export default function Dashboard() {
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="motorista">Motorista</SelectItem><SelectItem value="ajudante">Ajudante</SelectItem></SelectContent>
+            <SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="motorista">Motorista</SelectItem><SelectItem value="ajudante">Ajudante</SelectItem><SelectItem value="distribuicao">Distribuição</SelectItem></SelectContent>
           </Select>
         </div>
       </div>
@@ -209,11 +209,9 @@ export default function Dashboard() {
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
-          {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter}</span>}
+          {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter === 'distribuicao' ? 'Distribuição' : tipoFilter}</span>}
           {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
           <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
-        </div>
-      )}
         </div>
       )}
 
