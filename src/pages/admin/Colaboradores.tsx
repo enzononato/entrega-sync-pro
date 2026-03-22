@@ -68,6 +68,8 @@ export default function Colaboradores() {
     if (!myUserUnits || myUserUnits.length === 0) return activeUnits;
     return activeUnits.filter(u => myUserUnits.includes(u.id));
   }, [activeUnits, myUserUnits]);
+
+  const createMut = useCreateUsuario();
   const updateMut = useUpdateUsuario();
   const toggleMut = useToggleUsuarioAtivo();
 
