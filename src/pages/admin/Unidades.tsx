@@ -24,7 +24,9 @@ const ESTADOS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG
 const emptyUnit = { nome: '', codigo: '', cidade: '', estado: '', ativo: true };
 
 export default function Unidades() {
-  const { data: units = [], isLoading } = useUnidades();
+  const { data: allUnits = [], isLoading } = useUnidades();
+  const { allowedUnits, isRestricted } = useAllowedUnits();
+  const units = isRestricted ? allUnits.filter(u => allowedUnits.some(au => au.id === u.id)) : allUnits;
   const { data: allUsers = [] } = useUsuarios();
   const createMut = useCreateUnidade();
   const updateMut = useUpdateUnidade();
