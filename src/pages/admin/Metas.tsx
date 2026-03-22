@@ -340,7 +340,17 @@ export default function Metas() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor da Meta *</Label>
-                    <Input type="number" min={0} value={form.valor_meta} onChange={e => setForm(f => ({ ...f, valor_meta: Number(e.target.value) }))} className="h-9" />
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 95"
+                      value={form.valor_meta || ''}
+                      onChange={e => {
+                        const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+                        setForm(f => ({ ...f, valor_meta: v === '' ? 0 : Number(v) }));
+                      }}
+                      className="h-9"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Período</Label>
