@@ -10,6 +10,7 @@ import { useMetas } from '@/hooks/useMetas';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { CircularProgress } from '@/components/shared/CircularProgress';
+import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -158,6 +159,9 @@ export default function ColaboradorHome() {
           </div>
         </div>
       )}
+
+      {/* Gráficos de Evolução */}
+      <EvolutionCharts userId={user?.id} />
 
       {/* KPIs do Dia */}
       <section>
