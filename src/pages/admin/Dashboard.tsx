@@ -8,7 +8,7 @@ import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
