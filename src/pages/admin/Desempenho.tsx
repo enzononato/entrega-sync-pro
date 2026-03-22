@@ -545,6 +545,14 @@ export default function Desempenho() {
         description="Deseja excluir este lançamento? Esta ação não pode ser desfeita."
         confirmLabel="Excluir" onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)} loading={deleteMut.isPending} />
+
+      <ImportDesempenhoDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        usuarios={colabs}
+        indicators={indicators}
+        onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
+      />
     </div>
   );
 }
