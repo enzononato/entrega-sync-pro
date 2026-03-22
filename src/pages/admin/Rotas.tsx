@@ -28,7 +28,7 @@ export default function Rotas() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('todos');
   const { data: routes = [], isLoading } = useRotas(filterUnidade || undefined);
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits } = useAllowedUnits();
   const { data: allUsers = [] } = useUsuarios();
   const createMut = useCreateRota();
   const updateMut = useUpdateRota();
