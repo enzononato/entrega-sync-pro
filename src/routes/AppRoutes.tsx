@@ -21,6 +21,7 @@ import FeedbacksAdmin from '@/pages/admin/Feedbacks';
 import AuditoriaAdmin from '@/pages/admin/Auditoria';
 import DescontosAdmin from '@/pages/admin/Descontos';
 import RankingAdmin from '@/pages/admin/Ranking';
+import UsuariosAdmin from '@/pages/admin/Usuarios';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import IndicadoresColaborador from '@/pages/colaborador/Indicadores';
 import IncentivoColaborador from '@/pages/colaborador/Incentivo';
@@ -60,6 +61,7 @@ export default function AppRoutes() {
         <Route path="feedbacks" element={<FeedbacksAdmin />} />
         <Route path="auditoria" element={<AuditoriaAdmin />} />
         <Route path="ranking" element={<RankingAdmin />} />
+        <Route path="usuarios" element={<UsuariosAdmin />} />
       </Route>
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>

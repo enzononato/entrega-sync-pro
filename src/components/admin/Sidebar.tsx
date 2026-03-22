@@ -2,7 +2,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
-  Building2, MapPin, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Truck, Shield, TrendingDown,
+  Building2, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Shield, TrendingDown,
+  UserCog,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -26,17 +27,10 @@ const sections = [
     items: [
       { title: 'Colaboradores', url: '/admin/colaboradores', icon: Users },
       { title: 'Desempenho', url: '/admin/desempenho', icon: TrendingUp },
-    ],
-  },
-  {
-    label: 'CONFIGURAÇÕES',
-    items: [
       { title: 'Indicadores', url: '/admin/indicadores', icon: Target },
       { title: 'Metas', url: '/admin/metas', icon: Flag },
       { title: 'Incentivos', url: '/admin/incentivos', icon: Award },
       { title: 'Descontos', url: '/admin/descontos', icon: TrendingDown },
-      { title: 'Unidades', url: '/admin/unidades', icon: Building2 },
-      
     ],
   },
   {
@@ -45,6 +39,13 @@ const sections = [
       { title: 'Feedbacks', url: '/admin/feedbacks', icon: MessageSquare },
       { title: 'Planos de Ação', url: '/admin/planos-de-acao', icon: ClipboardCheck },
       { title: 'Causa Raiz', url: '/admin/causa-raiz', icon: AlertTriangle },
+    ],
+  },
+  {
+    label: 'CONFIGURAÇÕES',
+    items: [
+      { title: 'Unidades', url: '/admin/unidades', icon: Building2 },
+      { title: 'Usuários', url: '/admin/usuarios', icon: UserCog },
       { title: 'Auditoria', url: '/admin/auditoria', icon: Shield },
     ],
   },
