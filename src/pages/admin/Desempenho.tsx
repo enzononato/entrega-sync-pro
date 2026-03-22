@@ -26,8 +26,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle, Pencil, Trash2,
   Loader2, CalendarIcon, Users, Truck, UserCheck, BarChart3, Layers,
-  ChevronRight, Download,
+  ChevronRight, Download, Upload,
 } from 'lucide-react';
+import { ImportDesempenhoDialog } from '@/components/admin/ImportDesempenhoDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -71,6 +72,7 @@ export default function Desempenho() {
 
   const [singleOpen, setSingleOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<DesempenhoRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DesempenhoRow | null>(null);
 
@@ -243,6 +245,9 @@ export default function Desempenho() {
         </Button>
         <Button variant="outline" onClick={openBatch} className="gap-2">
           <Layers className="h-4 w-4" /> Lançamento em Lote
+        </Button>
+        <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
+          <Upload className="h-4 w-4" /> Importar CSV/Excel
         </Button>
       </div>
 
@@ -540,6 +545,14 @@ export default function Desempenho() {
         description="Deseja excluir este lançamento? Esta ação não pode ser desfeita."
         confirmLabel="Excluir" onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)} loading={deleteMut.isPending} />
+
+      <ImportDesempenhoDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        usuarios={colabs}
+        indicators={indicators}
+        onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
+      />
     </div>
   );
 }
