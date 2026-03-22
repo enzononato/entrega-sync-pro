@@ -5,6 +5,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAuditLogs, type AuditLog } from '@/hooks/useAuditLogs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,14 +13,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, Plus, Pencil, Trash2, Eye, Shield, Database, Layers,
-  Building2, MapPin, Users, Target, Flag, Award, TrendingUp,
+  Building2, Users, Target, Flag, Award, TrendingUp, Truck,
   AlertTriangle, ClipboardCheck, MessageSquare, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABLE_CONFIG: Record<string, { label: string; icon: typeof Database; color: string }> = {
   units: { label: 'Unidades', icon: Building2, color: 'text-blue-600 bg-blue-100' },
-  routes: { label: 'Rotas', icon: MapPin, color: 'text-teal-600 bg-teal-100' },
   users: { label: 'Usuários', icon: Users, color: 'text-violet-600 bg-violet-100' },
   indicators: { label: 'Indicadores', icon: Target, color: 'text-amber-600 bg-amber-100' },
   goals: { label: 'Metas', icon: Flag, color: 'text-green-600 bg-green-100' },
@@ -36,6 +36,9 @@ const ACTION_CONFIG: Record<string, { label: string; icon: typeof Plus; color: s
   UPDATE: { label: 'Atualização', icon: Pencil, color: 'text-blue-600 bg-blue-100' },
   DELETE: { label: 'Exclusão', icon: Trash2, color: 'text-red-600 bg-red-100' },
 };
+
+// Tables that come from the collaborator portal
+const COLABORADOR_TABLES = new Set(['feedbacks', 'root_cause_records', 'action_plans']);
 
 function getRecordLabel(log: AuditLog): string {
   const data = log.new_data || log.old_data;
@@ -57,32 +60,10 @@ function getChangedFields(log: AuditLog): { field: string; from: unknown; to: un
   return changes;
 }
 
-export default function Auditoria() {
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const { data: logs = [], isLoading } = useAuditLogs({
-    table_name: filters.table_name || undefined,
-    action: filters.action || undefined,
-    from: filters.from || undefined,
-    to: filters.to || undefined,
-  });
-
+function LogTimeline({ logs, isLoading }: { logs: AuditLog[]; isLoading: boolean }) {
   const [detailLog, setDetailLog] = useState<AuditLog | null>(null);
   const pg = usePagination(logs);
 
-  // KPIs
-  const totalLogs = logs.length;
-  const totalInserts = logs.filter(l => l.action === 'INSERT').length;
-  const totalUpdates = logs.filter(l => l.action === 'UPDATE').length;
-  const totalDeletes = logs.filter(l => l.action === 'DELETE').length;
-
-  const kpis = [
-    { label: 'Total de Logs', value: totalLogs, icon: Layers, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
-    { label: 'Criações', value: totalInserts, icon: Plus, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
-    { label: 'Atualizações', value: totalUpdates, icon: Pencil, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', borderColor: 'border-l-amber-500' },
-    { label: 'Exclusões', value: totalDeletes, icon: Trash2, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
-  ];
-
-  // Group by date
   const grouped = useMemo(() => {
     const map = new Map<string, AuditLog[]>();
     pg.paginatedItems.forEach(l => {
@@ -93,103 +74,60 @@ export default function Auditoria() {
     return Array.from(map.entries());
   }, [pg.paginatedItems]);
 
+  if (isLoading) {
+    return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  if (logs.length === 0) {
+    return (
+      <div className="rounded-xl border bg-card p-12 text-center">
+        <Shield className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+        <p className="text-sm font-medium text-muted-foreground">Nenhum log encontrado</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">As alterações aparecerão aqui automaticamente</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 animate-fade-up">
-      <PageHeader title="Auditoria" subtitle="Logs de todas as alterações do sistema" />
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map(k => {
-          const Icon = k.icon;
-          return (
-            <div key={k.label} className={cn('rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all hover:shadow-md', k.borderColor)}>
-              <div className="flex items-center gap-3">
-                <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', k.iconBg)}>
-                  <Icon className={cn('h-5 w-5', k.iconColor)} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground leading-none">{k.value}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{k.label}</p>
-                </div>
-              </div>
+    <>
+      <div className="space-y-6">
+        {grouped.map(([day, dayLogs]) => (
+          <div key={day}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(new Date(day + 'T00:00:00'), "EEEE, dd 'de' MMMM", { locale: ptBR })}</span>
+              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{dayLogs.length}</span>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Select value={filters.table_name ?? ''} onValueChange={v => setFilters(f => ({ ...f, table_name: v === 'all' ? '' : v }))}>
-          <SelectTrigger className="w-full sm:w-48 h-9 text-xs"><SelectValue placeholder="Tabela" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            {Object.entries(TABLE_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.action ?? ''} onValueChange={v => setFilters(f => ({ ...f, action: v === 'all' ? '' : v }))}>
-          <SelectTrigger className="w-full sm:w-40 h-9 text-xs"><SelectValue placeholder="Ação" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="INSERT">Criação</SelectItem>
-            <SelectItem value="UPDATE">Atualização</SelectItem>
-            <SelectItem value="DELETE">Exclusão</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input type="date" value={filters.from ?? ''} onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} className="h-9 w-full sm:w-40 text-xs" placeholder="De" />
-        <Input type="date" value={filters.to ?? ''} onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} className="h-9 w-full sm:w-40 text-xs" placeholder="Até" />
-      </div>
-
-      {/* Timeline */}
-      {isLoading ? (
-        <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : logs.length === 0 ? (
-        <div className="rounded-xl border bg-card p-12 text-center">
-          <Shield className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">Nenhum log encontrado</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">As alterações aparecerão aqui automaticamente</p>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-6">
-            {grouped.map(([day, dayLogs]) => (
-              <div key={day}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(new Date(day + 'T00:00:00'), "EEEE, dd 'de' MMMM", { locale: ptBR })}</span>
-                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{dayLogs.length}</span>
-                </div>
-                <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
-                  {dayLogs.map(log => {
-                    const tbl = TABLE_CONFIG[log.table_name] ?? { label: log.table_name, icon: Database, color: 'text-muted-foreground bg-muted' };
-                    const act = ACTION_CONFIG[log.action] ?? { label: log.action, icon: FileText, color: 'text-muted-foreground bg-muted' };
-                    const TblIcon = tbl.icon;
-                    const ActIcon = act.icon;
-                    const changes = getChangedFields(log);
-                    return (
-                      <div key={log.id} className="flex items-center gap-4 px-5 py-3 transition-colors group hover:bg-muted/30">
-                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', act.color.split(' ')[1])}><ActIcon className={cn('h-4 w-4', act.color.split(' ')[0])} /></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', tbl.color)}><TblIcon className="h-3 w-3" />{tbl.label}</span>
-                            <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold', act.color)}>{act.label}</span>
-                            <span className="text-sm font-medium text-foreground truncate">{getRecordLabel(log)}</span>
-                          </div>
-                          {changes.length > 0 && <p className="text-[11px] text-muted-foreground truncate">Campos: {changes.map(c => c.field).join(', ')}</p>}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[11px] text-muted-foreground hidden sm:inline">{formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}</span>
-                          <span className="text-[10px] text-muted-foreground/60 font-mono">{format(new Date(log.created_at), 'HH:mm:ss')}</span>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDetailLog(log)}><Eye className="h-3.5 w-3.5 text-muted-foreground" /></Button>
-                        </div>
+            <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+              {dayLogs.map(log => {
+                const tbl = TABLE_CONFIG[log.table_name] ?? { label: log.table_name, icon: Database, color: 'text-muted-foreground bg-muted' };
+                const act = ACTION_CONFIG[log.action] ?? { label: log.action, icon: FileText, color: 'text-muted-foreground bg-muted' };
+                const TblIcon = tbl.icon;
+                const ActIcon = act.icon;
+                const changes = getChangedFields(log);
+                return (
+                  <div key={log.id} className="flex items-center gap-4 px-5 py-3 transition-colors group hover:bg-muted/30">
+                    <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', act.color.split(' ')[1])}><ActIcon className={cn('h-4 w-4', act.color.split(' ')[0])} /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', tbl.color)}><TblIcon className="h-3 w-3" />{tbl.label}</span>
+                        <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold', act.color)}>{act.label}</span>
+                        <span className="text-sm font-medium text-foreground truncate">{getRecordLabel(log)}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                      {changes.length > 0 && <p className="text-[11px] text-muted-foreground truncate">Campos: {changes.map(c => c.field).join(', ')}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-muted-foreground hidden sm:inline">{formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}</span>
+                      <span className="text-[10px] text-muted-foreground/60 font-mono">{format(new Date(log.created_at), 'HH:mm:ss')}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDetailLog(log)}><Eye className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
-        </>
-      )}
+        ))}
+      </div>
+      <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
 
       {/* Detail Dialog */}
       <Dialog open={!!detailLog} onOpenChange={open => { if (!open) setDetailLog(null); }}>
@@ -224,7 +162,6 @@ export default function Auditoria() {
                   </div>
                 </div>
 
-                {/* Changes for UPDATE */}
                 {detailLog.action === 'UPDATE' && (() => {
                   const changes = getChangedFields(detailLog);
                   if (!changes.length) return null;
@@ -235,7 +172,7 @@ export default function Auditoria() {
                         {changes.map(c => (
                           <div key={c.field} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                             <span className="font-mono text-xs font-medium text-foreground w-32 shrink-0">{c.field}</span>
-                            <span className="text-red-500 line-through text-xs truncate flex-1">{String(c.from ?? 'null')}</span>
+                            <span className="text-destructive line-through text-xs truncate flex-1">{String(c.from ?? 'null')}</span>
                             <span className="text-muted-foreground">→</span>
                             <span className="text-emerald-600 text-xs truncate flex-1">{String(c.to ?? 'null')}</span>
                           </div>
@@ -245,7 +182,6 @@ export default function Auditoria() {
                   );
                 })()}
 
-                {/* Raw data */}
                 {detailLog.new_data && (
                   <div>
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
@@ -269,6 +205,105 @@ export default function Auditoria() {
           )}
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+export default function Auditoria() {
+  const [activeTab, setActiveTab] = useState<'logs' | 'motoristas'>('logs');
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const { data: allLogs = [], isLoading } = useAuditLogs({
+    table_name: filters.table_name || undefined,
+    action: filters.action || undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+  });
+
+  // Split logs by tab
+  const adminLogs = useMemo(() => allLogs.filter(l => !COLABORADOR_TABLES.has(l.table_name)), [allLogs]);
+  const colaboradorLogs = useMemo(() => allLogs.filter(l => COLABORADOR_TABLES.has(l.table_name)), [allLogs]);
+  const currentLogs = activeTab === 'logs' ? adminLogs : colaboradorLogs;
+
+  // KPIs based on current tab
+  const totalLogs = currentLogs.length;
+  const totalInserts = currentLogs.filter(l => l.action === 'INSERT').length;
+  const totalUpdates = currentLogs.filter(l => l.action === 'UPDATE').length;
+  const totalDeletes = currentLogs.filter(l => l.action === 'DELETE').length;
+
+  const kpis = [
+    { label: 'Total de Logs', value: totalLogs, icon: Layers, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
+    { label: 'Criações', value: totalInserts, icon: Plus, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+    { label: 'Atualizações', value: totalUpdates, icon: Pencil, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', borderColor: 'border-l-amber-500' },
+    { label: 'Exclusões', value: totalDeletes, icon: Trash2, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
+  ];
+
+  // Filter table options based on active tab
+  const tableOptions = useMemo(() => {
+    return Object.entries(TABLE_CONFIG).filter(([k]) =>
+      activeTab === 'motoristas' ? COLABORADOR_TABLES.has(k) : !COLABORADOR_TABLES.has(k)
+    );
+  }, [activeTab]);
+
+  return (
+    <div className="space-y-6 animate-fade-up">
+      <PageHeader title="Auditoria" subtitle="Logs de todas as alterações do sistema" />
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={v => { setActiveTab(v as 'logs' | 'motoristas'); setFilters({}); }}>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="logs" className="gap-1.5">
+            <Shield className="h-3.5 w-3.5" /> Logs
+          </TabsTrigger>
+          <TabsTrigger value="motoristas" className="gap-1.5">
+            <Truck className="h-3.5 w-3.5" /> Logs Motoristas
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map(k => {
+          const Icon = k.icon;
+          return (
+            <div key={k.label} className={cn('rounded-xl border bg-card p-4 shadow-sm border-l-[3px] transition-all hover:shadow-md', k.borderColor)}>
+              <div className="flex items-center gap-3">
+                <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', k.iconBg)}>
+                  <Icon className={cn('h-5 w-5', k.iconColor)} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground leading-none">{k.value}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{k.label}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2">
+        <Select value={filters.table_name ?? ''} onValueChange={v => setFilters(f => ({ ...f, table_name: v === 'all' ? '' : v }))}>
+          <SelectTrigger className="w-full sm:w-48 h-9 text-xs"><SelectValue placeholder="Tabela" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {tableOptions.map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filters.action ?? ''} onValueChange={v => setFilters(f => ({ ...f, action: v === 'all' ? '' : v }))}>
+          <SelectTrigger className="w-full sm:w-40 h-9 text-xs"><SelectValue placeholder="Ação" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="INSERT">Criação</SelectItem>
+            <SelectItem value="UPDATE">Atualização</SelectItem>
+            <SelectItem value="DELETE">Exclusão</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filters.from ?? ''} onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} className="h-9 w-full sm:w-40 text-xs" placeholder="De" />
+        <Input type="date" value={filters.to ?? ''} onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} className="h-9 w-full sm:w-40 text-xs" placeholder="Até" />
+      </div>
+
+      {/* Timeline */}
+      <LogTimeline logs={currentLogs} isLoading={isLoading} />
     </div>
   );
 }

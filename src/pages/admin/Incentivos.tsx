@@ -22,7 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Pencil, Power, Loader2, CalendarIcon, DollarSign, Truck, Users,
+  Pencil, Power, Loader2, CalendarIcon, DollarSign, Truck, Users, Plus,
   Target, ArrowRight, TrendingUp, Weight, Building2, Layers, Zap, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -142,19 +142,24 @@ export default function Incentivos() {
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <PageHeader title="Regras de Incentivo" subtitle="Configure as regras de bonificação por indicador" actionLabel="Nova Regra" onAction={openCreate} />
-        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
-          const rows = regras.map(r => [
-            r.indicators?.nome ?? '', r.worker_type,
-            r.units?.nome ?? 'Todas', r.peso, r.meta,
-            r.valor_minimo, r.valor_maximo,
-            r.vigencia_inicio, r.vigencia_fim ?? '∞',
-            r.ativo ? 'Ativo' : 'Inativo',
-          ]);
-          exportToCsv('incentivos.csv', ['Indicador', 'Tipo', 'Unidade', 'Peso', 'Meta', 'Mín (R$)', 'Máx (R$)', 'Início', 'Fim', 'Status'], rows);
-        }}>
-          <Download className="h-4 w-4" /> CSV
-        </Button>
+        <PageHeader title="Regras de Incentivo" subtitle="Configure as regras de bonificação por indicador" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
+            const rows = regras.map(r => [
+              r.indicators?.nome ?? '', r.worker_type,
+              r.units?.nome ?? 'Todas', r.peso, r.meta,
+              r.valor_minimo, r.valor_maximo,
+              r.vigencia_inicio, r.vigencia_fim ?? '∞',
+              r.ativo ? 'Ativo' : 'Inativo',
+            ]);
+            exportToCsv('incentivos.csv', ['Indicador', 'Tipo', 'Unidade', 'Peso', 'Meta', 'Mín (R$)', 'Máx (R$)', 'Início', 'Fim', 'Status'], rows);
+          }}>
+            <Download className="h-4 w-4" /> CSV
+          </Button>
+          <Button onClick={openCreate} className="rounded-xl gradient-primary text-white shadow-glow-primary hover:opacity-90 transition-all hover:shadow-lg gap-2">
+            <Plus className="h-4 w-4" /> Nova Regra
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}

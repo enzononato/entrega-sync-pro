@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Loader2, CalendarIcon, DollarSign, TrendingDown, Trash2,
+  Loader2, CalendarIcon, DollarSign, TrendingDown, Trash2, Plus,
   AlertTriangle, Target, Download, Users, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -108,17 +108,22 @@ export default function Descontos() {
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <PageHeader title="Descontos por Meta" subtitle="Registre descontos quando metas não são atingidas" actionLabel="Novo Desconto" onAction={openCreate} />
-        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
-          const rows = descontos.map(d => [
-            d.users?.nome ?? '', d.indicators?.nome ?? '', d.data_referencia,
-            d.valor_meta, d.valor_realizado, d.percentual_atingimento,
-            d.valor_desconto, d.motivo,
-          ]);
-          exportToCsv('descontos.csv', ['Colaborador', 'Indicador', 'Data', 'Meta', 'Realizado', '% Ating.', 'Desconto', 'Motivo'], rows);
-        }}>
-          <Download className="h-4 w-4" /> CSV
-        </Button>
+        <PageHeader title="Descontos por Meta" subtitle="Registre descontos quando metas não são atingidas" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
+            const rows = descontos.map(d => [
+              d.users?.nome ?? '', d.indicators?.nome ?? '', d.data_referencia,
+              d.valor_meta, d.valor_realizado, d.percentual_atingimento,
+              d.valor_desconto, d.motivo,
+            ]);
+            exportToCsv('descontos.csv', ['Colaborador', 'Indicador', 'Data', 'Meta', 'Realizado', '% Ating.', 'Desconto', 'Motivo'], rows);
+          }}>
+            <Download className="h-4 w-4" /> CSV
+          </Button>
+          <Button onClick={openCreate} className="rounded-xl gradient-primary text-white shadow-glow-primary hover:opacity-90 transition-all hover:shadow-lg gap-2">
+            <Plus className="h-4 w-4" /> Novo Desconto
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
