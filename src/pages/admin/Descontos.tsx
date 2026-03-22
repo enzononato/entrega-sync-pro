@@ -58,9 +58,7 @@ const emptyForm = {
 export default function Descontos() {
   const { user } = useAuth();
   const [filterDate, setFilterDate] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
   const { data: descontos = [], isLoading } = useDescontosAdmin(filterDate || undefined);
-  // Only load heavy user/indicator lists when the create dialog is opened
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
   const colaboradores = useMemo(() => usuarios.filter(u => u.role === 'colaborador'), [usuarios]);
