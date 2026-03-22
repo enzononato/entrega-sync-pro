@@ -450,8 +450,8 @@ export default function Colaboradores() {
                     </Select>
                   ) : (
                     <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
-                      {activeUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
-                      {activeUnits.map(u => (
+                      {allowedUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
+                      {allowedUnits.map(u => (
                         <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
                           <Checkbox
                             checked={form.unit_ids.includes(u.id)}
