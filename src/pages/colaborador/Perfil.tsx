@@ -260,8 +260,15 @@ export default function PerfilColaborador() {
       {/* ── Extrato de Descontos ───────────────────── */}
       <ExtratoDescontos userId={user.id} />
 
-      {/* ── Ações ──────────────────────────────────── */}
+      {/* ── Configurações ─────────────────────────── */}
       <section className="space-y-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 h-12 shadow-sm">
+          <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+            {theme === 'dark' ? <Moon className="h-4 w-4 text-muted-foreground" /> : <Sun className="h-4 w-4 text-warning" />}
+            Modo Escuro
+          </span>
+          <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+        </div>
         <Button
           variant="outline"
           className="w-full justify-between gap-2 h-12 rounded-xl"
