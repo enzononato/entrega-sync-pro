@@ -268,7 +268,7 @@ export default function Descontos() {
 
             <div className="space-y-1.5">
               <Label className="text-xs">Valor do Desconto (R$) *</Label>
-              <Input type="number" min={0} step={0.01} value={form.valor_desconto} onChange={e => setForm(f => ({ ...f, valor_desconto: Number(e.target.value) }))} className="h-9" />
+              <Input type="number" min={0} step={0.01} value={form.valor_desconto} onChange={e => setForm(f => ({ ...f, valor_desconto: e.target.value }))} className="h-9" placeholder="0,00" />
             </div>
 
             <div className="space-y-1.5">
