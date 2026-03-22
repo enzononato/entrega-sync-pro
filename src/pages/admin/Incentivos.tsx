@@ -22,7 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Pencil, Power, Loader2, CalendarIcon, DollarSign, Truck, Users,
+  Pencil, Power, Loader2, CalendarIcon, DollarSign, Truck, Users, Plus,
   Target, ArrowRight, TrendingUp, Weight, Building2, Layers, Zap, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

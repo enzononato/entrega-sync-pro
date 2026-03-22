@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Loader2, CalendarIcon, DollarSign, TrendingDown, Trash2,
+  Loader2, CalendarIcon, DollarSign, TrendingDown, Trash2, Plus,
   AlertTriangle, Target, Download, Users, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
