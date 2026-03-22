@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useMetas, useCreateMeta, useUpdateMeta, useToggleMetaAtivo, type GoalWithRelations } from '@/hooks/useMetas';
 import { useIndicadores } from '@/hooks/useIndicadores';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -81,7 +81,7 @@ export default function Metas() {
     ativo: filters.ativo,
   });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits } = useAllowedUnits();
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const createMut = useCreateMeta();
   const updateMut = useUpdateMeta();
@@ -149,7 +149,7 @@ export default function Metas() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const activeUnits = units.filter(u => u.ativo);
+  const activeUnits = allowedUnits;
   const activeColabs = usuarios.filter(u => u.role === 'colaborador');
   const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 

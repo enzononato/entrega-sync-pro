@@ -8,7 +8,7 @@ import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -72,15 +72,17 @@ export default function Dashboard() {
     worker_type: tipoFilter || undefined,
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits, allowedUnitIds } = useAllowedUnits();
 
-  // Filter usuarios by unidade + rota
+  // Filter usuarios by unidade
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
+    // Restrict to allowed units
+    list = list.filter(u => !u.unidade_id || allowedUnitIds.has(u.unidade_id));
     if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
     if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
     return list;
-  }, [usuarios, unidadeFilter, tipoFilter]);
+  }, [usuarios, unidadeFilter, tipoFilter, allowedUnitIds]);
 
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
 
@@ -175,7 +177,6 @@ export default function Dashboard() {
   };
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
-  const activeUnits = units.filter(u => u.ativo);
   
 
   return (
@@ -194,7 +195,7 @@ export default function Dashboard() {
           <DatePick value={dateFilter} onChange={setDateFilter} />
           <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
+            <SelectContent><SelectItem value="all">Todas</SelectItem>{allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
@@ -208,7 +209,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
-          {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
+          {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{allowedUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
           {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter === 'distribuicao' ? 'Distribuição' : tipoFilter}</span>}
           {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
           <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>

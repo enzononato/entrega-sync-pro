@@ -6,10 +6,8 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useRotas } from '@/hooks/useRotas';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -44,30 +42,8 @@ export default function Colaboradores() {
   const usuarios = paginatedResult?.data ?? [];
   const totalCount = paginatedResult?.count ?? 0;
   const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
-  const { data: units = [] } = useUnidades();
-  const activeUnits = units.filter(u => u.ativo);
   const { user: currentUser } = useAuth();
-
-  // Fetch current admin user's allowed units
-  const { data: myUserUnits } = useQuery({
-    queryKey: ['my-user-units', currentUser?.id],
-    queryFn: async () => {
-      if (!currentUser?.id) return [];
-      const { data, error } = await supabase
-        .from('user_units')
-        .select('unit_id')
-        .eq('user_id', currentUser.id);
-      if (error) throw error;
-      return data.map(r => r.unit_id);
-    },
-    enabled: !!currentUser?.id,
-  });
-
-  // If user has user_units entries, only show those; otherwise show all
-  const allowedUnits = useMemo(() => {
-    if (!myUserUnits || myUserUnits.length === 0) return activeUnits;
-    return activeUnits.filter(u => myUserUnits.includes(u.id));
-  }, [activeUnits, myUserUnits]);
+  const { allowedUnits } = useAllowedUnits();
 
   const createMut = useCreateUsuario();
   const updateMut = useUpdateUsuario();

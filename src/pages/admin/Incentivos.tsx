@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useIncentivos, useCreateIncentivo, useUpdateIncentivo, useToggleIncentivoAtivo, type IncentiveRuleWithRelations } from '@/hooks/useIncentivos';
 import { useIndicadores } from '@/hooks/useIndicadores';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -63,8 +63,7 @@ export default function Incentivos() {
     ativo: filters.ativo,
   });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
-  const { data: units = [] } = useUnidades();
-  const activeUnits = units.filter(u => u.ativo);
+  const { allowedUnits: activeUnits } = useAllowedUnits();
 
   const createMut = useCreateIncentivo();
   const updateMut = useUpdateIncentivo();

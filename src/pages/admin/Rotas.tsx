@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useRotas, useCreateRota, useUpdateRota, useToggleRotaAtivo, type RouteWithUnit } from '@/hooks/useRotas';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -28,7 +28,7 @@ export default function Rotas() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('todos');
   const { data: routes = [], isLoading } = useRotas(filterUnidade || undefined);
-  const { data: units = [] } = useUnidades();
+  const { allowedUnits } = useAllowedUnits();
   const { data: allUsers = [] } = useUsuarios();
   const createMut = useCreateRota();
   const updateMut = useUpdateRota();
@@ -40,7 +40,7 @@ export default function Rotas() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<RouteWithUnit | null>(null);
 
-  const activeUnits = units.filter(u => u.ativo);
+  const activeUnits = allowedUnits;
 
   // Count users per route
   const userCountMap = useMemo(() => {
