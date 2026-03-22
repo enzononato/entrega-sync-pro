@@ -61,7 +61,7 @@ export default function Dashboard() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [dateFilter, setDateFilter] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
-  const [rotaFilter, setRotaFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
 
   // Data sources
