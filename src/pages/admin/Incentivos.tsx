@@ -223,34 +223,94 @@ export default function Incentivos() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {pg.paginatedItems.map(r => {
               const isMot = r.worker_type === 'motorista';
+              const regraDesc = (r.regra_json?.descricao as string) ?? '';
+              const unitName = r.units?.nome;
+
               return (
-                <div key={r.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !r.ativo && 'opacity-50')}>
-                  <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', isMot ? 'bg-emerald-100' : 'bg-violet-100')}>
-                    {isMot ? <Truck className="h-5 w-5 text-emerald-600" /> : <Users className="h-5 w-5 text-violet-600" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-bold">{r.indicators?.nome ?? '—'}</span>
-                      <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>{isMot ? 'Motorista' : 'Ajudante'}</span>
+                <div
+                  key={r.id}
+                  className={cn(
+                    'group relative rounded-xl border bg-card shadow-sm transition-all hover:shadow-md overflow-hidden',
+                    !r.ativo && 'opacity-60'
+                  )}
+                >
+                  <div className={cn('h-1.5', isMot ? 'bg-emerald-500' : 'bg-violet-500')} />
+
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', isMot ? 'bg-emerald-100' : 'bg-violet-100')}>
+                          {isMot ? <Truck className="h-4 w-4 text-emerald-600" /> : <Users className="h-4 w-4 text-violet-600" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{r.indicators?.nome ?? '—'}</p>
+                          <span className={cn('text-[10px] font-medium', isMot ? 'text-emerald-600' : 'text-violet-600')}>
+                            {isMot ? 'Motorista' : 'Ajudante'}
+                          </span>
+                        </div>
+                      </div>
+                      <StatusBadge status={r.ativo ? 'ativo' : 'inativo'} />
                     </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><DollarSign className="h-3 w-3" />{fmtBRL(r.valor_minimo)} → {fmtBRL(r.valor_maximo)}</span>
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Weight className="h-3 w-3" />Peso {r.peso}</span>
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Target className="h-3 w-3" />Meta {r.meta}</span>
-                      {r.units?.nome && <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Building2 className="h-3 w-3" />{r.units.nome}</span>}
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hidden sm:inline-flex">
-                        <CalendarIcon className="h-3 w-3" />{format(new Date(r.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}<ArrowRight className="h-3 w-3" />{r.vigencia_fim ? format(new Date(r.vigencia_fim + 'T00:00:00'), 'dd/MM/yy') : '∞'}
-                      </span>
+
+                    <div className="bg-muted/40 rounded-lg px-3 py-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-xs text-muted-foreground">Faixa de valor</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-background rounded-md px-2 py-0.5 border">
+                          <Weight className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Peso {r.peso}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-lg font-bold text-foreground">{fmtBRL(r.valor_minimo)}</span>
+                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-lg font-bold text-foreground">{fmtBRL(r.valor_maximo)}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-border overflow-hidden">
+                        <div
+                          className={cn('h-full rounded-full', isMot ? 'bg-emerald-500' : 'bg-violet-500')}
+                          style={{ width: r.valor_maximo > 0 ? `${Math.min((r.valor_minimo / r.valor_maximo) * 100 + 30, 100)}%` : '0%' }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusBadge status={r.ativo ? 'ativo' : 'inativo'} />
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(r); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-3.5 w-3.5 shrink-0" />
+                        <span>Meta referência: <strong className="text-foreground">{r.meta}</strong></span>
+                      </div>
+                      {unitName && (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{unitName}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {format(new Date(r.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}
+                          {' → '}
+                          {r.vigencia_fim ? format(new Date(r.vigencia_fim + 'T00:00:00'), 'dd/MM/yy') : 'Sem fim'}
+                        </span>
+                      </div>
+                      {regraDesc && (
+                        <p className="text-[11px] italic text-muted-foreground/80 line-clamp-2 pt-0.5">"{regraDesc}"</p>
+                      )}
+                    </div>
+
+                    <Separator />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(r)}>
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(r); setConfirmOpen(true); }}>
+                        <Power className="h-3.5 w-3.5" /> {r.ativo ? 'Inativar' : 'Ativar'}
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -316,11 +376,11 @@ export default function Incentivos() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Peso</Label>
-                    <Input type="number" min={0.1} step={0.1} value={form.peso} onChange={e => setForm(f => ({ ...f, peso: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="1" value={form.peso || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, peso: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Meta Ref.</Label>
-                    <Input type="number" value={form.meta} onChange={e => setForm(f => ({ ...f, meta: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="0" value={form.meta || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, meta: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                   <div />
                 </div>
@@ -328,11 +388,11 @@ export default function Incentivos() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor Mínimo (R$)</Label>
-                    <Input type="number" min={0} step={0.01} value={form.valor_minimo} onChange={e => setForm(f => ({ ...f, valor_minimo: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="0,00" value={form.valor_minimo || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, valor_minimo: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor Máximo (R$)</Label>
-                    <Input type="number" min={0} step={0.01} value={form.valor_maximo} onChange={e => setForm(f => ({ ...f, valor_maximo: Number(e.target.value) }))} className="h-9" />
+                    <Input type="text" inputMode="decimal" placeholder="0,00" value={form.valor_maximo || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'); setForm(f => ({ ...f, valor_maximo: v === '' ? 0 : Number(v) })); }} className="h-9" />
                   </div>
                 </div>
 
