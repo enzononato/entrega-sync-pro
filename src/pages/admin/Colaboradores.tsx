@@ -7,7 +7,6 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
-import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRotas } from '@/hooks/useRotas';
 import { Button } from '@/components/ui/button';
