@@ -91,6 +91,7 @@ export default function Colaboradores() {
   const totalInativos = allUsers.filter(u => !u.ativo).length;
   const motoristas = allUsers.filter(u => u.ativo && u.worker_type === 'motorista').length;
   const ajudantes = allUsers.filter(u => u.ativo && u.worker_type === 'ajudante').length;
+  const distribuicaoCount = allUsers.filter(u => u.ativo && u.worker_type === 'distribuicao').length;
   const admins = allUsers.filter(u => u.role === 'administrador').length;
 
   // Filter by tab
