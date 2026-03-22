@@ -48,10 +48,10 @@ const emptyForm = {
   user_id: '',
   indicator_id: '',
   data_referencia: format(new Date(), 'yyyy-MM-dd'),
-  valor_meta: 0,
-  valor_realizado: 0,
+  valor_meta: '',
+  valor_realizado: '',
   percentual_atingimento: 0,
-  valor_desconto: 0,
+  valor_desconto: '',
   motivo: '',
 };
 
