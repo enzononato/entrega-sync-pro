@@ -11,6 +11,7 @@ import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
+import { MiniRanking } from '@/components/colaborador/MiniRanking';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
