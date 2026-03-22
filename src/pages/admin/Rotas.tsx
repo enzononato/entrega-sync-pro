@@ -40,7 +40,7 @@ export default function Rotas() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<RouteWithUnit | null>(null);
 
-  const activeUnits = units.filter(u => u.ativo);
+  const activeUnits = allowedUnits;
 
   // Count users per route
   const userCountMap = useMemo(() => {
