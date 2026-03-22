@@ -220,6 +220,8 @@ export default function ColaboradorHome() {
         <MiniRanking workerType="ajudante" userId={user?.id} />
       </section>
 
+      <div className="h-2" />
+
       {/* ── Planos de Ação ────────────────────────── */}
       {(recentPlanos.length > 0 || loadPlan) && (
         <section>
