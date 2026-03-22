@@ -49,6 +49,8 @@ export default function ColaboradorLayout() {
         </div>
       </header>
 
+      <OfflineBanner />
+
       <main className="flex-1 overflow-auto pb-20 p-4">
         <AnimatePresence mode="wait">
           <PageTransition key={location.pathname}>
