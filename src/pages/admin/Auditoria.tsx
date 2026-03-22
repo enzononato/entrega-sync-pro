@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 const TABLE_CONFIG: Record<string, { label: string; icon: typeof Database; color: string }> = {
   units: { label: 'Unidades', icon: Building2, color: 'text-blue-600 bg-blue-100' },
-  routes: { label: 'Rotas', icon: MapPin, color: 'text-teal-600 bg-teal-100' },
+  
   users: { label: 'Usuários', icon: Users, color: 'text-violet-600 bg-violet-100' },
   indicators: { label: 'Indicadores', icon: Target, color: 'text-amber-600 bg-amber-100' },
   goals: { label: 'Metas', icon: Flag, color: 'text-green-600 bg-green-100' },
