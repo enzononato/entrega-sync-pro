@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useUnidades, useCreateUnidade, useUpdateUnidade, useToggleUnidadeAtivo } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
