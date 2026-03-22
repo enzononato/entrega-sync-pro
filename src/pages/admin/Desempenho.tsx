@@ -72,6 +72,7 @@ export default function Desempenho() {
 
   const [singleOpen, setSingleOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<DesempenhoRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DesempenhoRow | null>(null);
 
