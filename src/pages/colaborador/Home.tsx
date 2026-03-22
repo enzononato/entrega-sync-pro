@@ -231,23 +231,48 @@ export default function ColaboradorHome() {
           {loadPlan ? (
             <Skeleton className="h-20 w-full rounded-2xl" />
           ) : (
-            <div className="card-elevated divide-y divide-border/40 overflow-hidden">
+            <div className="space-y-2.5">
               {recentPlanos.map(p => {
                 const atrasado = p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status);
+                const isOpen = p.status === 'aberto';
+                const isInProgress = p.status === 'em_andamento';
                 return (
-                  <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm text-foreground truncate font-medium">{p.descricao_acao}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={p.status} />
-                        {atrasado && <span className="text-[10px] text-destructive font-bold uppercase tracking-wide">Atrasado</span>}
+                  <div
+                    key={p.id}
+                    onClick={() => navigate('/colaborador/planos-de-acao')}
+                    className={cn(
+                      'rounded-xl border bg-card shadow-sm px-4 py-3 cursor-pointer active:scale-[0.98] transition-all',
+                      atrasado && 'border-destructive/30'
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className={cn(
+                        'h-2.5 w-2.5 rounded-full mt-1.5 shrink-0',
+                        isOpen ? 'bg-primary' : isInProgress ? 'bg-warning' : 'bg-success'
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{p.descricao_acao}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <StatusBadge status={p.status} />
+                          {atrasado && (
+                            <span className="text-[9px] text-destructive font-bold uppercase tracking-wide bg-destructive/10 rounded-full px-2 py-0.5">
+                              Atrasado
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        {p.prazo && (
+                          <span className={cn(
+                            'text-[11px] font-medium',
+                            atrasado ? 'text-destructive' : 'text-muted-foreground'
+                          )}>
+                            {format(new Date(p.prazo + 'T00:00:00'), 'dd/MM')}
+                          </span>
+                        )}
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto mt-0.5" />
                       </div>
                     </div>
-                    {p.prazo && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                        {format(new Date(p.prazo + 'T00:00:00'), 'dd/MM')}
-                      </span>
-                    )}
                   </div>
                 );
               })}
