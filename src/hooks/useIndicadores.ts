@@ -43,7 +43,12 @@ export function useCreateIndicador() {
       if (error) throw error; return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['indicators'] }); toast({ title: 'Indicador salvo com sucesso!' }); },
-    onError: () => { toast({ title: 'Erro ao salvar.', variant: 'destructive' }); },
+    onError: (error: any) => {
+      const msg = error?.message?.includes('indicators_codigo_key')
+        ? 'Já existe um indicador com este código.'
+        : 'Erro ao salvar indicador.';
+      toast({ title: msg, variant: 'destructive' });
+    },
   });
 }
 
