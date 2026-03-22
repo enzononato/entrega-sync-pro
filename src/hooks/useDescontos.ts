@@ -50,7 +50,7 @@ export function useDescontosAdmin(data_referencia?: string) {
       if (error) throw error;
       return data as unknown as DeductionWithRelations[];
     },
-    staleTime: 30_000,
+    staleTime: 15_000,
   });
 }
 
@@ -78,7 +78,7 @@ export function useCreateDesconto() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['incentive_deductions'] });
+      qc.invalidateQueries({ queryKey: ['incentive_deductions'], refetchType: 'all' });
       toast({ title: 'Desconto registrado!' });
     },
     onError: () => {
@@ -99,7 +99,7 @@ export function useDeleteDesconto() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['incentive_deductions'] });
+      qc.invalidateQueries({ queryKey: ['incentive_deductions'], refetchType: 'all' });
       toast({ title: 'Desconto removido!' });
     },
     onError: () => {
