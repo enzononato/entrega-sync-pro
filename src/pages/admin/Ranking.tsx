@@ -390,7 +390,7 @@ export default function RankingAdmin() {
                             <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
                             <span className={cn('text-xs font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(1)}%</span>
                           </div>
-                          <ProgressBar value={Math.min(ind.avg_pct, 120)} max={120} color={getBarColor(ind.avg_pct)} className="h-1.5" />
+                          <ProgressBar value={Math.min(ind.avg_pct, 100)} color={getBarColor(ind.avg_pct)} className="h-1.5" />
                           <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
                         </div>
                       ))}
