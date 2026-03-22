@@ -206,32 +206,67 @@ export default function Indicadores() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {pg.paginatedItems.map(ind => {
               const catConf = CAT_CONFIG[ind.categoria] ?? { icon: BarChart3, color: 'text-muted-foreground', bg: 'bg-muted' };
               const CatIcon = catConf.icon;
               const workerConf = WORKER_CONFIG[ind.applies_to_worker_type] ?? WORKER_CONFIG.ambos;
               return (
-                <div key={ind.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !ind.ativo && 'opacity-50')}>
-                  <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', catConf.bg)}><CatIcon className={cn('h-5 w-5', catConf.color)} /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-mono font-bold">{ind.codigo}</span>
-                      <p className="text-sm font-semibold text-foreground truncate">{ind.nome}</p>
+                <div
+                  key={ind.id}
+                  className={cn(
+                    'group relative rounded-xl border bg-card shadow-sm transition-all hover:shadow-md overflow-hidden',
+                    !ind.ativo && 'opacity-60'
+                  )}
+                >
+                  <div className={cn('h-1.5', catConf.bg)} />
+
+                  <div className="p-4 space-y-3">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', catConf.bg)}>
+                          <CatIcon className={cn('h-4 w-4', catConf.color)} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-mono font-bold">{ind.codigo}</span>
+                            <StatusBadge status={ind.ativo ? 'ativo' : 'inativo'} />
+                          </div>
+                          <p className="text-sm font-semibold text-foreground truncate mt-0.5">{ind.nome}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', catConf.bg, catConf.color)}><CatIcon className="h-3 w-3" />{ind.categoria || 'Sem categoria'}</span>
-                      <span className="text-muted-foreground/40">•</span>
-                      <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium', workerConf.bg, workerConf.color)}>{workerConf.label}</span>
-                      {ind.unidade_medida && (<><span className="text-muted-foreground/40">•</span><span className="text-[11px] text-muted-foreground">{ind.unidade_medida}</span></>)}
-                      {ind.descricao && (<><span className="text-muted-foreground/40 hidden sm:inline">•</span><span className="text-[11px] text-muted-foreground truncate max-w-[200px] hidden sm:inline">{ind.descricao}</span></>)}
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium', catConf.bg, catConf.color)}>
+                        <CatIcon className="h-3 w-3" />{ind.categoria || 'Sem categoria'}
+                      </span>
+                      <span className={cn('inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium', workerConf.bg, workerConf.color)}>
+                        {workerConf.label}
+                      </span>
+                      {ind.unidade_medida && (
+                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                          {ind.unidade_medida}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusBadge status={ind.ativo ? 'ativo' : 'inativo'} />
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(ind)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}><Power className="h-4 w-4 text-muted-foreground" /></Button>
+
+                    {/* Description */}
+                    {ind.descricao && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{ind.descricao}</p>
+                    )}
+
+                    {/* Actions */}
+                    <Separator />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(ind)}>
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}>
+                        <Power className="h-3.5 w-3.5" /> {ind.ativo ? 'Inativar' : 'Ativar'}
+                      </Button>
                     </div>
                   </div>
                 </div>
