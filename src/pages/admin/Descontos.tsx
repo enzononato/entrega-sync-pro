@@ -258,7 +258,7 @@ export default function Descontos() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Meta</Label>
-                <Input type="number" min={0} step={0.01} value={form.valor_meta} onChange={e => setForm(f => ({ ...f, valor_meta: Number(e.target.value) }))} className="h-9" />
+                <Input type="number" min={0} step={0.01} value={form.valor_meta} onChange={e => setForm(f => ({ ...f, valor_meta: e.target.value }))} className="h-9" placeholder="0" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Realizado</Label>
