@@ -164,15 +164,21 @@ export default function ColaboradorHome() {
       {/* Gráficos de Evolução */}
       <EvolutionCharts userId={user?.id} />
 
-      {/* Mini Ranking */}
-      {user?.worker_type && (
-        <section>
-          <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
-            <Trophy className="h-4 w-4 text-yellow-500" /> Ranking {user.worker_type === 'motorista' ? 'Motoristas' : user.worker_type === 'distribuicao' ? 'Distribuição' : 'Ajudantes'}
-          </h2>
-          <MiniRanking workerType={user.worker_type} userId={user.id} />
-        </section>
-      )}
+      {/* Mini Ranking - Motoristas */}
+      <section>
+        <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+          <Trophy className="h-4 w-4 text-yellow-500" /> 🚛 Ranking Motoristas
+        </h2>
+        <MiniRanking workerType="motorista" userId={user?.id} />
+      </section>
+
+      {/* Mini Ranking - Ajudantes */}
+      <section>
+        <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+          <Trophy className="h-4 w-4 text-yellow-500" /> 📦 Ranking Ajudantes
+        </h2>
+        <MiniRanking workerType="ajudante" userId={user?.id} />
+      </section>
 
       {/* KPIs do Dia */}
       <section>
