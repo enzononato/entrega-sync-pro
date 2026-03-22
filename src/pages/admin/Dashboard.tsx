@@ -79,10 +79,9 @@ export default function Dashboard() {
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
     if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
-    if (rotaFilter) list = list.filter(u => u.rota_id === rotaFilter);
     if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
     return list;
-  }, [usuarios, unidadeFilter, rotaFilter, tipoFilter]);
+  }, [usuarios, unidadeFilter, tipoFilter]);
 
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
 
