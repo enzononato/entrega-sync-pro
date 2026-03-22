@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useFeedbacks, useResponderFeedback, useEncerrarFeedback, type FeedbackWithRelations } from '@/hooks/useFeedbacks';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
