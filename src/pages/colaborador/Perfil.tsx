@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Hash, Mail, Building2, MapPin, Calendar, LogOut,
   MessageSquare, ClipboardList, AlertTriangle, CheckCircle,
-  Camera, Lock, Trophy, ChevronRight, Sparkles, Star,
+  Camera, Lock, Trophy, ChevronRight, Sparkles, Star, Moon, Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
