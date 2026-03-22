@@ -7,6 +7,9 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useUnidades } from '@/hooks/useUnidades';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useRotas } from '@/hooks/useRotas';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -43,6 +46,28 @@ export default function Colaboradores() {
   const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
   const { data: units = [] } = useUnidades();
   const activeUnits = units.filter(u => u.ativo);
+  const { user: currentUser } = useAuth();
+
+  // Fetch current admin user's allowed units
+  const { data: myUserUnits } = useQuery({
+    queryKey: ['my-user-units', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const { data, error } = await supabase
+        .from('user_units')
+        .select('unit_id')
+        .eq('user_id', currentUser.id);
+      if (error) throw error;
+      return data.map(r => r.unit_id);
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  // If user has user_units entries, only show those; otherwise show all
+  const allowedUnits = useMemo(() => {
+    if (!myUserUnits || myUserUnits.length === 0) return activeUnits;
+    return activeUnits.filter(u => myUserUnits.includes(u.id));
+  }, [activeUnits, myUserUnits]);
 
   const createMut = useCreateUsuario();
   const updateMut = useUpdateUsuario();
@@ -198,7 +223,7 @@ export default function Colaboradores() {
             <SelectTrigger className="w-full sm:w-48 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
-              {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filters.ativo ?? ''} onValueChange={v => { setFilters(f => ({ ...f, ativo: v === 'all' ? '' : v })); setPage(0); }}>
@@ -420,13 +445,13 @@ export default function Colaboradores() {
                     <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
                       <SelectContent>
-                        {activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                        {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   ) : (
                     <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
-                      {activeUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
-                      {activeUnits.map(u => (
+                      {allowedUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
+                      {allowedUnits.map(u => (
                         <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
                           <Checkbox
                             checked={form.unit_ids.includes(u.id)}
