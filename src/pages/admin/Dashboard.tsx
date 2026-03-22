@@ -195,7 +195,7 @@ export default function Dashboard() {
           <DatePick value={dateFilter} onChange={setDateFilter} />
           <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
+            <SelectContent><SelectItem value="all">Todas</SelectItem>{allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={tipoFilter} onValueChange={v => setTipoFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
