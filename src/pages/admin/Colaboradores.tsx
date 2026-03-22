@@ -221,74 +221,79 @@ export default function Colaboradores() {
           <p className="text-sm font-medium text-muted-foreground">Nenhum colaborador encontrado</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredByTab.map(u => {
             const isMot = u.worker_type === 'motorista';
             const isAdmin = u.role === 'administrador';
+            const unitNames = u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join(', ') || u.units?.nome || '';
             return (
-              <div key={u.id} className={cn('flex items-center gap-4 px-5 py-4 transition-colors group', !u.ativo && 'opacity-50')}>
-                {/* Avatar */}
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className={cn(
-                    'text-xs font-bold',
-                    isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                  )}>
-                    {getInitials(u.nome)}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground truncate">{u.nome}</span>
-                    {u.matricula && (
-                      <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold font-mono text-muted-foreground">
-                        {u.matricula}
-                      </span>
-                    )}
-                    <span className={cn(
-                      'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-                      isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
-                    )}>
-                      {isAdmin ? 'Admin' : isMot ? 'Motorista' : 'Ajudante'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Mail className="h-3 w-3" />{u.email}
-                    </span>
-                    {(u.user_units && u.user_units.length > 0) ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Building2 className="h-3 w-3" />
-                        {u.user_units.map(uu => uu.units?.nome).filter(Boolean).join(', ')}
-                      </span>
-                    ) : u.units?.nome ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Building2 className="h-3 w-3" />{u.units.nome}
-                      </span>
-                    ) : null}
-                    {u.routes?.nome && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hidden sm:inline-flex">
-                        <MapPin className="h-3 w-3" />{u.routes.nome}
-                      </span>
-                    )}
+              <div
+                key={u.id}
+                className={cn(
+                  'rounded-xl border bg-card shadow-sm overflow-hidden transition-all hover:shadow-md',
+                  !u.ativo && 'opacity-50',
+                  isAdmin ? 'border-t-[3px] border-t-amber-400' : isMot ? 'border-t-[3px] border-t-emerald-400' : 'border-t-[3px] border-t-violet-400'
+                )}
+              >
+                <div className="px-4 pt-4 pb-3">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-11 w-11 shrink-0 ring-2 ring-background shadow-sm">
+                      <AvatarFallback className={cn(
+                        'text-xs font-bold',
+                        isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
+                      )}>
+                        {getInitials(u.nome)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{u.nome}</p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={cn(
+                          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                          isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'
+                        )}>
+                          {isAdmin ? <Shield className="h-3 w-3" /> : isMot ? <Truck className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                          {isAdmin ? 'Admin' : isMot ? 'Motorista' : 'Ajudante'}
+                        </span>
+                        <StatusBadge status={u.ativo ? 'ativo' : 'inativo'} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Right side */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusBadge status={u.ativo ? 'ativo' : 'inativo'} />
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)}>
-                      <Pencil className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
-                      <Power className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPerfDrawer(u)}>
-                      <BarChart2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
+                <div className="px-4 pb-3 space-y-1.5">
+                  {u.matricula && (
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Hash className="h-3 w-3 shrink-0" />
+                      <span className="font-mono font-medium">{u.matricula}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{u.email}</span>
                   </div>
+                  {unitNames && (
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Building2 className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{unitNames}</span>
+                    </div>
+                  )}
+                  {u.cpf && (
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Shield className="h-3 w-3 shrink-0" />
+                      <span className="font-mono">{u.cpf}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-1 px-3 py-2 border-t border-border/50 bg-muted/20">
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => setPerfDrawer(u)}>
+                    <BarChart2 className="h-3.5 w-3.5" /> Desempenho
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(u)}>
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
+                    <Power className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
                 </div>
               </div>
             );
