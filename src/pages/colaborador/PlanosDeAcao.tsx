@@ -165,7 +165,7 @@ export default function PlanosDeAcaoColaborador() {
                   <div className="flex items-center gap-2">
                     <div className={cn(
                       'h-2.5 w-2.5 rounded-full shrink-0',
-                      p.status === 'aberto' ? 'bg-blue-500' :
+                      p.status === 'aberto' ? 'bg-primary' :
                       p.status === 'em_andamento' ? 'bg-warning' :
                       p.status === 'concluido' ? 'bg-success' : 'bg-muted-foreground'
                     )} />
