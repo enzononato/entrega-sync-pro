@@ -82,9 +82,18 @@ export default function Descontos() {
   };
 
   const handleSave = async () => {
-    const pct = form.valor_meta > 0 ? (form.valor_realizado / form.valor_meta) * 100 : 0;
+    const meta = Number(form.valor_meta) || 0;
+    const realizado = Number(form.valor_realizado) || 0;
+    const desconto = Number(form.valor_desconto) || 0;
+    const pct = meta > 0 ? (realizado / meta) * 100 : 0;
     await createMut.mutateAsync({
-      ...form,
+      user_id: form.user_id,
+      indicator_id: form.indicator_id,
+      data_referencia: form.data_referencia,
+      valor_meta: meta,
+      valor_realizado: realizado,
+      valor_desconto: desconto,
+      motivo: form.motivo,
       percentual_atingimento: Math.round(pct * 100) / 100,
       created_by: user?.id,
     });
