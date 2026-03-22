@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
-import { useUnidades } from '@/hooks/useUnidades';
+import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRotas } from '@/hooks/useRotas';
