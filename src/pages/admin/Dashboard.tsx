@@ -177,7 +177,6 @@ export default function Dashboard() {
   };
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
-  const activeUnits = units.filter(u => u.ativo);
   
 
   return (
