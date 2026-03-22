@@ -45,6 +45,7 @@ const BADGES: Badge[] = [
 export default function PerfilColaborador() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [uploading, setUploading] = useState(false);
