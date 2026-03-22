@@ -4,6 +4,8 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/Sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationPopover } from '@/components/shared/NotificationPopover';
+import { GlobalSearch } from '@/components/admin/GlobalSearch';
+import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 export default function AdminLayout() {
   const { user } = useAuth();
