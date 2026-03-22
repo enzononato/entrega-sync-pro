@@ -160,6 +160,9 @@ export default function ColaboradorHome() {
         </div>
       )}
 
+      {/* Gráficos de Evolução */}
+      <EvolutionCharts userId={user?.id} />
+
       {/* KPIs do Dia */}
       <section>
         <div className="flex items-center justify-between mb-3">
