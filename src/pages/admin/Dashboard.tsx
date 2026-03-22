@@ -203,15 +203,16 @@ export default function Dashboard() {
       </div>
 
       {/* Active filters indicator */}
-      {(unidadeFilter || rotaFilter || tipoFilter || dateFilter !== today) && (
+      {(unidadeFilter || tipoFilter || dateFilter !== today) && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
-          {rotaFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{activeRotas.find(r => r.id === rotaFilter)?.nome}</span>}
           {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter}</span>}
           {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
-          <button onClick={() => { setUnidadeFilter(''); setRotaFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+          <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+        </div>
+      )}
         </div>
       )}
 
