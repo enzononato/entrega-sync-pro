@@ -61,7 +61,7 @@ export default function Descontos() {
   const { data: descontos = [], isLoading } = useDescontosAdmin(filterDate || undefined);
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
-  const colaboradores = usuarios.filter(u => u.role === 'colaborador');
+  const colaboradores = useMemo(() => usuarios.filter(u => u.role === 'colaborador'), [usuarios]);
 
   const createMut = useCreateDesconto();
   const deleteMut = useDeleteDesconto();

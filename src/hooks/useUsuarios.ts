@@ -77,6 +77,7 @@ export function useUsuarios(filters?: Omit<UsersFilters, 'page' | 'pageSize'>) {
       if (error) throw error;
       return data as UserWithRelations[];
     },
+    staleTime: 60_000,
   });
 }
 

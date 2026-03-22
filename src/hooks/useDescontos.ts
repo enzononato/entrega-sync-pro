@@ -50,6 +50,7 @@ export function useDescontosAdmin(data_referencia?: string) {
       if (error) throw error;
       return data as unknown as DeductionWithRelations[];
     },
+    staleTime: 30_000,
   });
 }
 
