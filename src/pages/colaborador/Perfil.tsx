@@ -11,9 +11,14 @@ import { useDesempenhoPorColaborador } from '@/hooks/useDesempenho';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ExtratoDescontos } from '@/components/colaborador/ExtratoDescontos';
 import { ChangePasswordDialog } from '@/components/colaborador/ChangePasswordDialog';
+import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Hash, Mail, Building2, MapPin, Calendar, LogOut, MessageSquare, ClipboardList, AlertTriangle, CheckCircle, Camera, Lock, Trophy } from 'lucide-react';
+import {
+  Hash, Mail, Building2, MapPin, Calendar, LogOut,
+  MessageSquare, ClipboardList, AlertTriangle, CheckCircle,
+  Camera, Lock, Trophy, ChevronRight, Sparkles, Star,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -28,11 +33,11 @@ interface Badge {
 
 const BADGES: Badge[] = [
   { id: 'first_step', emoji: '🌱', title: 'Primeiro Passo', description: '1 dia na meta', threshold: 1, color: 'from-primary to-primary/80' },
-  { id: 'on_track', emoji: '🎯', title: 'No Alvo', description: '3 dias na meta', threshold: 3, color: 'from-blue-400 to-blue-500' },
-  { id: 'consistent', emoji: '⭐', title: 'Consistente', description: '7 dias na meta', threshold: 7, color: 'from-amber-400 to-amber-500' },
-  { id: 'dedicated', emoji: '🔥', title: 'Dedicado', description: '15 dias na meta', threshold: 15, color: 'from-orange-400 to-orange-500' },
-  { id: 'champion', emoji: '🏆', title: 'Campeão', description: '20 dias na meta', threshold: 20, color: 'from-yellow-400 to-yellow-500' },
-  { id: 'legend', emoji: '💎', title: 'Lendário', description: '25+ dias na meta', threshold: 25, color: 'from-purple-400 to-purple-500' },
+  { id: 'on_track', emoji: '🎯', title: 'No Alvo', description: '3 dias na meta', threshold: 3, color: 'from-primary to-accent' },
+  { id: 'consistent', emoji: '⭐', title: 'Consistente', description: '7 dias na meta', threshold: 7, color: 'from-warning to-warning/80' },
+  { id: 'dedicated', emoji: '🔥', title: 'Dedicado', description: '15 dias na meta', threshold: 15, color: 'from-warning to-destructive' },
+  { id: 'champion', emoji: '🏆', title: 'Campeão', description: '20 dias na meta', threshold: 20, color: 'from-warning to-success' },
+  { id: 'legend', emoji: '💎', title: 'Lendário', description: '25+ dias na meta', threshold: 25, color: 'from-secondary to-primary' },
 ];
 
 export default function PerfilColaborador() {
@@ -62,12 +67,9 @@ export default function PerfilColaborador() {
     ).length;
   }, [desempenho]);
 
-  const unlockedBadges = useMemo(() => {
-    return BADGES.map(badge => ({
-      ...badge,
-      unlocked: diasNaMeta >= badge.threshold,
-    }));
-  }, [diasNaMeta]);
+  const unlockedBadges = useMemo(() =>
+    BADGES.map(badge => ({ ...badge, unlocked: diasNaMeta >= badge.threshold })),
+  [diasNaMeta]);
 
   const nextBadge = unlockedBadges.find(b => !b.unlocked);
   const unlockedCount = unlockedBadges.filter(b => b.unlocked).length;
@@ -85,16 +87,8 @@ export default function PerfilColaborador() {
       setUploading(true);
       const file = event.target.files?.[0];
       if (!file) return;
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('A imagem deve ter no máximo 5MB');
-        return;
-      }
-
-      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
-        toast.error('Formato inválido. Use JPG, PNG ou WEBP');
-        return;
-      }
+      if (file.size > 5 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 5MB'); return; }
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) { toast.error('Formato inválido. Use JPG, PNG ou WEBP'); return; }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) throw new Error('Usuário não autenticado');
@@ -102,21 +96,11 @@ export default function PerfilColaborador() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${authUser.id}/avatar.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true });
-
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ avatar_url: publicUrl })
-        .eq('auth_user_id', authUser.id);
-
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const { error: updateError } = await supabase.from('users').update({ avatar_url: publicUrl }).eq('auth_user_id', authUser.id);
       if (updateError) throw updateError;
 
       toast.success('Foto atualizada com sucesso!');
@@ -131,69 +115,87 @@ export default function PerfilColaborador() {
 
   if (!user) return null;
 
-  return (
-    <div className="space-y-4 animate-fade-up">
-      <h1 className="text-xl font-bold text-foreground">Meu Perfil</h1>
+  const workerLabel = user.worker_type === 'motorista' ? '🚛 Motorista' : user.worker_type === 'distribuicao' ? '📋 Distribuição' : '📦 Ajudante';
 
-      {/* Avatar card */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col items-center text-center">
-        <div className="relative group">
-          <Avatar className="h-24 w-24 ring-4 ring-primary/10">
-            <AvatarImage src={user.avatar_url || undefined} alt={user.nome} />
-            <AvatarFallback className={cn(
-              'text-2xl font-bold text-white',
-              user.worker_type === 'motorista' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : user.worker_type === 'distribuicao' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-purple-500 to-purple-600'
-            )}>
-              {getInitials(user.nome)}
-            </AvatarFallback>
-          </Avatar>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            <Camera className="h-4 w-4" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/webp"
-            onChange={handleAvatarUpload}
-            className="hidden"
-          />
+  return (
+    <div className="space-y-5 stagger-children pb-4">
+      {/* ── Hero Profile Card ──────────────────────── */}
+      <div className="rounded-2xl overflow-hidden shadow-lg gradient-hero">
+        <div className="p-6 flex flex-col items-center text-center relative">
+          {/* Avatar */}
+          <div className="relative">
+            <Avatar className="h-24 w-24 ring-4 ring-white/20 shadow-xl">
+              <AvatarImage src={user.avatar_url || undefined} alt={user.nome} />
+              <AvatarFallback className="text-2xl font-bold text-white bg-white/20 backdrop-blur-sm">
+                {getInitials(user.nome)}
+              </AvatarFallback>
+            </Avatar>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-white text-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-50"
+            >
+              <Camera className="h-4 w-4" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+          </div>
+
+          <p className="text-lg font-bold text-white mt-4">{user.nome}</p>
+          {user.worker_type && (
+            <span className="mt-1.5 inline-flex items-center rounded-full bg-white/15 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white">
+              {workerLabel}
+            </span>
+          )}
+
+          {/* Quick stats row */}
+          <div className="flex items-center gap-6 mt-5">
+            <div className="text-center">
+              <p className="text-2xl font-extrabold text-white">{diasNaMeta}</p>
+              <p className="text-[9px] text-white/50 font-semibold uppercase tracking-wider">Dias na Meta</p>
+            </div>
+            <div className="h-8 w-px bg-white/15" />
+            <div className="text-center">
+              <p className="text-2xl font-extrabold text-white">{unlockedCount}</p>
+              <p className="text-[9px] text-white/50 font-semibold uppercase tracking-wider">Conquistas</p>
+            </div>
+            <div className="h-8 w-px bg-white/15" />
+            <div className="text-center">
+              <p className="text-2xl font-extrabold text-white">{planos.filter(p => p.status === 'concluido').length}</p>
+              <p className="text-[9px] text-white/50 font-semibold uppercase tracking-wider">Concluídos</p>
+            </div>
+          </div>
         </div>
-        <p className="text-lg font-semibold text-foreground mt-4">{user.nome}</p>
-        {user.worker_type && (
-          <span className={cn('inline-flex rounded-lg px-3 py-1 text-xs font-semibold mt-2',
-            user.worker_type === 'motorista' ? 'bg-blue-50 text-blue-700' : user.worker_type === 'distribuicao' ? 'bg-cyan-50 text-cyan-700' : 'bg-purple-50 text-purple-700'
-          )}>
-            {user.worker_type === 'motorista' ? '🚛 Motorista' : user.worker_type === 'distribuicao' ? '📋 Distribuição' : '📦 Ajudante'}
-          </span>
-        )}
       </div>
 
-      {/* Badges / Conquistas */}
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-500" />
-            <h2 className="text-sm font-bold text-foreground">Conquistas</h2>
-          </div>
-          <span className="text-xs font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-0.5">
+      {/* ── Conquistas ─────────────────────────────── */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+            <Trophy className="h-4 w-4 text-warning" /> Conquistas
+          </h2>
+          <span className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-0.5">
             {unlockedCount}/{BADGES.length}
           </span>
         </div>
 
-        {/* Progress to next badge */}
+        {/* Next badge progress */}
         {nextBadge && (
-          <div className="rounded-xl bg-muted/50 p-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Próxima: <span className="font-semibold text-foreground">{nextBadge.emoji} {nextBadge.title}</span></span>
-              <span className="font-semibold text-foreground">{diasNaMeta}/{nextBadge.threshold} dias</span>
+          <div className="rounded-xl bg-muted/50 border border-border px-3.5 py-3 mb-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Próxima: <span className="font-semibold text-foreground">{nextBadge.emoji} {nextBadge.title}</span>
+              </span>
+              <span className="text-xs font-bold text-foreground">{diasNaMeta}/{nextBadge.threshold}</span>
             </div>
             <div className="h-2 rounded-full bg-border overflow-hidden">
               <div
-                className={cn('h-full rounded-full bg-gradient-to-r transition-all duration-500', nextBadge.color)}
+                className={cn('h-full rounded-full bg-gradient-to-r transition-all duration-700', nextBadge.color)}
                 style={{ width: `${Math.min(100, (diasNaMeta / nextBadge.threshold) * 100)}%` }}
               />
             </div>
@@ -201,69 +203,85 @@ export default function PerfilColaborador() {
         )}
 
         {/* Badge grid */}
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-3 gap-2">
           {unlockedBadges.map(badge => (
             <div
               key={badge.id}
               className={cn(
-                'relative flex flex-col items-center rounded-xl p-3 text-center transition-all duration-300',
+                'relative flex flex-col items-center rounded-xl p-3 text-center transition-all',
                 badge.unlocked
                   ? 'bg-card border border-border shadow-sm'
-                  : 'bg-muted/30 border border-transparent opacity-40 grayscale'
+                  : 'bg-muted/20 border border-transparent opacity-35 grayscale'
               )}
             >
-              <span className="text-3xl mb-1.5">{badge.emoji}</span>
+              <span className="text-2xl mb-1">{badge.emoji}</span>
               <p className="text-[10px] font-bold text-foreground leading-tight">{badge.title}</p>
-              <p className="text-[9px] text-muted-foreground leading-tight mt-0.5">{badge.description}</p>
+              <p className="text-[8px] text-muted-foreground leading-tight mt-0.5">{badge.description}</p>
               {badge.unlocked && (
                 <div className={cn('absolute -top-1 -right-1 h-4 w-4 rounded-full bg-gradient-to-r flex items-center justify-center', badge.color)}>
-                  <CheckCircle className="h-3 w-3 text-white" />
+                  <CheckCircle className="h-2.5 w-2.5 text-white" />
                 </div>
               )}
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Info card */}
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-        <InfoRow icon={<Hash className="h-4 w-4" />} label="Matrícula" value={user.matricula || '—'} />
-        <InfoRow icon={<Mail className="h-4 w-4" />} label="E-mail" value={user.email} />
-        <InfoRow icon={<Building2 className="h-4 w-4" />} label="Unidade" value={user.units?.nome ?? '—'} />
-        <InfoRow icon={<MapPin className="h-4 w-4" />} label="Rota" value={user.routes?.nome ?? '—'} />
-        <InfoRow icon={<Calendar className="h-4 w-4" />} label="Membro desde" value={format(new Date(user.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} />
-      </div>
+      {/* ── Informações ────────────────────────────── */}
+      <section>
+        <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-3">
+          <Sparkles className="h-4 w-4 text-primary" /> Informações
+        </h2>
+        <div className="rounded-xl border border-border bg-card shadow-sm divide-y divide-border/50">
+          <InfoRow icon={<Hash className="h-4 w-4" />} label="Matrícula" value={user.matricula || '—'} />
+          <InfoRow icon={<Mail className="h-4 w-4" />} label="E-mail" value={user.email} />
+          <InfoRow icon={<Building2 className="h-4 w-4" />} label="Unidade" value={user.units?.nome ?? '—'} />
+          <InfoRow icon={<MapPin className="h-4 w-4" />} label="Rota" value={user.routes?.nome ?? '—'} />
+          <InfoRow icon={<Calendar className="h-4 w-4" />} label="Desde" value={format(new Date(user.created_at), "dd/MM/yyyy", { locale: ptBR })} />
+        </div>
+      </section>
 
-      {/* Stats card */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={<MessageSquare className="h-4 w-4 text-blue-500" />} value={feedbacks.length} label="Feedbacks enviados" />
-        <StatCard icon={<ClipboardList className="h-4 w-4 text-amber-500" />} value={planos.length} label="Planos criados" />
-        <StatCard icon={<AlertTriangle className="h-4 w-4 text-orange-500" />} value={causas.length} label="Causas raiz" />
-        <StatCard icon={<CheckCircle className="h-4 w-4 text-blue-500" />} value={diasNaMeta} label="Dias na meta (30d)" />
-      </div>
+      {/* ── Atividade ──────────────────────────────── */}
+      <section>
+        <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-3">
+          <Star className="h-4 w-4 text-warning" /> Atividade (30 dias)
+        </h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          <StatCard icon={<MessageSquare className="h-4 w-4 text-primary" />} value={feedbacks.length} label="Feedbacks" />
+          <StatCard icon={<ClipboardList className="h-4 w-4 text-warning" />} value={planos.length} label="Planos" />
+          <StatCard icon={<AlertTriangle className="h-4 w-4 text-destructive" />} value={causas.length} label="Causas raiz" />
+          <StatCard icon={<CheckCircle className="h-4 w-4 text-success" />} value={diasNaMeta} label="Dias na meta" />
+        </div>
+      </section>
 
-      {/* Extrato de Descontos */}
+      {/* ── Extrato de Descontos ───────────────────── */}
       <ExtratoDescontos userId={user.id} />
 
-      {/* Actions */}
-      <div className="space-y-2">
-        <Button 
-          variant="outline" 
-          className="w-full gap-2 h-11 rounded-xl" 
+      {/* ── Ações ──────────────────────────────────── */}
+      <section className="space-y-2.5">
+        <Button
+          variant="outline"
+          className="w-full justify-between gap-2 h-12 rounded-xl"
           onClick={() => setShowChangePassword(true)}
         >
-          <Lock className="h-4 w-4" />
-          Alterar Senha
+          <span className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            Alterar Senha
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
-        <Button 
-          variant="outline" 
-          className="w-full text-destructive border-destructive/30 hover:bg-destructive/5 gap-2 h-11 rounded-xl" 
+        <Button
+          variant="outline"
+          className="w-full justify-between text-destructive border-destructive/20 hover:bg-destructive/5 gap-2 h-12 rounded-xl"
           onClick={() => setConfirmLogout(true)}
         >
-          <LogOut className="h-4 w-4" />
-          Sair
+          <span className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" />
+            Sair da Conta
+          </span>
+          <ChevronRight className="h-4 w-4 opacity-50" />
         </Button>
-      </div>
+      </section>
 
       <ConfirmDialog
         open={confirmLogout}
@@ -273,7 +291,6 @@ export default function PerfilColaborador() {
         onConfirm={handleLogout}
         onCancel={() => setConfirmLogout(false)}
       />
-
       <ChangePasswordDialog
         open={showChangePassword}
         onOpenChange={setShowChangePassword}
@@ -282,12 +299,13 @@ export default function PerfilColaborador() {
   );
 }
 
+/* ── Helpers ─────────────────────────────────────── */
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 py-1">
-      <span className="text-muted-foreground">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className="text-muted-foreground shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</p>
         <p className="text-sm font-medium text-foreground truncate">{value}</p>
       </div>
     </div>
@@ -297,10 +315,12 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 function StatCard({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm flex items-center gap-3">
-      {icon}
+      <div className="h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
+        {icon}
+      </div>
       <div>
         <p className="text-xl font-bold text-foreground">{value}</p>
-        <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+        <p className="text-[10px] text-muted-foreground leading-tight">{label}</p>
       </div>
     </div>
   );
