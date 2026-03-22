@@ -208,6 +208,9 @@ export default function Colaboradores() {
             <TabsTrigger value="ajudante" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-violet-500" /> Ajudantes
             </TabsTrigger>
+            <TabsTrigger value="distribuicao" className="gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
+            </TabsTrigger>
             <TabsTrigger value="admins" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-amber-500" /> Admins
             </TabsTrigger>
