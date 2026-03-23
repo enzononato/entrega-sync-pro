@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
   Building2, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Shield, TrendingDown,
-  UserCog,
+  UserCog, Moon, Sun,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -53,6 +54,7 @@ const sections = [
 
 export function AdminSidebar() {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const navigate = useNavigate();
@@ -127,9 +129,14 @@ export function AdminSidebar() {
             </div>
           )}
           {!collapsed && (
-            <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 shrink-0 h-8 w-8 rounded-lg">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 h-8 w-8 rounded-lg">
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 h-8 w-8 rounded-lg">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
       </SidebarFooter>
