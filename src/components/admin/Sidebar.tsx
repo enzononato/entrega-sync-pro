@@ -129,9 +129,14 @@ export function AdminSidebar() {
             </div>
           )}
           {!collapsed && (
-            <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 shrink-0 h-8 w-8 rounded-lg">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 h-8 w-8 rounded-lg">
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 h-8 w-8 rounded-lg">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
       </SidebarFooter>
