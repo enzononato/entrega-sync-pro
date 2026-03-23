@@ -54,6 +54,7 @@ const sections = [
 
 export function AdminSidebar() {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const navigate = useNavigate();
