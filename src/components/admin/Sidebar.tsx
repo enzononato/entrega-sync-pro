@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
   Building2, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Shield, TrendingDown,
-  UserCog,
+  UserCog, Moon, Sun,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
