@@ -251,6 +251,9 @@ export default function Desempenho() {
         <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
           <Upload className="h-4 w-4" /> Importar CSV/Excel
         </Button>
+        <Button variant="outline" onClick={() => setRevalleOpen(true)} className="gap-2">
+          <FileSpreadsheet className="h-4 w-4" /> Importar Fecho Operacional
+        </Button>
       </div>
 
       {/* KPI Cards */}
