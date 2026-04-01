@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface IndicatorRow {
   id: string; codigo: string; nome: string; categoria: string;
-  unidade_medida: string; descricao: string; applies_to_worker_type: string;
+  descricao: string; applies_to_worker_type: string;
   ativo: boolean; created_at: string;
 }
 
