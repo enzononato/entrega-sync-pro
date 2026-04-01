@@ -226,12 +226,11 @@ export default function Colaboradores() {
           {filteredByTab.map(u => {
             const isMot = u.worker_type === 'motorista';
             const isDist = u.worker_type === 'distribuicao';
-            const isAdmin = u.role === 'administrador';
             const unitNames = u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join(', ') || u.units?.nome || '';
-            const borderTop = isAdmin ? 'border-t-amber-400' : isMot ? 'border-t-emerald-400' : isDist ? 'border-t-blue-400' : 'border-t-violet-400';
-            const badgeBg = isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : isDist ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700';
-            const typeLabel = isAdmin ? 'Admin' : isMot ? 'Motorista' : isDist ? 'Distribuição' : 'Ajudante';
-            const TypeIcon = isAdmin ? Shield : isMot ? Truck : isDist ? Package : UserCheck;
+            const borderTop = isMot ? 'border-t-emerald-400' : isDist ? 'border-t-blue-400' : 'border-t-violet-400';
+            const badgeBg = isMot ? 'bg-emerald-100 text-emerald-700' : isDist ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700';
+            const typeLabel = isMot ? 'Motorista' : isDist ? 'Distribuição' : 'Ajudante';
+            const TypeIcon = isMot ? Truck : isDist ? Package : UserCheck;
             return (
               <div
                 key={u.id}
