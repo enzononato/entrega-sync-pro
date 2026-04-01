@@ -38,7 +38,7 @@ const WORKER_CONFIG: Record<string, { label: string; short: string; bg: string; 
   ambos: { label: 'Ambos', short: 'Amb', bg: 'bg-primary/10', color: 'text-primary' },
 };
 
-const emptyForm = { codigo: '', nome: '', categoria: '', unidade_medida: '', descricao: '', applies_to_worker_type: 'ambos', ativo: true };
+const emptyForm = { codigo: '', nome: '', categoria: '', descricao: '', applies_to_worker_types: [] as string[], ativo: true };
 
 export default function Indicadores() {
   const [filters, setFilters] = useState<Record<string, string>>({});
