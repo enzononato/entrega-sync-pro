@@ -21,7 +21,6 @@ import {
 import { cn } from '@/lib/utils';
 
 const CATEGORIAS = ['Tempo', 'Qualidade', 'Eficiência', 'Operação', 'Financeiro', 'Satisfação', 'Jornada'];
-const UNIDADES_MEDIDA = ['minutos', 'horas', '%', 'qtd', 'R$', 'nota'];
 
 const CAT_CONFIG: Record<string, { icon: typeof BarChart3; color: string; bg: string }> = {
   Tempo: { icon: Clock, color: 'text-blue-700', bg: 'bg-blue-100' },
