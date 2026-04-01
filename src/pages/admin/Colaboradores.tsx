@@ -26,7 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
-  nome: '', email: '', matricula: '', cpf: '', password: '', role: 'colaborador' as string,
+  nome: '', email: '', matricula: '', cpf: '', password: '',
   worker_type: 'motorista' as string | null, unidade_id: '' as string | null,
   rota_id: '' as string | null, ativo: true, unit_ids: [] as string[],
 };
