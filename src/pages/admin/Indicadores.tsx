@@ -304,13 +304,6 @@ export default function Indicadores() {
                   <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Unidade de Medida</Label>
-                <Select value={form.unidade_medida} onValueChange={v => setForm(f => ({ ...f, unidade_medida: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Descrição</Label>
