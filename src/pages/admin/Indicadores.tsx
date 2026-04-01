@@ -78,7 +78,7 @@ export default function Indicadores() {
   const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (i: IndicatorRow) => {
     setEditing(i);
-    setForm({ codigo: i.codigo, nome: i.nome, categoria: i.categoria, unidade_medida: i.unidade_medida, descricao: i.descricao, applies_to_worker_type: i.applies_to_worker_type, ativo: i.ativo });
+    setForm({ codigo: i.codigo, nome: i.nome, categoria: i.categoria, descricao: i.descricao, applies_to_worker_types: i.applies_to_worker_type.split(',').filter(Boolean), ativo: i.ativo });
     setDialogOpen(true);
   };
 
