@@ -26,7 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
-  nome: '', email: '', matricula: '', cpf: '', password: '', role: 'colaborador' as string,
+  nome: '', email: '', matricula: '', cpf: '', password: '',
   worker_type: 'motorista' as string | null, unidade_id: '' as string | null,
   rota_id: '' as string | null, ativo: true, unit_ids: [] as string[],
 };
@@ -36,7 +36,7 @@ export default function Colaboradores() {
   const [activeTab, setActiveTab] = useState('todos');
   const [page, setPage] = useState(0);
   const { data: paginatedResult, isLoading } = useUsuariosPaginated({
-    nome: filters.search, worker_type: activeTab !== 'todos' && activeTab !== 'admins' ? activeTab : filters.worker_type,
+    nome: filters.search, worker_type: activeTab !== 'todos' ? activeTab : filters.worker_type,
     unidade_id: filters.unidade_id, ativo: filters.ativo, page, pageSize: DEFAULT_PAGE_SIZE,
   });
   const usuarios = paginatedResult?.data ?? [];
@@ -63,25 +63,24 @@ export default function Colaboradores() {
 
   // KPIs from all users (unfiltered)
   const { data: allUsers = [] } = useUsuarios();
-  const totalAtivos = allUsers.filter(u => u.ativo).length;
-  const totalInativos = allUsers.filter(u => !u.ativo).length;
-  const motoristas = allUsers.filter(u => u.ativo && u.worker_type === 'motorista').length;
-  const ajudantes = allUsers.filter(u => u.ativo && u.worker_type === 'ajudante').length;
-  const distribuicaoCount = allUsers.filter(u => u.ativo && u.worker_type === 'distribuicao').length;
-  const admins = allUsers.filter(u => u.role === 'administrador').length;
+  // Exclude admins from collaborator lists
+  const colaboradores = allUsers.filter(u => u.role !== 'administrador');
+  const totalAtivos = colaboradores.filter(u => u.ativo).length;
+  const totalInativos = colaboradores.filter(u => !u.ativo).length;
+  const motoristas = colaboradores.filter(u => u.ativo && u.worker_type === 'motorista').length;
+  const ajudantes = colaboradores.filter(u => u.ativo && u.worker_type === 'ajudante').length;
 
-  // Filter by tab
+  // Filter out admins from paginated results
   const filteredByTab = useMemo(() => {
-    if (activeTab === 'admins') return usuarios.filter(u => u.role === 'administrador');
-    return usuarios;
-  }, [usuarios, activeTab]);
+    return usuarios.filter(u => u.role !== 'administrador');
+  }, [usuarios]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setShowPassword(false); setDialogOpen(true); };
   const openEdit = (u: UserWithRelations) => {
     setEditing(u);
     setForm({
       nome: u.nome, email: u.email, matricula: u.matricula, cpf: u.cpf || '', password: '',
-      role: u.role, worker_type: u.worker_type, unidade_id: u.unidade_id,
+      worker_type: u.worker_type, unidade_id: u.unidade_id,
       rota_id: u.rota_id, ativo: u.ativo,
       unit_ids: u.user_units?.map(uu => uu.unit_id) ?? (u.unidade_id ? [u.unidade_id] : []),
     });
@@ -93,8 +92,8 @@ export default function Colaboradores() {
     if (editing) {
       await updateMut.mutateAsync({
         id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
-        cpf: form.role === 'colaborador' && form.worker_type === 'motorista' ? form.cpf : null,
-        role: form.role, worker_type: form.role === 'colaborador' ? form.worker_type : null,
+        cpf: form.worker_type === 'motorista' ? form.cpf : null,
+        role: 'colaborador', worker_type: form.worker_type,
         unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
         unit_ids: form.unit_ids,
       });
@@ -103,9 +102,9 @@ export default function Colaboradores() {
       await createMut.mutateAsync({
         email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(),
-        cpf: form.role === 'colaborador' && form.worker_type === 'motorista' ? form.cpf : null,
-        role: form.role,
-        worker_type: form.role === 'colaborador' ? form.worker_type : null,
+        cpf: form.worker_type === 'motorista' ? form.cpf : null,
+        role: 'colaborador',
+        worker_type: form.worker_type,
         unidade_id: primaryUnit, rota_id: form.rota_id || null,
         unit_ids: form.unit_ids,
       });
@@ -119,7 +118,7 @@ export default function Colaboradores() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const isMotorista = form.role === 'colaborador' && form.worker_type === 'motorista';
+  const isMotorista = form.worker_type === 'motorista';
   const cpfValid = !isMotorista || validateCpf(form.cpf);
   const unitValid = !isMotorista || form.unit_ids.length === 1;
   const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6) && cpfValid && unitValid;
@@ -187,9 +186,6 @@ export default function Colaboradores() {
             <TabsTrigger value="distribuicao" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
             </TabsTrigger>
-            <TabsTrigger value="admins" className="gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-amber-500" /> Admins
-            </TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap gap-2">
@@ -230,12 +226,11 @@ export default function Colaboradores() {
           {filteredByTab.map(u => {
             const isMot = u.worker_type === 'motorista';
             const isDist = u.worker_type === 'distribuicao';
-            const isAdmin = u.role === 'administrador';
             const unitNames = u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join(', ') || u.units?.nome || '';
-            const borderTop = isAdmin ? 'border-t-amber-400' : isMot ? 'border-t-emerald-400' : isDist ? 'border-t-blue-400' : 'border-t-violet-400';
-            const badgeBg = isAdmin ? 'bg-amber-100 text-amber-700' : isMot ? 'bg-emerald-100 text-emerald-700' : isDist ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700';
-            const typeLabel = isAdmin ? 'Admin' : isMot ? 'Motorista' : isDist ? 'Distribuição' : 'Ajudante';
-            const TypeIcon = isAdmin ? Shield : isMot ? Truck : isDist ? Package : UserCheck;
+            const borderTop = isMot ? 'border-t-emerald-400' : isDist ? 'border-t-blue-400' : 'border-t-violet-400';
+            const badgeBg = isMot ? 'bg-emerald-100 text-emerald-700' : isDist ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700';
+            const typeLabel = isMot ? 'Motorista' : isDist ? 'Distribuição' : 'Ajudante';
+            const TypeIcon = isMot ? Truck : isDist ? Package : UserCheck;
             return (
               <div
                 key={u.id}
@@ -381,28 +376,10 @@ export default function Colaboradores() {
 
             {/* Configuração */}
             <div>
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Configuração</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Configuração</h3>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Tipo de Acesso</Label>
-                  <div className="flex gap-2">
-                    {[
-                      { v: 'colaborador', l: 'Colaborador', bg: 'bg-primary/10 text-primary border-primary/30' },
-                      { v: 'administrador', l: 'Administrador', bg: 'bg-amber-100 text-amber-700 border-amber-300' },
-                    ].map(o => (
-                      <button key={o.v} type="button"
-                        className={cn('flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-                          form.role === o.v ? cn(o.bg, 'border-2 shadow-sm') : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
-                        )}
-                        onClick={() => setForm(f => ({ ...f, role: o.v }))}
-                      >{o.l}</button>
-                    ))}
-                  </div>
-                </div>
-
-                {form.role === 'colaborador' && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Tipo de Colaborador</Label>
+                  <Label className="text-xs">Tipo de Colaborador</Label>
                     <div className="flex gap-2">
                       {[
                         { v: 'motorista', l: 'Motorista', bg: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
@@ -418,7 +395,6 @@ export default function Colaboradores() {
                       ))}
                     </div>
                   </div>
-                )}
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">
