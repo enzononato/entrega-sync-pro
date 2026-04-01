@@ -27,8 +27,8 @@ export interface User {
 
 export interface Indicator {
   id: string; codigo: string; nome: string; categoria: string;
-  unidade_medida: string; descricao: string;
-  applies_to_worker_type: WorkerTypeAll; ativo: boolean; created_at: string;
+  descricao: string;
+  applies_to_worker_type: string; ativo: boolean; created_at: string;
 }
 
 export interface Goal {

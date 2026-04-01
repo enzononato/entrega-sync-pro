@@ -7,7 +7,7 @@ export interface DesempenhoRow {
   valor: number; meta: number | null; percentual_atingimento: number | null;
   status: string | null; origem_dado: string; created_at: string; updated_at: string;
   users: { nome: string; worker_type: string | null; matricula: string; unidade_id: string | null } | null;
-  indicators: { nome: string; codigo: string; unidade_medida: string } | null;
+  indicators: { nome: string; codigo: string } | null;
 }
 
 export function useDesempenhoDiario(data: string, filters?: { unidade_id?: string; worker_type?: string; user_id?: string; indicator_id?: string }) {
@@ -15,7 +15,7 @@ export function useDesempenhoDiario(data: string, filters?: { unidade_id?: strin
     queryKey: ['user_indicator_daily', data, filters],
     queryFn: async () => {
       let q = supabase.from('user_indicator_daily')
-        .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo, unidade_medida)')
+        .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo)')
         .eq('data_referencia', data).order('created_at', { ascending: false });
       if (filters?.user_id) q = q.eq('user_id', filters.user_id);
       if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
@@ -34,7 +34,7 @@ export function useDesempenhoPorColaborador(userId: string | undefined, dataInic
     queryKey: ['user_indicator_daily', 'byUser', userId, dataInicio, dataFim],
     queryFn: async () => {
       const { data, error } = await supabase.from('user_indicator_daily')
-        .select('*, indicators(nome, codigo, unidade_medida)')
+        .select('*, indicators(nome, codigo)')
         .eq('user_id', userId!)
         .gte('data_referencia', dataInicio).lte('data_referencia', dataFim)
         .order('data_referencia', { ascending: false });

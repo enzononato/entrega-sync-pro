@@ -21,7 +21,6 @@ import {
 import { cn } from '@/lib/utils';
 
 const CATEGORIAS = ['Tempo', 'Qualidade', 'Eficiência', 'Operação', 'Financeiro', 'Satisfação', 'Jornada'];
-const UNIDADES_MEDIDA = ['minutos', 'horas', '%', 'qtd', 'R$', 'nota'];
 
 const CAT_CONFIG: Record<string, { icon: typeof BarChart3; color: string; bg: string }> = {
   Tempo: { icon: Clock, color: 'text-blue-700', bg: 'bg-blue-100' },
@@ -36,10 +35,10 @@ const CAT_CONFIG: Record<string, { icon: typeof BarChart3; color: string; bg: st
 const WORKER_CONFIG: Record<string, { label: string; short: string; bg: string; color: string }> = {
   motorista: { label: 'Motorista', short: 'Mot', bg: 'bg-emerald-100', color: 'text-emerald-700' },
   ajudante: { label: 'Ajudante', short: 'Aj', bg: 'bg-violet-100', color: 'text-violet-700' },
-  ambos: { label: 'Ambos', short: 'Amb', bg: 'bg-primary/10', color: 'text-primary' },
+  distribuicao: { label: 'Distribuição', short: 'Dist', bg: 'bg-blue-100', color: 'text-blue-700' },
 };
 
-const emptyForm = { codigo: '', nome: '', categoria: '', unidade_medida: '', descricao: '', applies_to_worker_type: 'ambos', ativo: true };
+const emptyForm = { codigo: '', nome: '', categoria: '', descricao: '', applies_to_worker_types: [] as string[], ativo: true };
 
 export default function Indicadores() {
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -59,7 +58,8 @@ export default function Indicadores() {
     return indicators.filter(i => {
       const s = filters.search?.toLowerCase() ?? '';
       const matchSearch = !s || i.nome.toLowerCase().includes(s) || i.codigo.toLowerCase().includes(s);
-      const matchType = activeTab === 'todos' || i.applies_to_worker_type === activeTab;
+      const types = i.applies_to_worker_type.split(',');
+      const matchType = activeTab === 'todos' || types.includes(activeTab);
       const matchCat = !filters.categoria || filters.categoria === 'all' || i.categoria === filters.categoria;
       return matchSearch && matchType && matchCat;
     });
@@ -78,12 +78,12 @@ export default function Indicadores() {
   const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (i: IndicatorRow) => {
     setEditing(i);
-    setForm({ codigo: i.codigo, nome: i.nome, categoria: i.categoria, unidade_medida: i.unidade_medida, descricao: i.descricao, applies_to_worker_type: i.applies_to_worker_type, ativo: i.ativo });
+    setForm({ codigo: i.codigo, nome: i.nome, categoria: i.categoria, descricao: i.descricao, applies_to_worker_types: i.applies_to_worker_type.split(',').filter(Boolean), ativo: i.ativo });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    const payload = { ...form, codigo: form.codigo.toUpperCase() };
+    const payload = { codigo: form.codigo.toUpperCase(), nome: form.nome, categoria: form.categoria, descricao: form.descricao, applies_to_worker_type: form.applies_to_worker_types.join(','), ativo: form.ativo };
     if (editing?.id) await updateMut.mutateAsync({ id: editing.id, ...payload });
     else await createMut.mutateAsync(payload);
     setDialogOpen(false);
@@ -164,9 +164,6 @@ export default function Indicadores() {
             <TabsTrigger value="distribuicao" className="gap-1.5">
               <span className="h-2 w-2 rounded-full bg-blue-500" /> Distribuição
             </TabsTrigger>
-            <TabsTrigger value="ambos" className="gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-primary" /> Ambos
-            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -213,7 +210,7 @@ export default function Indicadores() {
             {pg.paginatedItems.map(ind => {
               const catConf = CAT_CONFIG[ind.categoria] ?? { icon: BarChart3, color: 'text-muted-foreground', bg: 'bg-muted' };
               const CatIcon = catConf.icon;
-              const workerConf = WORKER_CONFIG[ind.applies_to_worker_type] ?? WORKER_CONFIG.ambos;
+              const workerTypes = ind.applies_to_worker_type.split(',').filter(Boolean);
               return (
                 <div
                   key={ind.id}
@@ -246,14 +243,14 @@ export default function Indicadores() {
                       <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium', catConf.bg, catConf.color)}>
                         <CatIcon className="h-3 w-3" />{ind.categoria || 'Sem categoria'}
                       </span>
-                      <span className={cn('inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium', workerConf.bg, workerConf.color)}>
-                        {workerConf.label}
-                      </span>
-                      {ind.unidade_medida && (
-                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                          {ind.unidade_medida}
-                        </span>
-                      )}
+                      {workerTypes.map(wt => {
+                        const wConf = WORKER_CONFIG[wt] ?? WORKER_CONFIG.motorista;
+                        return (
+                          <span key={wt} className={cn('inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium', wConf.bg, wConf.color)}>
+                            {wConf.label}
+                          </span>
+                        );
+                      })}
                     </div>
 
                     {/* Description */}
@@ -307,13 +304,6 @@ export default function Indicadores() {
                   <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Unidade de Medida</Label>
-                <Select value={form.unidade_medida} onValueChange={v => setForm(f => ({ ...f, unidade_medida: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Descrição</Label>
@@ -326,22 +316,29 @@ export default function Indicadores() {
                   { v: 'motorista', l: 'Motorista', bg: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
                   { v: 'ajudante', l: 'Ajudante', bg: 'bg-violet-100 text-violet-700 border-violet-300' },
                   { v: 'distribuicao', l: 'Distribuição', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
-                  { v: 'ambos', l: 'Ambos', bg: 'bg-primary/10 text-primary border-primary/30' },
-                ].map(o => (
-                  <button
-                    key={o.v}
-                    type="button"
-                    className={cn(
-                      'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-                      form.applies_to_worker_type === o.v
-                        ? cn(o.bg, 'border-2 shadow-sm')
-                        : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
-                    )}
-                    onClick={() => setForm(f => ({ ...f, applies_to_worker_type: o.v }))}
-                  >
-                    {o.l}
-                  </button>
-                ))}
+                ].map(o => {
+                  const selected = form.applies_to_worker_types.includes(o.v);
+                  return (
+                    <button
+                      key={o.v}
+                      type="button"
+                      className={cn(
+                        'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                        selected
+                          ? cn(o.bg, 'border-2 shadow-sm')
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
+                      )}
+                      onClick={() => setForm(f => {
+                        const types = f.applies_to_worker_types.includes(o.v)
+                          ? f.applies_to_worker_types.filter(t => t !== o.v)
+                          : [...f.applies_to_worker_types, o.v];
+                        return { ...f, applies_to_worker_types: types };
+                      })}
+                    >
+                      {o.l}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
@@ -351,7 +348,7 @@ export default function Indicadores() {
           </div>
           <div className="px-6 pb-6 flex gap-2 justify-end border-t border-border/50 pt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.codigo || !form.nome}>
+            <Button onClick={handleSave} disabled={saving || !form.codigo || !form.nome || form.applies_to_worker_types.length === 0}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
             </Button>
           </div>

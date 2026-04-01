@@ -175,7 +175,7 @@ export default function IndicadoresColaborador() {
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {d.valor} / {d.meta ?? '—'} {d.indicators?.unidade_medida ?? ''}
+                          {d.valor} / {d.meta ?? '—'}
                         </p>
                       </div>
                     </div>

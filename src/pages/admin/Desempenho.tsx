@@ -378,7 +378,7 @@ export default function Desempenho() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground">
-                        <strong className="text-foreground">{d.valor}</strong> / {d.meta ?? '—'} {d.indicators?.unidade_medida}
+                        <strong className="text-foreground">{d.valor}</strong> / {d.meta ?? '—'}
                       </span>
                       <div className="flex items-center gap-2 flex-1 max-w-[200px]">
                         <ProgressBar value={pct} color={barColor} className="flex-1" />

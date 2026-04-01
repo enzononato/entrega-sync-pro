@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface IndicatorRow {
   id: string; codigo: string; nome: string; categoria: string;
-  unidade_medida: string; descricao: string; applies_to_worker_type: string;
+  descricao: string; applies_to_worker_type: string;
   ativo: boolean; created_at: string;
 }
 
@@ -27,7 +27,7 @@ export function useIndicadoresByWorkerType(workerType?: string) {
     queryKey: ['indicators', 'byType', workerType],
     queryFn: async () => {
       const { data, error } = await supabase.from('indicators').select('*')
-        .eq('ativo', true).in('applies_to_worker_type', [workerType!, 'ambos']).order('nome');
+        .eq('ativo', true).or(`applies_to_worker_type.like.%${workerType!}%`).order('nome');
       if (error) throw error;
       return data as IndicatorRow[];
     },
