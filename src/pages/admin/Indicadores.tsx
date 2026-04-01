@@ -243,14 +243,14 @@ export default function Indicadores() {
                       <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium', catConf.bg, catConf.color)}>
                         <CatIcon className="h-3 w-3" />{ind.categoria || 'Sem categoria'}
                       </span>
-                      <span className={cn('inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium', workerConf.bg, workerConf.color)}>
-                        {workerConf.label}
-                      </span>
-                      {ind.unidade_medida && (
-                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                          {ind.unidade_medida}
-                        </span>
-                      )}
+                      {workerTypes.map(wt => {
+                        const wConf = WORKER_CONFIG[wt] ?? WORKER_CONFIG.motorista;
+                        return (
+                          <span key={wt} className={cn('inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium', wConf.bg, wConf.color)}>
+                            {wConf.label}
+                          </span>
+                        );
+                      })}
                     </div>
 
                     {/* Description */}
