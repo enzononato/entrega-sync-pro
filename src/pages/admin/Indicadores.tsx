@@ -348,7 +348,7 @@ export default function Indicadores() {
           </div>
           <div className="px-6 pb-6 flex gap-2 justify-end border-t border-border/50 pt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.codigo || !form.nome}>
+            <Button onClick={handleSave} disabled={saving || !form.codigo || !form.nome || form.applies_to_worker_types.length === 0}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
             </Button>
           </div>
