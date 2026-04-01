@@ -36,7 +36,7 @@ export default function Colaboradores() {
   const [activeTab, setActiveTab] = useState('todos');
   const [page, setPage] = useState(0);
   const { data: paginatedResult, isLoading } = useUsuariosPaginated({
-    nome: filters.search, worker_type: activeTab !== 'todos' && activeTab !== 'admins' ? activeTab : filters.worker_type,
+    nome: filters.search, worker_type: activeTab !== 'todos' ? activeTab : filters.worker_type,
     unidade_id: filters.unidade_id, ativo: filters.ativo, page, pageSize: DEFAULT_PAGE_SIZE,
   });
   const usuarios = paginatedResult?.data ?? [];
