@@ -316,22 +316,29 @@ export default function Indicadores() {
                   { v: 'motorista', l: 'Motorista', bg: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
                   { v: 'ajudante', l: 'Ajudante', bg: 'bg-violet-100 text-violet-700 border-violet-300' },
                   { v: 'distribuicao', l: 'Distribuição', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
-                  { v: 'ambos', l: 'Ambos', bg: 'bg-primary/10 text-primary border-primary/30' },
-                ].map(o => (
-                  <button
-                    key={o.v}
-                    type="button"
-                    className={cn(
-                      'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-                      form.applies_to_worker_type === o.v
-                        ? cn(o.bg, 'border-2 shadow-sm')
-                        : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
-                    )}
-                    onClick={() => setForm(f => ({ ...f, applies_to_worker_type: o.v }))}
-                  >
-                    {o.l}
-                  </button>
-                ))}
+                ].map(o => {
+                  const selected = form.applies_to_worker_types.includes(o.v);
+                  return (
+                    <button
+                      key={o.v}
+                      type="button"
+                      className={cn(
+                        'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                        selected
+                          ? cn(o.bg, 'border-2 shadow-sm')
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
+                      )}
+                      onClick={() => setForm(f => {
+                        const types = f.applies_to_worker_types.includes(o.v)
+                          ? f.applies_to_worker_types.filter(t => t !== o.v)
+                          : [...f.applies_to_worker_types, o.v];
+                        return { ...f, applies_to_worker_types: types };
+                      })}
+                    >
+                      {o.l}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
