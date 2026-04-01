@@ -7,7 +7,7 @@ export interface DesempenhoRow {
   valor: number; meta: number | null; percentual_atingimento: number | null;
   status: string | null; origem_dado: string; created_at: string; updated_at: string;
   users: { nome: string; worker_type: string | null; matricula: string; unidade_id: string | null } | null;
-  indicators: { nome: string; codigo: string; unidade_medida: string } | null;
+  indicators: { nome: string; codigo: string } | null;
 }
 
 export function useDesempenhoDiario(data: string, filters?: { unidade_id?: string; worker_type?: string; user_id?: string; indicator_id?: string }) {
