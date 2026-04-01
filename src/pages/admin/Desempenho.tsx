@@ -561,6 +561,14 @@ export default function Desempenho() {
         indicators={indicators}
         onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
       />
+
+      <ImportacaoRevalleDialog
+        open={revalleOpen}
+        onOpenChange={setRevalleOpen}
+        usuarios={colabs}
+        indicators={indicators}
+        onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
+      />
     </div>
   );
 }
