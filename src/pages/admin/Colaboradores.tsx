@@ -63,18 +63,17 @@ export default function Colaboradores() {
 
   // KPIs from all users (unfiltered)
   const { data: allUsers = [] } = useUsuarios();
-  const totalAtivos = allUsers.filter(u => u.ativo).length;
-  const totalInativos = allUsers.filter(u => !u.ativo).length;
-  const motoristas = allUsers.filter(u => u.ativo && u.worker_type === 'motorista').length;
-  const ajudantes = allUsers.filter(u => u.ativo && u.worker_type === 'ajudante').length;
-  const distribuicaoCount = allUsers.filter(u => u.ativo && u.worker_type === 'distribuicao').length;
-  const admins = allUsers.filter(u => u.role === 'administrador').length;
+  // Exclude admins from collaborator lists
+  const colaboradores = allUsers.filter(u => u.role !== 'administrador');
+  const totalAtivos = colaboradores.filter(u => u.ativo).length;
+  const totalInativos = colaboradores.filter(u => !u.ativo).length;
+  const motoristas = colaboradores.filter(u => u.ativo && u.worker_type === 'motorista').length;
+  const ajudantes = colaboradores.filter(u => u.ativo && u.worker_type === 'ajudante').length;
 
-  // Filter by tab
+  // Filter out admins from paginated results
   const filteredByTab = useMemo(() => {
-    if (activeTab === 'admins') return usuarios.filter(u => u.role === 'administrador');
-    return usuarios;
-  }, [usuarios, activeTab]);
+    return usuarios.filter(u => u.role !== 'administrador');
+  }, [usuarios]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setShowPassword(false); setDialogOpen(true); };
   const openEdit = (u: UserWithRelations) => {
