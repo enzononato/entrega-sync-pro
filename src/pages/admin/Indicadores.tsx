@@ -58,7 +58,8 @@ export default function Indicadores() {
     return indicators.filter(i => {
       const s = filters.search?.toLowerCase() ?? '';
       const matchSearch = !s || i.nome.toLowerCase().includes(s) || i.codigo.toLowerCase().includes(s);
-      const matchType = activeTab === 'todos' || i.applies_to_worker_type === activeTab;
+      const types = i.applies_to_worker_type.split(',');
+      const matchType = activeTab === 'todos' || types.includes(activeTab);
       const matchCat = !filters.categoria || filters.categoria === 'all' || i.categoria === filters.categoria;
       return matchSearch && matchType && matchCat;
     });
