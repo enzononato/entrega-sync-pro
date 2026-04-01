@@ -396,7 +396,6 @@ export default function Colaboradores() {
                       ))}
                     </div>
                   </div>
-                )}
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">
