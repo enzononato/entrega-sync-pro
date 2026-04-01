@@ -210,7 +210,7 @@ export default function Indicadores() {
             {pg.paginatedItems.map(ind => {
               const catConf = CAT_CONFIG[ind.categoria] ?? { icon: BarChart3, color: 'text-muted-foreground', bg: 'bg-muted' };
               const CatIcon = catConf.icon;
-              const workerConf = WORKER_CONFIG[ind.applies_to_worker_type] ?? WORKER_CONFIG.ambos;
+              const workerTypes = ind.applies_to_worker_type.split(',').filter(Boolean);
               return (
                 <div
                   key={ind.id}
