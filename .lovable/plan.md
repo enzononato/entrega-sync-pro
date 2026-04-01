@@ -1,127 +1,75 @@
 
 
-# Sugestões de Melhorias para o Sistema IncentivosPro
+# Plano: Importador Avançado "Fecho Operacional" (ImportacaoRevalleDialog)
 
-Após análise completa do sistema (portal colaborador + admin), aqui estão as melhorias organizadas por prioridade e impacto:
+## Resumo
 
----
-
-## 1. PWA + Modo Offline (Alta prioridade)
-**Problema**: O app depende 100% de conexão. Motoristas/ajudantes frequentemente operam em áreas com sinal fraco.
-
-**Solução**:
-- Registrar Service Worker com cache de assets estáticos
-- Implementar cache local dos dados do dia (indicadores, incentivo) com IndexedDB
-- Adicionar banner "Sem conexão — dados do último acesso" no header
-- Pull-to-refresh para sincronizar quando voltar online
-- Manifest.json completo para instalação como PWA
-
-**Arquivos**: `public/manifest.json`, `public/sw.js`, `src/main.tsx`, `ColaboradorLayout.tsx`
+Criar um novo componente `ImportacaoRevalleDialog.tsx` que lê planilhas "wide" (uma linha por colaborador, múltiplas métricas em colunas) e gera lançamentos de desempenho conforme regras de cargo. Adicionar botão na tela de Desempenho admin para abrir este importador.
 
 ---
 
-## 2. Dark Mode (Média prioridade)
-**Problema**: Motoristas usam o app em diferentes condições de luz. Sem toggle de tema.
+## Arquivos a criar/editar
 
-**Solução**:
-- Toggle claro/escuro no Perfil e no header
-- Usar as CSS variables já configuradas pelo Tailwind/shadcn
-- Persistir preferência no localStorage
+### 1. Criar `src/components/admin/ImportacaoRevalleDialog.tsx`
 
-**Arquivos**: `src/contexts/ThemeContext.tsx`, `Perfil.tsx`, `ColaboradorLayout.tsx`
+**Estrutura do componente:**
+- Props: `open`, `onOpenChange`, `usuarios` (com matricula, worker_type), `indicators` (com codigo), `onImport` (batch)
+- Estado: `mesReferencia` (input type="month"), `rows` parseadas, `fileName`, `importing`, `done`
 
----
+**Dicionário De-Para (colunas da planilha -> códigos do banco):**
+```typescript
+const COLUMN_MAP: Record<string, string> = {
+  'Dev. PDV': 'DEV_PDV',
+  'Disp. Tem.': 'DISP_TEMPO',
+  'Rating': 'RATING',
+  'PDV crítico': 'PDV_CRITICO',
+  'Reposição': 'REPOSICAO',
+  'Relatos': 'RELATOS',
+  'Refugo': 'REFUGO',
+};
+```
 
-## 3. Notificações Push (Alta prioridade)
-**Problema**: Notificações só aparecem dentro do app. Motoristas não recebem alertas em background.
+**Regras de cargo → indicadores:**
+- "Motorista de entrega" → DEV_PDV, DISP_TEMPO, RATING, PDV_CRITICO, REPOSICAO
+- "Ajudante de entrega" → RATING, RELATOS, REFUGO
 
-**Solução**:
-- Implementar Web Push via Service Worker + Supabase Edge Function
-- Triggers: indicador abaixo da meta, plano de ação atrasado, feedback respondido
-- Tela de preferências de notificação no Perfil
+**Parser XLSX:**
+1. Ler a planilha com `xlsx`, iterar headers para identificar colunas que contenham os prefixos do dicionário
+2. Para cada header reconhecido, extrair meta do texto (ex: "Rating - Meta 4,95" → meta=4.95) usando regex `/Meta\s*([\d.,]+)/i`
+3. Extrair a coluna "Real" adjacente ao header para obter o valor atingido. Alternativa: procurar sub-colunas com padrão "Real" ou "Realizado"
+4. Para cada linha, ler "Matrícula" e "Cargo", resolver user_id e filtrar indicadores conforme cargo
+5. Gerar registos flat: `{ user_id, indicator_id, data_referencia: YYYY-MM-DD (último dia do mês selecionado), valor, meta, origem_dado: 'importacao' }`
 
-**Arquivos**: Edge function `push-notification`, `sw.js`, `Perfil.tsx`
+**Leitura inteligente do header multi-linha:**
+- Usar `XLSX.utils.sheet_to_json` com `{ header: 1 })` para ler como array de arrays
+- Iterar as primeiras linhas para encontrar "Matrícula" e os nomes de indicadores
+- Para cada grupo de indicador, localizar a sub-coluna "Real" e a meta no cabeçalho
 
----
+**UI (shadcn/ui):**
+1. **Step 1** - Campo `<Input type="month">` para selecionar mês/ano + área de upload (drag/click)
+2. **Step 2** - Preview sumarizado:
+   - Cards: "X Motoristas encontrados", "Y Ajudantes encontrados"
+   - "Total de Z Lançamentos a serem gerados"
+   - Lista de erros (matrículas não encontradas, cargos desconhecidos)
+   - Tabela colapsável com detalhes dos registos gerados
+3. **Step 3** - Tela de sucesso (como o importador existente)
 
-## 4. Relatórios PDF para Admin (Média prioridade)
-**Problema**: Gestores não conseguem exportar relatórios consolidados para reuniões.
+**Footer:** Botões "Cancelar" e "Importar Z lançamento(s)"
 
-**Solução**:
-- Botão "Gerar Relatório" no Dashboard admin
-- PDF com resumo de desempenho por unidade, ranking top/bottom, feedbacks pendentes
-- Usar biblioteca como `jspdf` + `html2canvas` ou edge function com template
+### 2. Editar `src/pages/admin/Desempenho.tsx`
 
-**Arquivos**: `src/lib/generateReport.ts`, `Dashboard.tsx`
-
----
-
-## 5. Histórico de Desempenho Mensal no Perfil (Média prioridade)
-**Problema**: O colaborador só vê dados do dia atual. Falta visão de evolução mensal.
-
-**Solução**:
-- Seção "Meu Histórico" no Perfil com gráfico de linha mensal
-- Comparativo mês atual vs anterior
-- Total de incentivo acumulado no mês
-
-**Arquivos**: `Perfil.tsx`, novo hook `useDesempenhoMensal.ts`
-
----
-
-## 6. Gamificação Avançada (Baixa prioridade)
-**Problema**: O sistema de badges existe mas é básico. Falta engajamento contínuo.
-
-**Solução**:
-- Streak counter (dias consecutivos na meta)
-- Níveis de experiência (Bronze → Prata → Ouro → Diamante)
-- Animação de conquista ao atingir milestones
-- Seção "Conquistas" visível no ranking
-
-**Arquivos**: `Perfil.tsx`, `MiniRanking.tsx`, novo `useGamification.ts`
+- Importar `ImportacaoRevalleDialog`
+- Adicionar estado `revalleOpen`
+- Adicionar botão "Importar Fecho Operacional" ao lado do botão existente "Importar CSV/Excel"
+- Passar props: `usuarios` (colabs), `indicators`, `onImport` via `batchMut.mutateAsync`
 
 ---
 
-## 7. Busca Global no Admin (Baixa prioridade)
-**Problema**: Admin precisa navegar entre várias telas para encontrar um colaborador ou indicador.
+## Detalhes Técnicos
 
-**Solução**:
-- Command palette (Cmd+K) usando o componente `Command` já existente no projeto
-- Busca por colaborador, unidade, rota, indicador
-- Atalhos rápidos para telas principais
-
-**Arquivos**: `AdminLayout.tsx`, novo `GlobalSearch.tsx`
-
----
-
-## 8. Extrato de Descontos no Portal do Colaborador (Média prioridade)
-**Problema**: O componente `ExtratoDescontos` existe mas pode não estar exposto de forma clara.
-
-**Solução**:
-- Garantir que o extrato esteja acessível na tela de Incentivo
-- Adicionar detalhamento por tipo de desconto com drill-down
-
----
-
-## 9. Melhoria na Segurança (Alta prioridade)
-**Problema**: O `useMarkAllRead` marca notificações de todos os usuários como lidas (falta filtro `user_id`).
-
-**Solução**:
-- Corrigir a mutation para filtrar por `user_id` do usuário logado
-- Revisar RLS policies nas tabelas de notificações
-
-**Arquivo**: `src/hooks/useNotifications.ts` (linha 80)
-
----
-
-## Resumo por Prioridade
-
-| Prioridade | Melhoria |
-|------------|----------|
-| Alta | PWA + Offline, Notificações Push, Correção de segurança em notificações |
-| Média | Dark Mode, Relatórios PDF, Histórico mensal, Extrato de descontos |
-| Baixa | Gamificação avançada, Busca global admin |
-
----
-
-Qual dessas melhorias você gostaria de implementar primeiro?
+- **Data de referência**: O mês selecionado será convertido para o último dia do mês (`YYYY-MM-DD`) para todos os registos
+- **Matching de colunas**: Busca parcial (`.includes()`) nos headers da planilha contra as chaves do dicionário, case-insensitive
+- **Extração de meta do header**: Regex `/Meta\s*([\d]+[.,]?\d*)/i`, substituindo vírgula por ponto
+- **Validações**: Matrícula não encontrada, cargo desconhecido, indicador sem correspondência no banco, valor zerado
+- **A função `onImport`** recebe o array flat e dispara `useBatchCreateLancamentos` (já existente)
 
