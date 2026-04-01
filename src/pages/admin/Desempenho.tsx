@@ -29,6 +29,7 @@ import {
   ChevronRight, Download, Upload,
 } from 'lucide-react';
 import { ImportDesempenhoDialog } from '@/components/admin/ImportDesempenhoDialog';
+import { ImportacaoRevalleDialog } from '@/components/admin/ImportacaoRevalleDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
