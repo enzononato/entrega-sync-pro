@@ -7,7 +7,7 @@ export interface GoalWithRelations {
   worker_type: string | null; user_id: string | null;
   valor_meta: number; periodo_tipo: string; vigencia_inicio: string;
   vigencia_fim: string | null; ativo: boolean; created_at: string;
-  indicators: { nome: string; unidade_medida: string } | null;
+  indicators: { nome: string } | null;
   units: { nome: string } | null;
   users: { nome: string } | null;
 }
