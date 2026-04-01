@@ -83,7 +83,7 @@ export default function Indicadores() {
   };
 
   const handleSave = async () => {
-    const payload = { ...form, codigo: form.codigo.toUpperCase() };
+    const payload = { codigo: form.codigo.toUpperCase(), nome: form.nome, categoria: form.categoria, descricao: form.descricao, applies_to_worker_type: form.applies_to_worker_types.join(','), ativo: form.ativo };
     if (editing?.id) await updateMut.mutateAsync({ id: editing.id, ...payload });
     else await createMut.mutateAsync(payload);
     setDialogOpen(false);
