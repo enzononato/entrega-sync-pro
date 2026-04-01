@@ -15,7 +15,7 @@ export function useDesempenhoDiario(data: string, filters?: { unidade_id?: strin
     queryKey: ['user_indicator_daily', data, filters],
     queryFn: async () => {
       let q = supabase.from('user_indicator_daily')
-        .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo, unidade_medida)')
+        .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo)')
         .eq('data_referencia', data).order('created_at', { ascending: false });
       if (filters?.user_id) q = q.eq('user_id', filters.user_id);
       if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
