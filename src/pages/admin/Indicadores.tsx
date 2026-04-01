@@ -35,7 +35,7 @@ const CAT_CONFIG: Record<string, { icon: typeof BarChart3; color: string; bg: st
 const WORKER_CONFIG: Record<string, { label: string; short: string; bg: string; color: string }> = {
   motorista: { label: 'Motorista', short: 'Mot', bg: 'bg-emerald-100', color: 'text-emerald-700' },
   ajudante: { label: 'Ajudante', short: 'Aj', bg: 'bg-violet-100', color: 'text-violet-700' },
-  ambos: { label: 'Ambos', short: 'Amb', bg: 'bg-primary/10', color: 'text-primary' },
+  distribuicao: { label: 'Distribuição', short: 'Dist', bg: 'bg-blue-100', color: 'text-blue-700' },
 };
 
 const emptyForm = { codigo: '', nome: '', categoria: '', descricao: '', applies_to_worker_types: [] as string[], ativo: true };
