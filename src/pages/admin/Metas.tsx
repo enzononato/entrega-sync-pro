@@ -274,7 +274,7 @@ export default function Metas() {
                     <div className="flex items-baseline gap-1.5 bg-muted/40 rounded-lg px-3 py-2.5">
                       <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span className="text-2xl font-bold text-foreground">{g.valor_meta}</span>
-                      <span className="text-xs text-muted-foreground">{g.indicators?.unidade_medida ?? ''}</span>
+                      
                       <span className="ml-auto text-xs text-muted-foreground bg-background rounded-md px-2 py-0.5 border">
                         {periodo?.label ?? g.periodo_tipo}
                       </span>

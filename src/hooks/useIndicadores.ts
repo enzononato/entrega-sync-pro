@@ -27,7 +27,7 @@ export function useIndicadoresByWorkerType(workerType?: string) {
     queryKey: ['indicators', 'byType', workerType],
     queryFn: async () => {
       const { data, error } = await supabase.from('indicators').select('*')
-        .eq('ativo', true).in('applies_to_worker_type', [workerType!, 'ambos']).order('nome');
+        .eq('ativo', true).or(`applies_to_worker_type.like.%${workerType!}%`).order('nome');
       if (error) throw error;
       return data as IndicatorRow[];
     },

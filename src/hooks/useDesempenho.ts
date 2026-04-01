@@ -34,7 +34,7 @@ export function useDesempenhoPorColaborador(userId: string | undefined, dataInic
     queryKey: ['user_indicator_daily', 'byUser', userId, dataInicio, dataFim],
     queryFn: async () => {
       const { data, error } = await supabase.from('user_indicator_daily')
-        .select('*, indicators(nome, codigo, unidade_medida)')
+        .select('*, indicators(nome, codigo)')
         .eq('user_id', userId!)
         .gte('data_referencia', dataInicio).lte('data_referencia', dataFim)
         .order('data_referencia', { ascending: false });
