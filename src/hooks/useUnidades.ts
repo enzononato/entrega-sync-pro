@@ -39,8 +39,9 @@ export function useCreateUnidade() {
       qc.invalidateQueries({ queryKey: ['units'] });
       toast({ title: 'Unidade salva com sucesso!' });
     },
-    onError: () => {
-      toast({ title: 'Erro ao salvar. Tente novamente.', variant: 'destructive' });
+    onError: (err: any) => {
+      console.error('Erro ao criar unidade:', err);
+      toast({ title: 'Erro ao salvar unidade', description: err?.message || 'Tente novamente.', variant: 'destructive' });
     },
   });
 }
