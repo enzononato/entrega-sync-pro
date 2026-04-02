@@ -45,9 +45,10 @@ function lastDayOfMonth(ym: string): string {
 }
 
 interface ColumnInfo {
-  code: string;       // código do indicador (ex: DEV_PDV)
-  realColIdx: number; // índice da coluna "Real" na planilha
-  meta: number;       // meta extraída do header
+  code: string;
+  realColIdx: number;
+  meta: number;
+  desafio: number;
 }
 
 interface ParsedRecord {
@@ -59,6 +60,9 @@ interface ParsedRecord {
   indicatorId: string;
   valor: number;
   meta: number;
+  desafio: number;
+  statusDesafio: string;
+  valorFinanceiro: number;
 }
 
 interface ParseError {
@@ -71,7 +75,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   usuarios: { id: string; matricula: string; worker_type: string | null; nome: string }[];
   indicators: { id: string; codigo: string; nome: string }[];
-  onImport: (rows: { user_id: string; indicator_id: string; data_referencia: string; valor: number; meta: number; origem_dado: string }[]) => Promise<void>;
+  onImport: (rows: { user_id: string; indicator_id: string; data_referencia: string; valor: number; meta: number; origem_dado: string; desafio: number | null; status_desafio: string | null; valor_financeiro: number | null }[]) => Promise<void>;
 }
 
 export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicators, onImport }: Props) {
@@ -132,15 +136,15 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
           if (colIdx < 0) continue;
           if (!indicatorMap[code]) continue;
 
-          // Extrair meta do texto do header
           let meta = 0;
+          let desafio = 0;
           const headerText = String(headerRow[colIdx]);
           const metaMatch = headerText.match(/Meta\s*([\d]+[.,]?\d*)/i);
-          if (metaMatch) {
-            meta = parseFloat(metaMatch[1].replace(',', '.'));
-          }
+          if (metaMatch) meta = parseFloat(metaMatch[1].replace(',', '.'));
+          const desafioMatch = headerText.match(/Desafio[:\s]*([\d]+[.,]?\d*)/i);
+          if (desafioMatch) desafio = parseFloat(desafioMatch[1].replace(',', '.'));
 
-          columns.push({ code, realColIdx: colIdx, meta });
+          columns.push({ code, realColIdx: colIdx, meta, desafio });
         }
 
         if (columns.length === 0) {
@@ -179,12 +183,22 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
 
             const rawVal = row[col.realColIdx];
             let valor: number;
-
             if (rawVal === '' || rawVal == null || rawVal === '-' || String(rawVal).toUpperCase() === 'NOK') {
               valor = 0;
             } else {
               valor = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(',', '.'));
               if (isNaN(valor)) valor = 0;
+            }
+
+            // i+1 = Status desafio (OK/NOK), i+2 = Valor financeiro (R$)
+            const rawStatus = String(row[col.realColIdx + 1] ?? '').trim().toUpperCase();
+            const statusDesafio = rawStatus === 'OK' || rawStatus === 'NOK' ? rawStatus : '';
+
+            const rawFin = row[col.realColIdx + 2];
+            let valorFinanceiro = 0;
+            if (rawFin != null && rawFin !== '' && rawFin !== '-') {
+              valorFinanceiro = typeof rawFin === 'number' ? rawFin : parseFloat(String(rawFin).replace(',', '.'));
+              if (isNaN(valorFinanceiro)) valorFinanceiro = 0;
             }
 
             parsed.push({
@@ -196,6 +210,9 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
               indicatorId: indicatorMap[col.code],
               valor,
               meta: col.meta,
+              desafio: col.desafio,
+              statusDesafio,
+              valorFinanceiro,
             });
           }
         }
@@ -234,6 +251,9 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
         valor: r.valor,
         meta: r.meta,
         origem_dado: 'importacao',
+        desafio: r.desafio || null,
+        status_desafio: r.statusDesafio || null,
+        valor_financeiro: r.valorFinanceiro || null,
       }));
       await onImport(rows);
       setDone(true);
@@ -357,12 +377,15 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                         <div className="rounded-lg border overflow-hidden mt-2">
                           <table className="w-full text-xs">
                             <thead className="bg-muted/50">
-                              <tr>
+                             <tr>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Matrícula</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Cargo</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Indicador</th>
                                 <th className="text-right p-2 font-bold text-muted-foreground">Valor</th>
                                 <th className="text-right p-2 font-bold text-muted-foreground">Meta</th>
+                                <th className="text-right p-2 font-bold text-muted-foreground">Desafio</th>
+                                <th className="text-center p-2 font-bold text-muted-foreground">Status</th>
+                                <th className="text-right p-2 font-bold text-muted-foreground">R$</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -380,6 +403,20 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                                   <td className="p-2 font-mono">{r.indicatorCode}</td>
                                   <td className="p-2 text-right font-medium">{r.valor}</td>
                                   <td className="p-2 text-right text-muted-foreground">{r.meta}</td>
+                                  <td className="p-2 text-right text-muted-foreground">{r.desafio || '-'}</td>
+                                  <td className="p-2 text-center">
+                                    {r.statusDesafio && (
+                                      <span className={cn(
+                                        'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold',
+                                        r.statusDesafio === 'OK' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                                      )}>
+                                        {r.statusDesafio}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                                    {r.valorFinanceiro ? `R$ ${r.valorFinanceiro.toFixed(2)}` : '-'}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
