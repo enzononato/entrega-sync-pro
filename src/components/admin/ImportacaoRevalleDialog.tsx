@@ -411,7 +411,7 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                             <tbody>
                               {records.slice(0, 100).map((r, i) => (
                                 <tr key={i} className="border-t border-border/50">
-                                  <td className="p-2 font-mono">{r.matricula}</td>
+                                  <td className="p-2 font-mono text-[10px]">{r.nome}</td>
                                   <td className="p-2">
                                     <span className={cn(
                                       'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium',
