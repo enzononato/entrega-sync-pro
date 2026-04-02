@@ -71,7 +71,8 @@ serve(async (req) => {
       });
     }
 
-    // Create auth user
+    // Create auth user (or find existing)
+    let authUserId: string;
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -80,10 +81,30 @@ serve(async (req) => {
     });
 
     if (authError) {
-      return new Response(JSON.stringify({ error: authError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // If user already exists, find them by email and update instead
+      if (authError.message?.includes("already been registered")) {
+        // Find existing user by looking up public.users table
+        const { data: existingProfile, error: profileError } = await supabaseAdmin
+          .from("users")
+          .select("id, auth_user_id")
+          .eq("email", email)
+          .single();
+        
+        if (profileError || !existingProfile) {
+          return new Response(JSON.stringify({ error: "Usuário existe no Auth mas não na tabela users" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        authUserId = existingProfile.auth_user_id;
+      } else {
+        return new Response(JSON.stringify({ error: authError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      authUserId = authData.user.id;
     }
 
     // Update auto-created profile and return public.users.id
@@ -98,7 +119,7 @@ serve(async (req) => {
         unidade_id: unidade_id || null,
         rota_id: rota_id || null,
       })
-      .eq("auth_user_id", authData.user.id)
+      .eq("auth_user_id", authUserId)
       .select("id")
       .single();
 
@@ -112,11 +133,11 @@ serve(async (req) => {
     // Insert role into user_roles table
     const appRole = (role === "administrador") ? "admin" : "colaborador";
     await supabaseAdmin.from("user_roles").upsert(
-      { user_id: authData.user.id, role: appRole },
+      { user_id: authUserId, role: appRole },
       { onConflict: "user_id,role" }
     );
 
-    return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authData.user.id }), {
+    return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authUserId }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
