@@ -179,22 +179,22 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
         for (let r = 2; r < rows.length; r++) {
           const row = rows[r];
 
-          // Índices fixos: 0=Matrícula, 1=Nome, 2=Cargo
-          const matricula = String(row[0] ?? '').trim().toUpperCase();
-          if (!matricula || matricula === '0' || !/\S/.test(matricula)) continue;
+          // Índices fixos: 0=Matrícula (ignorada), 1=Nome, 2=Cargo
+          const nomeExcel = String(row[1] ?? '').trim().toUpperCase();
+          if (!nomeExcel || !/\S/.test(nomeExcel)) continue;
 
           const cargo = String(row[2] ?? '').trim();
           const allowedCodes = cargoToCodes(cargo);
           const wt = cargoToWorkerType(cargo);
 
           if (!allowedCodes || !wt) {
-            if (cargo) errs.push({ row: r + 1, msg: `Cargo desconhecido: "${cargo}" (Matrícula: ${matricula})` });
+            if (cargo) errs.push({ row: r + 1, msg: `Cargo desconhecido: "${cargo}" (Nome: ${nomeExcel})` });
             continue;
           }
 
-          const user = userMap[matricula];
+          const user = userMap[nomeExcel];
           if (!user) {
-            errs.push({ row: r + 1, msg: `Matrícula não encontrada: ${matricula}` });
+            errs.push({ row: r + 1, msg: `Colaborador não encontrado: ${nomeExcel}` });
             continue;
           }
 
