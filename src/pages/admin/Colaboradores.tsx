@@ -138,15 +138,8 @@ export default function Colaboradores() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" />
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
-            const rows = filteredByTab.map(u => [
-              u.nome, u.matricula, u.cpf ?? '', u.worker_type ?? u.role,
-              u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join('; ') || u.units?.nome || '',
-              u.routes?.nome ?? '', u.ativo ? 'Ativo' : 'Inativo',
-            ]);
-            exportToCsv('colaboradores.csv', ['Nome', 'Matrícula', 'CPF', 'Tipo', 'Unidade', 'Rota', 'Status'], rows);
-          }}>
-            <Download className="h-4 w-4" /> CSV
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" /> Importar
           </Button>
           <Button onClick={openCreate} className="rounded-xl gradient-primary text-white shadow-glow-primary hover:opacity-90 transition-all hover:shadow-lg gap-2">
             <Users className="h-4 w-4" /> Novo Colaborador
