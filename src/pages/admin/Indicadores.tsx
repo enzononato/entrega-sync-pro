@@ -370,6 +370,11 @@ export default function Indicadores() {
         description={`Deseja ${toggleTarget?.ativo ? 'inativar' : 'ativar'} "${toggleTarget?.nome}"?`}
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Ativar'} onConfirm={confirmToggle}
         onCancel={() => { setConfirmOpen(false); setToggleTarget(null); }} loading={toggleMut.isPending} />
+
+      <ConfirmDialog open={deleteConfirmOpen} title="Excluir indicador"
+        description={`Tem certeza que deseja excluir permanentemente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir" onConfirm={confirmDelete}
+        onCancel={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }} loading={deleteMut.isPending} variant="destructive" />
     </div>
   );
 }
