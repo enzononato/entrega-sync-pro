@@ -52,7 +52,7 @@ interface ColumnInfo {
 }
 
 interface ParsedRecord {
-  matricula: string;
+  nome: string;
   cargo: string;
   workerType: 'motorista' | 'ajudante';
   userId: string;
