@@ -4,7 +4,7 @@ import { ListPagination } from '@/components/shared/ListPagination';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { useIndicadores, useCreateIndicador, useUpdateIndicador, useToggleIndicadorAtivo, type IndicatorRow } from '@/hooks/useIndicadores';
+import { useIndicadores, useCreateIndicador, useUpdateIndicador, useToggleIndicadorAtivo, useDeleteIndicador, type IndicatorRow } from '@/hooks/useIndicadores';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Pencil, Power, Loader2, BarChart3, Clock, Gem, Zap, Truck,
+  Pencil, Power, Trash2, Loader2, BarChart3, Clock, Gem, Zap, Truck,
   DollarSign, Heart, Timer, ChevronRight, Search, Plus, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -47,12 +47,15 @@ export default function Indicadores() {
   const createMut = useCreateIndicador();
   const updateMut = useUpdateIndicador();
   const toggleMut = useToggleIndicadorAtivo();
+  const deleteMut = useDeleteIndicador();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<IndicatorRow | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<IndicatorRow | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<IndicatorRow | null>(null);
 
   const filtered = useMemo(() => {
     return indicators.filter(i => {
@@ -92,6 +95,11 @@ export default function Indicadores() {
   const confirmToggle = async () => {
     if (toggleTarget) await toggleMut.mutateAsync({ id: toggleTarget.id, ativo: toggleTarget.ativo });
     setConfirmOpen(false); setToggleTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteTarget) await deleteMut.mutateAsync(deleteTarget.id);
+    setDeleteConfirmOpen(false); setDeleteTarget(null);
   };
 
   const saving = createMut.isPending || updateMut.isPending;
@@ -267,6 +275,9 @@ export default function Indicadores() {
                       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}>
                         <Power className="h-3.5 w-3.5" /> {ind.ativo ? 'Inativar' : 'Ativar'}
                       </Button>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => { setDeleteTarget(ind); setDeleteConfirmOpen(true); }}>
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -359,6 +370,11 @@ export default function Indicadores() {
         description={`Deseja ${toggleTarget?.ativo ? 'inativar' : 'ativar'} "${toggleTarget?.nome}"?`}
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Ativar'} onConfirm={confirmToggle}
         onCancel={() => { setConfirmOpen(false); setToggleTarget(null); }} loading={toggleMut.isPending} />
+
+      <ConfirmDialog open={deleteConfirmOpen} title="Excluir indicador"
+        description={`Tem certeza que deseja excluir permanentemente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir" onConfirm={confirmDelete}
+        onCancel={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }} loading={deleteMut.isPending} />
     </div>
   );
 }
