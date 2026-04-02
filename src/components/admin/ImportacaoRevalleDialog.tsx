@@ -45,9 +45,10 @@ function lastDayOfMonth(ym: string): string {
 }
 
 interface ColumnInfo {
-  code: string;       // código do indicador (ex: DEV_PDV)
-  realColIdx: number; // índice da coluna "Real" na planilha
-  meta: number;       // meta extraída do header
+  code: string;
+  realColIdx: number;
+  meta: number;
+  desafio: number;
 }
 
 interface ParsedRecord {
@@ -59,6 +60,9 @@ interface ParsedRecord {
   indicatorId: string;
   valor: number;
   meta: number;
+  desafio: number;
+  statusDesafio: string;
+  valorFinanceiro: number;
 }
 
 interface ParseError {

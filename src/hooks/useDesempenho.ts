@@ -95,7 +95,7 @@ export function useDeleteLancamento() {
 export function useBatchCreateLancamentos() {
   const qc = useQueryClient(); const { toast } = useToast();
   return useMutation({
-    mutationFn: async (rows: { user_id: string; indicator_id: string; data_referencia: string; valor: number; meta: number; origem_dado: string }[]) => {
+    mutationFn: async (rows: { user_id: string; indicator_id: string; data_referencia: string; valor: number; meta: number; origem_dado: string; desafio?: number | null; status_desafio?: string | null; valor_financeiro?: number | null }[]) => {
       const prepared = rows.map(r => {
         const { percentual_atingimento, status } = calcStatus(r.valor, r.meta);
         return { ...r, percentual_atingimento, status, updated_at: new Date().toISOString() };
