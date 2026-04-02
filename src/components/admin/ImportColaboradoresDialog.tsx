@@ -124,7 +124,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  const BATCH_SIZE = 5;
+  const BATCH_SIZE = 10;
 
   const handleImport = async () => {
     setImporting(true);
