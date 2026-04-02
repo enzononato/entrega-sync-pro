@@ -97,6 +97,11 @@ export default function Indicadores() {
     setConfirmOpen(false); setToggleTarget(null);
   };
 
+  const confirmDelete = async () => {
+    if (deleteTarget) await deleteMut.mutateAsync(deleteTarget.id);
+    setDeleteConfirmOpen(false); setDeleteTarget(null);
+  };
+
   const saving = createMut.isPending || updateMut.isPending;
 
   const kpis = [
