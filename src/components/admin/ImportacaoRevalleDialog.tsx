@@ -96,7 +96,10 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
 
   const userMap = useMemo(() => {
     const m: Record<string, { id: string; worker_type: string | null }> = {};
-    usuarios.forEach(u => { m[u.matricula.trim()] = { id: u.id, worker_type: u.worker_type }; });
+    usuarios.forEach(u => {
+      const key = u.nome.trim().toUpperCase().substring(0, 30);
+      m[key] = { id: u.id, worker_type: u.worker_type };
+    });
     return m;
   }, [usuarios]);
 
