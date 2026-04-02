@@ -483,6 +483,8 @@ export default function Colaboradores() {
           )}
         </SheetContent>
       </Sheet>
+
+      <ImportColaboradoresDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
