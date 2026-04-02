@@ -251,6 +251,9 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
         valor: r.valor,
         meta: r.meta,
         origem_dado: 'importacao',
+        desafio: r.desafio || null,
+        status_desafio: r.statusDesafio || null,
+        valor_financeiro: r.valorFinanceiro || null,
       }));
       await onImport(rows);
       setDone(true);
