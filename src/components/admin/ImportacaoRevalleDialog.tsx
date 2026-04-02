@@ -222,7 +222,7 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
             }
 
             parsed.push({
-              matricula,
+              nome: nomeExcel,
               cargo,
               workerType: wt,
               userId: user.id,
