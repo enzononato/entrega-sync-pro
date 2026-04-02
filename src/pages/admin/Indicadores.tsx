@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Pencil, Power, Loader2, BarChart3, Clock, Gem, Zap, Truck,
+  Pencil, Power, Trash2, Loader2, BarChart3, Clock, Gem, Zap, Truck,
   DollarSign, Heart, Timer, ChevronRight, Search, Plus, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
