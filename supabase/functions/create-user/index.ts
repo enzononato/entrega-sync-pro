@@ -83,21 +83,20 @@ serve(async (req) => {
     if (authError) {
       // If user already exists, find them by email and update instead
       if (authError.message?.includes("already been registered")) {
-        const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-        if (listError) {
-          return new Response(JSON.stringify({ error: listError.message }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const existingUser = existingUsers.users.find((u: any) => u.email === email);
-        if (!existingUser) {
-          return new Response(JSON.stringify({ error: "Usuário existe mas não foi encontrado" }), {
+        // Find existing user by looking up public.users table
+        const { data: existingProfile, error: profileError } = await supabaseAdmin
+          .from("users")
+          .select("id, auth_user_id")
+          .eq("email", email)
+          .single();
+        
+        if (profileError || !existingProfile) {
+          return new Response(JSON.stringify({ error: "Usuário existe no Auth mas não na tabela users" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        authUserId = existingUser.id;
+        authUserId = existingProfile.auth_user_id;
       } else {
         return new Response(JSON.stringify({ error: authError.message }), {
           status: 400,
