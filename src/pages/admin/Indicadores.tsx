@@ -47,6 +47,7 @@ export default function Indicadores() {
   const createMut = useCreateIndicador();
   const updateMut = useUpdateIndicador();
   const toggleMut = useToggleIndicadorAtivo();
+  const deleteMut = useDeleteIndicador();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<IndicatorRow | null>(null);
