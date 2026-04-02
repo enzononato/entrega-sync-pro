@@ -75,7 +75,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   usuarios: { id: string; matricula: string; worker_type: string | null; nome: string }[];
   indicators: { id: string; codigo: string; nome: string }[];
-  onImport: (rows: { user_id: string; indicator_id: string; data_referencia: string; valor: number; meta: number; origem_dado: string }[]) => Promise<void>;
+  onImport: (rows: { user_id: string; indicator_id: string; data_referencia: string; valor: number; meta: number; origem_dado: string; desafio: number | null; status_desafio: string | null; valor_financeiro: number | null }[]) => Promise<void>;
 }
 
 export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicators, onImport }: Props) {
