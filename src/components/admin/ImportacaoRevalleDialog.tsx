@@ -377,12 +377,15 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                         <div className="rounded-lg border overflow-hidden mt-2">
                           <table className="w-full text-xs">
                             <thead className="bg-muted/50">
-                              <tr>
+                             <tr>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Matrícula</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Cargo</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Indicador</th>
                                 <th className="text-right p-2 font-bold text-muted-foreground">Valor</th>
                                 <th className="text-right p-2 font-bold text-muted-foreground">Meta</th>
+                                <th className="text-right p-2 font-bold text-muted-foreground">Desafio</th>
+                                <th className="text-center p-2 font-bold text-muted-foreground">Status</th>
+                                <th className="text-right p-2 font-bold text-muted-foreground">R$</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -400,6 +403,20 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                                   <td className="p-2 font-mono">{r.indicatorCode}</td>
                                   <td className="p-2 text-right font-medium">{r.valor}</td>
                                   <td className="p-2 text-right text-muted-foreground">{r.meta}</td>
+                                  <td className="p-2 text-right text-muted-foreground">{r.desafio || '-'}</td>
+                                  <td className="p-2 text-center">
+                                    {r.statusDesafio && (
+                                      <span className={cn(
+                                        'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold',
+                                        r.statusDesafio === 'OK' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                                      )}>
+                                        {r.statusDesafio}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                                    {r.valorFinanceiro ? `R$ ${r.valorFinanceiro.toFixed(2)}` : '-'}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
