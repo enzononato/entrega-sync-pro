@@ -237,7 +237,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
                 {Math.round((progress.current / progress.total) * 100)}% concluído
               </p>
             </div>
-          )
+          )}
 
           {/* Results */}
           {result && (
