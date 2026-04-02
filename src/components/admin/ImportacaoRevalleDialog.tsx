@@ -136,15 +136,15 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
           if (colIdx < 0) continue;
           if (!indicatorMap[code]) continue;
 
-          // Extrair meta do texto do header
           let meta = 0;
+          let desafio = 0;
           const headerText = String(headerRow[colIdx]);
           const metaMatch = headerText.match(/Meta\s*([\d]+[.,]?\d*)/i);
-          if (metaMatch) {
-            meta = parseFloat(metaMatch[1].replace(',', '.'));
-          }
+          if (metaMatch) meta = parseFloat(metaMatch[1].replace(',', '.'));
+          const desafioMatch = headerText.match(/Desafio[:\s]*([\d]+[.,]?\d*)/i);
+          if (desafioMatch) desafio = parseFloat(desafioMatch[1].replace(',', '.'));
 
-          columns.push({ code, realColIdx: colIdx, meta });
+          columns.push({ code, realColIdx: colIdx, meta, desafio });
         }
 
         if (columns.length === 0) {
