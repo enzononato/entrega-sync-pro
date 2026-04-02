@@ -92,34 +92,24 @@ serve(async (req) => {
         if (existingProfile) {
           authUserId = existingProfile.auth_user_id;
         } else {
-          // Auth user exists but no users row — look up auth user by email and recreate the row
-          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1, page: 1 });
-          // listUsers doesn't filter by email, so use getUserByEmail workaround
-          // Actually we can get the user from auth by updating their password (which also returns the user)
-          const { data: updateData, error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-            '', // placeholder
-            {}
-          ).catch(() => ({ data: null, error: null })) as any;
-          
-          // Better approach: list all and find, or just create the users row by looking up via auth admin API
-          // Use the admin API to find user by email
-          let foundAuthId: string | null = null;
-          const { data: usersListData } = await supabaseAdmin.auth.admin.listUsers();
-          if (usersListData?.users) {
-            const found = usersListData.users.find((u: any) => u.email === email);
-            if (found) foundAuthId = found.id;
-          }
+          // Auth user exists but users row was deleted — find auth user via GoTrue REST API
+          const gotrue = `${supabaseUrl}/auth/v1/admin/users?filter=${encodeURIComponent(email)}&per_page=1`;
+          const res = await fetch(gotrue, {
+            headers: { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+          });
+          const json = await res.json();
+          const foundUser = (json?.users || []).find((u: any) => u.email === email);
 
-          if (!foundAuthId) {
+          if (!foundUser) {
             return new Response(JSON.stringify({ error: "Não foi possível encontrar o usuário no Auth" }), {
               status: 400,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
 
-          authUserId = foundAuthId;
+          authUserId = foundUser.id;
 
-          // Insert the missing users row
+          // Re-create the missing users row
           const { data: insertedUser, error: insertError } = await supabaseAdmin
             .from("users")
             .insert({
@@ -143,7 +133,6 @@ serve(async (req) => {
             });
           }
 
-          // Insert role
           const appRole2 = (role === "administrador") ? "admin" : "colaborador";
           await supabaseAdmin.from("user_roles").upsert(
             { user_id: authUserId, role: appRole2 },
