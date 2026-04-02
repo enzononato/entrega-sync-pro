@@ -374,7 +374,7 @@ export default function Indicadores() {
       <ConfirmDialog open={deleteConfirmOpen} title="Excluir indicador"
         description={`Tem certeza que deseja excluir permanentemente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir" onConfirm={confirmDelete}
-        onCancel={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }} loading={deleteMut.isPending} variant="destructive" />
+        onCancel={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }} loading={deleteMut.isPending} />
     </div>
   );
 }
