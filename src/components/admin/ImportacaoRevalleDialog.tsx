@@ -148,7 +148,24 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
         }
 
         if (columns.length === 0) {
-          setErrors([{ row: 0, msg: 'Nenhuma coluna de indicador reconhecida no cabeçalho (linha 1).' }]);
+          // Diagnóstico detalhado: descobrir se o problema é no header ou nos indicadores cadastrados
+          const foundInHeader: string[] = [];
+          const missingInDb: string[] = [];
+          for (const [prefix, code] of Object.entries(COLUMN_MAP)) {
+            const found = headerRow.findIndex((cell: any) =>
+              String(cell).toLowerCase().includes(prefix.toLowerCase())
+            ) >= 0;
+            if (found) {
+              foundInHeader.push(prefix);
+              if (!indicatorMap[code]) missingInDb.push(`${code} (coluna "${prefix}")`);
+            }
+          }
+
+          if (foundInHeader.length === 0) {
+            setErrors([{ row: 0, msg: `Nenhuma coluna de indicador reconhecida no cabeçalho (linha 1). Colunas esperadas: ${Object.keys(COLUMN_MAP).join(', ')}.` }]);
+          } else {
+            setErrors([{ row: 0, msg: `Colunas encontradas no arquivo (${foundInHeader.join(', ')}), mas os indicadores correspondentes não estão cadastrados no sistema: ${missingInDb.join(', ')}. Cadastre os indicadores com esses códigos em Indicadores.` }]);
+          }
           return;
         }
 
