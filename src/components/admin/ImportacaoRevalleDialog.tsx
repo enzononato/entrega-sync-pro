@@ -111,113 +111,55 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
       try {
         const wb = XLSX.read(e.target?.result, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        if (rawRows.length < 3) {
+        if (rows.length < 3) {
           setErrors([{ row: 0, msg: 'Planilha com menos de 3 linhas — verifique o formato.' }]);
           return;
         }
 
-        // ── Localizar headers ──
-        // Procurar a linha que contém "Matrícula"
-        let headerRowIdx = -1;
-        let matriculaColIdx = -1;
-        let cargoColIdx = -1;
+        const headerRow = rows[0]; // linha 1: nomes dos indicadores + metas
+        // rows[1] = sub-cabeçalho (ignorado para localização)
+        // rows[2+] = dados
 
-        for (let r = 0; r < Math.min(10, rawRows.length); r++) {
-          const row = rawRows[r].map((c: any) => String(c).trim());
-          const mIdx = row.findIndex((c: string) => c.toLowerCase().includes('matrícula') || c.toLowerCase().includes('matricula'));
-          if (mIdx >= 0) {
-            headerRowIdx = r;
-            matriculaColIdx = mIdx;
-            const cIdx = row.findIndex((c: string) => c.toLowerCase().includes('cargo'));
-            cargoColIdx = cIdx >= 0 ? cIdx : -1;
-            break;
-          }
-        }
-
-        if (headerRowIdx < 0 || matriculaColIdx < 0) {
-          setErrors([{ row: 0, msg: 'Coluna "Matrícula" não encontrada nas primeiras 10 linhas.' }]);
-          return;
-        }
-
-        // ── Mapear colunas de indicadores ──
-        // Percorrer todos os headers para encontrar prefixos do COLUMN_MAP
-        // e a sub-coluna "Real" adjacente
-        const headerRow = rawRows[headerRowIdx].map((c: any) => String(c).trim());
-        // Pode haver uma segunda linha de sub-headers (Real, Meta, etc.)
-        const subHeaderRow = headerRowIdx + 1 < rawRows.length
-          ? rawRows[headerRowIdx + 1].map((c: any) => String(c).trim())
-          : [];
-
+        // ── Localizar índices de cada indicador no header principal ──
         const columns: ColumnInfo[] = [];
 
-        for (let c = 0; c < headerRow.length; c++) {
-          const h = headerRow[c];
-          if (!h) continue;
+        for (const [prefix, code] of Object.entries(COLUMN_MAP)) {
+          const colIdx = headerRow.findIndex((cell: any) =>
+            String(cell).toLowerCase().includes(prefix.toLowerCase())
+          );
+          if (colIdx < 0) continue;
+          if (!indicatorMap[code]) continue;
 
-          for (const [prefix, code] of Object.entries(COLUMN_MAP)) {
-            if (h.toLowerCase().includes(prefix.toLowerCase())) {
-              // Extrair meta do header
-              let meta = 0;
-              const metaMatch = h.match(/Meta\s*([\d]+[.,]?\d*)/i);
-              if (metaMatch) {
-                meta = parseFloat(metaMatch[1].replace(',', '.'));
-              }
-
-              // Encontrar a coluna "Real" — pode ser no sub-header ou nas colunas adjacentes
-              let realIdx = -1;
-
-              // Caso 1: sub-header na mesma coluna ou adjacente
-              for (let sc = c; sc < Math.min(c + 5, subHeaderRow.length); sc++) {
-                if (subHeaderRow[sc]?.toLowerCase().includes('real')) {
-                  realIdx = sc;
-                  break;
-                }
-              }
-
-              // Caso 2: se não tem sub-header, usar a própria coluna
-              if (realIdx < 0) {
-                // Verificar se o header adjacente contém "Real"
-                for (let sc = c; sc < Math.min(c + 5, headerRow.length); sc++) {
-                  if (headerRow[sc]?.toLowerCase().includes('real')) {
-                    realIdx = sc;
-                    break;
-                  }
-                }
-              }
-
-              // Fallback: usar a própria coluna
-              if (realIdx < 0) realIdx = c;
-
-              // Verificar se o indicador existe no banco
-              if (indicatorMap[code]) {
-                columns.push({ code, realColIdx: realIdx, meta });
-              }
-              break;
-            }
+          // Extrair meta do texto do header
+          let meta = 0;
+          const headerText = String(headerRow[colIdx]);
+          const metaMatch = headerText.match(/Meta\s*([\d]+[.,]?\d*)/i);
+          if (metaMatch) {
+            meta = parseFloat(metaMatch[1].replace(',', '.'));
           }
+
+          columns.push({ code, realColIdx: colIdx, meta });
         }
 
         if (columns.length === 0) {
-          setErrors([{ row: 0, msg: 'Nenhuma coluna de indicador reconhecida. Verifique os headers da planilha.' }]);
+          setErrors([{ row: 0, msg: 'Nenhuma coluna de indicador reconhecida no cabeçalho (linha 1).' }]);
           return;
         }
 
-        // ── Parse das linhas de dados ──
-        const dataStartRow = subHeaderRow.length > 0 && subHeaderRow.some((s: string) => s.toLowerCase().includes('real'))
-          ? headerRowIdx + 2
-          : headerRowIdx + 1;
-
+        // ── Parse das linhas de dados (a partir de rows[2]) ──
         const parsed: ParsedRecord[] = [];
         const errs: ParseError[] = [];
 
-        for (let r = dataStartRow; r < rawRows.length; r++) {
-          const row = rawRows[r];
-          const matricula = String(row[matriculaColIdx] ?? '').trim();
-          if (!matricula || matricula === '0') continue;
+        for (let r = 2; r < rows.length; r++) {
+          const row = rows[r];
 
-          const cargo = cargoColIdx >= 0 ? String(row[cargoColIdx] ?? '').trim() : '';
+          // Índices fixos: 0=Matrícula, 1=Nome, 2=Cargo
+          const matricula = String(row[0] ?? '').trim().toUpperCase();
+          if (!matricula || matricula === '0' || !/\S/.test(matricula)) continue;
+
+          const cargo = String(row[2] ?? '').trim();
           const allowedCodes = cargoToCodes(cargo);
           const wt = cargoToWorkerType(cargo);
 
@@ -234,9 +176,16 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
 
           for (const col of columns) {
             if (!allowedCodes.includes(col.code)) continue;
+
             const rawVal = row[col.realColIdx];
-            const valor = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(',', '.'));
-            if (isNaN(valor)) continue;
+            let valor: number;
+
+            if (rawVal === '' || rawVal == null || rawVal === '-' || String(rawVal).toUpperCase() === 'NOK') {
+              valor = 0;
+            } else {
+              valor = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(',', '.'));
+              if (isNaN(valor)) valor = 0;
+            }
 
             parsed.push({
               matricula,
