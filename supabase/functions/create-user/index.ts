@@ -120,7 +120,7 @@ serve(async (req) => {
         unidade_id: unidade_id || null,
         rota_id: rota_id || null,
       })
-      .eq("auth_user_id", authData.user.id)
+      .eq("auth_user_id", authUserId)
       .select("id")
       .single();
 
