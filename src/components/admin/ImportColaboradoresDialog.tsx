@@ -220,6 +220,25 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
             </div>
           )}
 
+          {/* Progress */}
+          {importing && progress.total > 0 && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Processando...</span>
+                <span className="font-mono">{progress.current}/{progress.total}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {Math.round((progress.current / progress.total) * 100)}% concluído
+              </p>
+            </div>
+          )
+
           {/* Results */}
           {result && (
             <div className="space-y-3">
