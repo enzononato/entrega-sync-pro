@@ -54,6 +54,8 @@ export default function Indicadores() {
   const [form, setForm] = useState(emptyForm);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<IndicatorRow | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<IndicatorRow | null>(null);
 
   const filtered = useMemo(() => {
     return indicators.filter(i => {
