@@ -398,7 +398,7 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                           <table className="w-full text-xs">
                             <thead className="bg-muted/50">
                              <tr>
-                                <th className="text-left p-2 font-bold text-muted-foreground">Matrícula</th>
+                                <th className="text-left p-2 font-bold text-muted-foreground">Nome</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Cargo</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Indicador</th>
                                 <th className="text-right p-2 font-bold text-muted-foreground">Valor</th>
