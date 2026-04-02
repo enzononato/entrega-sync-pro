@@ -6,6 +6,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function findAuthUserIdByEmail(supabaseAdmin: any, email: string) {
+  const perPage = 200;
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+
+    if (error) {
+      throw error;
+    }
+
+    const foundUser = data.users.find((user: any) => user.email?.trim().toLowerCase() === email);
+    if (foundUser) {
+      return foundUser.id as string;
+    }
+
+    if (data.users.length < perPage) {
+      break;
+    }
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -24,7 +47,6 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify the caller is an authenticated admin or service role
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autenticado" }), {
@@ -71,125 +93,119 @@ serve(async (req) => {
       });
     }
 
-    // Create auth user (or find existing)
+    const normalizedEmail = String(email).trim().toLowerCase();
     let authUserId: string;
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
       user_metadata: { nome },
     });
 
     if (authError) {
-      if (authError.message?.includes("already been registered")) {
-        // Try to find in users table first
-        const { data: existingProfile } = await supabaseAdmin
-          .from("users")
-          .select("id, auth_user_id")
-          .eq("email", email)
-          .single();
-        
-        if (existingProfile) {
-          authUserId = existingProfile.auth_user_id;
-        } else {
-          // Auth user exists but users row was deleted — find auth user via GoTrue REST API
-          const gotrue = `${supabaseUrl}/auth/v1/admin/users?filter=${encodeURIComponent(email)}&per_page=1`;
-          const res = await fetch(gotrue, {
-            headers: { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
-          });
-          const json = await res.json();
-          const foundUser = (json?.users || []).find((u: any) => u.email === email);
-
-          if (!foundUser) {
-            return new Response(JSON.stringify({ error: "Não foi possível encontrar o usuário no Auth" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          authUserId = foundUser.id;
-
-          // Re-create the missing users row
-          const { data: insertedUser, error: insertError } = await supabaseAdmin
-            .from("users")
-            .insert({
-              auth_user_id: authUserId,
-              email,
-              nome,
-              matricula: matricula || "",
-              cpf: cpf || null,
-              role: role || "colaborador",
-              worker_type: worker_type || null,
-              unidade_id: unidade_id || null,
-              rota_id: rota_id || null,
-            })
-            .select("id")
-            .single();
-
-          if (insertError) {
-            return new Response(JSON.stringify({ error: insertError.message }), {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          const appRole2 = (role === "administrador") ? "admin" : "colaborador";
-          await supabaseAdmin.from("user_roles").upsert(
-            { user_id: authUserId, role: appRole2 },
-            { onConflict: "user_id,role" }
-          );
-
-          return new Response(JSON.stringify({ success: true, user_id: insertedUser.id, auth_user_id: authUserId }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      } else {
+      if (!authError.message?.includes("already been registered")) {
         return new Response(JSON.stringify({ error: authError.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      const { data: existingProfileByEmail } = await supabaseAdmin
+        .from("users")
+        .select("id, auth_user_id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      if (existingProfileByEmail?.auth_user_id) {
+        authUserId = existingProfileByEmail.auth_user_id;
+      } else {
+        const foundAuthUserId = await findAuthUserIdByEmail(supabaseAdmin, normalizedEmail);
+
+        if (!foundAuthUserId) {
+          return new Response(JSON.stringify({ error: "Usuário existe no Auth, mas não foi possível localizar sua conta para recriar o cadastro." }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        authUserId = foundAuthUserId;
+      }
     } else {
       authUserId = authData.user.id;
     }
 
-    // Update auto-created profile and return public.users.id
-    const { data: updatedUser, error: updateError } = await supabaseAdmin
-      .from("users")
-      .update({
-        nome,
-        matricula: matricula || "",
-        cpf: cpf || null,
-        role: role || "colaborador",
-        worker_type: worker_type || null,
-        unidade_id: unidade_id || null,
-        rota_id: rota_id || null,
-      })
-      .eq("auth_user_id", authUserId)
-      .select("id")
-      .single();
+    const userPayload = {
+      auth_user_id: authUserId,
+      email: normalizedEmail,
+      nome,
+      matricula: matricula || "",
+      cpf: cpf || null,
+      role: role || "colaborador",
+      worker_type: worker_type || null,
+      unidade_id: unidade_id || null,
+      rota_id: rota_id || null,
+    };
 
-    if (updateError || !updatedUser) {
-      return new Response(JSON.stringify({ error: updateError?.message || "Falha ao atualizar usuário." }), {
+    const { data: existingUserByAuth } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+
+    const { data: existingUserByEmail } = existingUserByAuth
+      ? { data: null }
+      : await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("email", normalizedEmail)
+          .maybeSingle();
+
+    const existingUserId = existingUserByAuth?.id ?? existingUserByEmail?.id ?? null;
+
+    const { data: savedUser, error: saveError } = existingUserId
+      ? await supabaseAdmin
+          .from("users")
+          .update(userPayload)
+          .eq("id", existingUserId)
+          .select("id")
+          .single()
+      : await supabaseAdmin
+          .from("users")
+          .insert(userPayload)
+          .select("id")
+          .single();
+
+    if (saveError || !savedUser) {
+      console.error("create-user save error", saveError);
+      return new Response(JSON.stringify({ error: saveError?.message || "Falha ao salvar usuário." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Insert role into user_roles table
-    const appRole = (role === "administrador") ? "admin" : "colaborador";
-    await supabaseAdmin.from("user_roles").upsert(
+    const appRole = role === "administrador" ? "admin" : "colaborador";
+    const { error: roleError } = await supabaseAdmin.from("user_roles").upsert(
       { user_id: authUserId, role: appRole },
-      { onConflict: "user_id,role" }
+      { onConflict: "user_id,role" },
     );
 
-    return new Response(JSON.stringify({ success: true, user_id: updatedUser.id, auth_user_id: authUserId }), {
+    if (roleError) {
+      console.error("create-user role error", roleError);
+      return new Response(JSON.stringify({ error: roleError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, user_id: savedUser.id, auth_user_id: authUserId }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("create-user unexpected error", error);
+
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro interno." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
