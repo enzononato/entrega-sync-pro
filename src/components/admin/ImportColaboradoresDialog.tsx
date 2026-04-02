@@ -41,10 +41,12 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const reset = () => {
     setRows([]);
     setFileName('');
+    setProgress({ current: 0, total: 0 });
     setResult(null);
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -89,47 +91,58 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const ajudantes = rows.filter(r => r.worker_type === 'ajudante').length;
   const outros = rows.length - motoristas - ajudantes;
 
+  const processRow = async (row: CsvRow, session: any): Promise<{ ok: boolean; nome: string; error?: string }> => {
+    try {
+      const unit = units.find(u => u.codigo.toUpperCase() === row.codigo_unidade.toUpperCase());
+      const unitId = unit?.id || null;
+
+      const res = await supabase.functions.invoke('create-user', {
+        body: {
+          email: row.email,
+          password: row.password,
+          nome: row.nome,
+          matricula: row.matricula.toUpperCase(),
+          cpf: row.cpf || null,
+          role: row.role || 'colaborador',
+          worker_type: row.worker_type || null,
+          unidade_id: unitId,
+          rota_id: null,
+        },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+
+      if (unitId && res.data?.user_id) {
+        await supabase.from('user_units').insert({ user_id: res.data.user_id, unit_id: unitId });
+      }
+
+      return { ok: true, nome: row.nome };
+    } catch (err: any) {
+      return { ok: false, nome: row.nome, error: err.message || 'Erro desconhecido' };
+    }
+  };
+
+  const BATCH_SIZE = 5;
+
   const handleImport = async () => {
     setImporting(true);
+    setProgress({ current: 0, total: rows.length });
     const errors: { nome: string; error: string }[] = [];
     let success = 0;
 
-    for (const row of rows) {
-      try {
-        // Find unit by codigo
-        const unit = units.find(u => u.codigo.toUpperCase() === row.codigo_unidade.toUpperCase());
-        const unitId = unit?.id || null;
+    const { data: { session } } = await supabase.auth.getSession();
 
-        // Get session for edge function
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        const res = await supabase.functions.invoke('create-user', {
-          body: {
-            email: row.email,
-            password: row.password,
-            nome: row.nome,
-            matricula: row.matricula.toUpperCase(),
-            cpf: row.cpf || null,
-            role: row.role || 'colaborador',
-            worker_type: row.worker_type || null,
-            unidade_id: unitId,
-            rota_id: null,
-          },
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-        });
-
-        if (res.error) throw new Error(res.error.message);
-        if (res.data?.error) throw new Error(res.data.error);
-
-        // Save user_units if unit found
-        if (unitId && res.data?.user_id) {
-          await supabase.from('user_units').insert({ user_id: res.data.user_id, unit_id: unitId });
-        }
-
-        success++;
-      } catch (err: any) {
-        errors.push({ nome: row.nome, error: err.message || 'Erro desconhecido' });
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(row => processRow(row, session)));
+      
+      for (const r of results) {
+        if (r.ok) success++;
+        else errors.push({ nome: r.nome, error: r.error! });
       }
+      setProgress({ current: Math.min(i + BATCH_SIZE, rows.length), total: rows.length });
     }
 
     setResult({ success, errors });
@@ -204,6 +217,25 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
               <div className="text-[11px] text-muted-foreground">
                 Unidades: {[...new Set(rows.map(r => r.codigo_unidade))].filter(Boolean).join(', ') || 'Nenhuma'}
               </div>
+            </div>
+          )}
+
+          {/* Progress */}
+          {importing && progress.total > 0 && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Processando...</span>
+                <span className="font-mono">{progress.current}/{progress.total}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {Math.round((progress.current / progress.total) * 100)}% concluído
+              </p>
             </div>
           )}
 
