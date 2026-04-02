@@ -57,6 +57,7 @@ export default function Colaboradores() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<UserWithRelations | null>(null);
   const [perfDrawer, setPerfDrawer] = useState<UserWithRelations | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
   const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
