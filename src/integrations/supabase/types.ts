@@ -607,41 +607,50 @@ export type Database = {
         Row: {
           created_at: string
           data_referencia: string
+          desafio: number | null
           id: string
           indicator_id: string
           meta: number | null
           origem_dado: string
           percentual_atingimento: number | null
           status: string | null
+          status_desafio: string | null
           updated_at: string
           user_id: string
           valor: number
+          valor_financeiro: number | null
         }
         Insert: {
           created_at?: string
           data_referencia?: string
+          desafio?: number | null
           id?: string
           indicator_id: string
           meta?: number | null
           origem_dado?: string
           percentual_atingimento?: number | null
           status?: string | null
+          status_desafio?: string | null
           updated_at?: string
           user_id: string
           valor?: number
+          valor_financeiro?: number | null
         }
         Update: {
           created_at?: string
           data_referencia?: string
+          desafio?: number | null
           id?: string
           indicator_id?: string
           meta?: number | null
           origem_dado?: string
           percentual_atingimento?: number | null
           status?: string | null
+          status_desafio?: string | null
           updated_at?: string
           user_id?: string
           valor?: number
+          valor_financeiro?: number | null
         }
         Relationships: [
           {
