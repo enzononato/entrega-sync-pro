@@ -80,10 +80,21 @@ export function useDeleteIndicador() {
   const qc = useQueryClient(); const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Remove dependent records first
+      await supabase.from('user_indicator_daily').delete().eq('indicator_id', id);
+      await supabase.from('goals').delete().eq('indicator_id', id);
+      await supabase.from('incentive_rules').delete().eq('indicator_id', id);
+      await supabase.from('incentive_deductions').delete().eq('indicator_id', id);
+      await supabase.from('root_cause_records').delete().eq('indicator_id', id);
       const { error } = await supabase.from('indicators').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['indicators'] }); toast({ title: 'Indicador excluído!' }); },
-    onError: () => { toast({ title: 'Erro ao excluir indicador.', variant: 'destructive' }); },
+    onError: (error: any) => {
+      const msg = error?.message?.includes('foreign key')
+        ? 'Não foi possível excluir: indicador ainda possui registros vinculados.'
+        : 'Erro ao excluir indicador.';
+      toast({ title: msg, variant: 'destructive' });
+    },
   });
 }
