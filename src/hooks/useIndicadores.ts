@@ -75,3 +75,15 @@ export function useToggleIndicadorAtivo() {
     onError: () => { toast({ title: 'Erro ao atualizar.', variant: 'destructive' }); },
   });
 }
+
+export function useDeleteIndicador() {
+  const qc = useQueryClient(); const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('indicators').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['indicators'] }); toast({ title: 'Indicador excluído!' }); },
+    onError: () => { toast({ title: 'Erro ao excluir indicador.', variant: 'destructive' }); },
+  });
+}

@@ -275,6 +275,9 @@ export default function Indicadores() {
                       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}>
                         <Power className="h-3.5 w-3.5" /> {ind.ativo ? 'Inativar' : 'Ativar'}
                       </Button>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => { setDeleteTarget(ind); setDeleteConfirmOpen(true); }}>
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </Button>
                     </div>
                   </div>
                 </div>
