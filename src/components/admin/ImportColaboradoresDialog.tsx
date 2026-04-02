@@ -41,6 +41,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const reset = () => {
     setRows([]);
