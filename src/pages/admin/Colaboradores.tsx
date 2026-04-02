@@ -21,8 +21,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Download, Package,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
 } from 'lucide-react';
+import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
