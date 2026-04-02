@@ -183,12 +183,22 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
 
             const rawVal = row[col.realColIdx];
             let valor: number;
-
             if (rawVal === '' || rawVal == null || rawVal === '-' || String(rawVal).toUpperCase() === 'NOK') {
               valor = 0;
             } else {
               valor = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(',', '.'));
               if (isNaN(valor)) valor = 0;
+            }
+
+            // i+1 = Status desafio (OK/NOK), i+2 = Valor financeiro (R$)
+            const rawStatus = String(row[col.realColIdx + 1] ?? '').trim().toUpperCase();
+            const statusDesafio = rawStatus === 'OK' || rawStatus === 'NOK' ? rawStatus : '';
+
+            const rawFin = row[col.realColIdx + 2];
+            let valorFinanceiro = 0;
+            if (rawFin != null && rawFin !== '' && rawFin !== '-') {
+              valorFinanceiro = typeof rawFin === 'number' ? rawFin : parseFloat(String(rawFin).replace(',', '.'));
+              if (isNaN(valorFinanceiro)) valorFinanceiro = 0;
             }
 
             parsed.push({
@@ -200,6 +210,9 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
               indicatorId: indicatorMap[col.code],
               valor,
               meta: col.meta,
+              desafio: col.desafio,
+              statusDesafio,
+              valorFinanceiro,
             });
           }
         }
