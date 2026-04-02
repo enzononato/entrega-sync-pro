@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { validateCpf, formatCpf } from '@/lib/formatters';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
