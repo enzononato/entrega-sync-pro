@@ -1,0 +1,1 @@
+ALTER TABLE public.indicators DROP CONSTRAINT IF EXISTS indicators_applies_to_worker_type_check;
