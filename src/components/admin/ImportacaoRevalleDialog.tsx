@@ -52,7 +52,7 @@ interface ColumnInfo {
 }
 
 interface ParsedRecord {
-  matricula: string;
+  nome: string;
   cargo: string;
   workerType: 'motorista' | 'ajudante';
   userId: string;
@@ -96,7 +96,10 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
 
   const userMap = useMemo(() => {
     const m: Record<string, { id: string; worker_type: string | null }> = {};
-    usuarios.forEach(u => { m[u.matricula.trim()] = { id: u.id, worker_type: u.worker_type }; });
+    usuarios.forEach(u => {
+      const key = u.nome.trim().toUpperCase().substring(0, 30);
+      m[key] = { id: u.id, worker_type: u.worker_type };
+    });
     return m;
   }, [usuarios]);
 
@@ -176,22 +179,22 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
         for (let r = 2; r < rows.length; r++) {
           const row = rows[r];
 
-          // Índices fixos: 0=Matrícula, 1=Nome, 2=Cargo
-          const matricula = String(row[0] ?? '').trim().toUpperCase();
-          if (!matricula || matricula === '0' || !/\S/.test(matricula)) continue;
+          // Índices fixos: 0=Matrícula (ignorada), 1=Nome, 2=Cargo
+          const nomeExcel = String(row[1] ?? '').trim().toUpperCase();
+          if (!nomeExcel || !/\S/.test(nomeExcel)) continue;
 
           const cargo = String(row[2] ?? '').trim();
           const allowedCodes = cargoToCodes(cargo);
           const wt = cargoToWorkerType(cargo);
 
           if (!allowedCodes || !wt) {
-            if (cargo) errs.push({ row: r + 1, msg: `Cargo desconhecido: "${cargo}" (Matrícula: ${matricula})` });
+            if (cargo) errs.push({ row: r + 1, msg: `Cargo desconhecido: "${cargo}" (Nome: ${nomeExcel})` });
             continue;
           }
 
-          const user = userMap[matricula];
+          const user = userMap[nomeExcel];
           if (!user) {
-            errs.push({ row: r + 1, msg: `Matrícula não encontrada: ${matricula}` });
+            errs.push({ row: r + 1, msg: `Colaborador não encontrado: ${nomeExcel}` });
             continue;
           }
 
@@ -219,7 +222,7 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
             }
 
             parsed.push({
-              matricula,
+              nome: nomeExcel,
               cargo,
               workerType: wt,
               userId: user.id,
@@ -395,7 +398,7 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                           <table className="w-full text-xs">
                             <thead className="bg-muted/50">
                              <tr>
-                                <th className="text-left p-2 font-bold text-muted-foreground">Matrícula</th>
+                                <th className="text-left p-2 font-bold text-muted-foreground">Nome</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Cargo</th>
                                 <th className="text-left p-2 font-bold text-muted-foreground">Indicador</th>
                                 <th className="text-right p-2 font-bold text-muted-foreground">Valor</th>
@@ -408,7 +411,7 @@ export function ImportacaoRevalleDialog({ open, onOpenChange, usuarios, indicato
                             <tbody>
                               {records.slice(0, 100).map((r, i) => (
                                 <tr key={i} className="border-t border-border/50">
-                                  <td className="p-2 font-mono">{r.matricula}</td>
+                                  <td className="p-2 font-mono text-[10px]">{r.nome}</td>
                                   <td className="p-2">
                                     <span className={cn(
                                       'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium',
