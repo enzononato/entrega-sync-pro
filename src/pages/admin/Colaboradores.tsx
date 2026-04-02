@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { validateCpf, formatCpf } from '@/lib/formatters';
-import { exportToCsv } from '@/lib/exportCsv';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -21,8 +20,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Download, Package,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
 } from 'lucide-react';
+import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
@@ -56,6 +56,7 @@ export default function Colaboradores() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<UserWithRelations | null>(null);
   const [perfDrawer, setPerfDrawer] = useState<UserWithRelations | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
   const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
@@ -136,15 +137,8 @@ export default function Colaboradores() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" />
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
-            const rows = filteredByTab.map(u => [
-              u.nome, u.matricula, u.cpf ?? '', u.worker_type ?? u.role,
-              u.user_units?.map(uu => uu.units?.nome).filter(Boolean).join('; ') || u.units?.nome || '',
-              u.routes?.nome ?? '', u.ativo ? 'Ativo' : 'Inativo',
-            ]);
-            exportToCsv('colaboradores.csv', ['Nome', 'Matrícula', 'CPF', 'Tipo', 'Unidade', 'Rota', 'Status'], rows);
-          }}>
-            <Download className="h-4 w-4" /> CSV
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" /> Importar
           </Button>
           <Button onClick={openCreate} className="rounded-xl gradient-primary text-white shadow-glow-primary hover:opacity-90 transition-all hover:shadow-lg gap-2">
             <Users className="h-4 w-4" /> Novo Colaborador
@@ -489,6 +483,8 @@ export default function Colaboradores() {
           )}
         </SheetContent>
       </Sheet>
+
+      <ImportColaboradoresDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
