@@ -4,7 +4,7 @@ import { ListPagination } from '@/components/shared/ListPagination';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { useIndicadores, useCreateIndicador, useUpdateIndicador, useToggleIndicadorAtivo, type IndicatorRow } from '@/hooks/useIndicadores';
+import { useIndicadores, useCreateIndicador, useUpdateIndicador, useToggleIndicadorAtivo, useDeleteIndicador, type IndicatorRow } from '@/hooks/useIndicadores';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
