@@ -100,6 +100,22 @@ function parseCSV(text: string, usuarios: Props['usuarios']): ParseResult {
       continue;
     }
 
+    // Discard maps where "Saida Cdd/Fab" phase has time outside 07:00–16:59
+    const hasInvalidSaida = rowsCols.some(cols => {
+      const fase = (cols[iFase] ?? '').trim().toUpperCase();
+      if (!fase.includes('SAIDA CDD') && !fase.includes('SAIDA FAB')) return false;
+      const hora = (cols[iHrOper] ?? '').trim();
+      const hhmm = hora.replace(':', '').substring(0, 4);
+      const numTime = parseInt(hhmm, 10);
+      if (isNaN(numTime)) return false;
+      return numTime > 1659 || numTime < 700;
+    });
+
+    if (hasInvalidSaida) {
+      discardedMapas++;
+      continue;
+    }
+
     for (const cols of rowsCols) {
       const motorista = (cols[iMotorista] ?? '').trim();
       const userId = userMap.get(motorista) ?? null;
