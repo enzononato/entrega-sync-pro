@@ -13,7 +13,7 @@ export default function HistoricoMapas() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PageHeader titulo="Histórico de Mapas" descricao="Importação e visualização do histórico de mapas de entrega." />
+        <PageHeader title="Histórico de Mapas" subtitle="Importação e visualização do histórico de mapas de entrega." />
         <Button onClick={() => setImportOpen(true)} className="gap-2">
           <Upload className="h-4 w-4" /> Importar CSV
         </Button>

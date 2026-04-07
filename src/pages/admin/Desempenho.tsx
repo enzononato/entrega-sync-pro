@@ -570,11 +570,7 @@ export default function Desempenho() {
         onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
       />
 
-      <ImportacaoMetasDiariasDialog
-        open={mapasOpen}
-        onOpenChange={setMapasOpen}
-        usuarios={colabs}
-      />
+
     </div>
   );
 }
