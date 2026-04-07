@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { ImportDesempenhoDialog } from '@/components/admin/ImportDesempenhoDialog';
 import { ImportacaoRevalleDialog } from '@/components/admin/ImportacaoRevalleDialog';
+import { ImportacaoMetasDiariasDialog } from '@/components/admin/ImportacaoMetasDiariasDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +76,7 @@ export default function Desempenho() {
   const [batchOpen, setBatchOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [revalleOpen, setRevalleOpen] = useState(false);
+  const [mapasOpen, setMapasOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<DesempenhoRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DesempenhoRow | null>(null);
 
@@ -253,6 +255,9 @@ export default function Desempenho() {
         </Button>
         <Button variant="outline" onClick={() => setRevalleOpen(true)} className="gap-2">
           <FileSpreadsheet className="h-4 w-4" /> Importar Fecho Operacional
+        </Button>
+        <Button variant="outline" onClick={() => setMapasOpen(true)} className="gap-2">
+          <Truck className="h-4 w-4" /> Importar Histórico Mapas
         </Button>
       </div>
 
@@ -568,6 +573,12 @@ export default function Desempenho() {
         usuarios={colabs}
         indicators={indicators}
         onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
+      />
+
+      <ImportacaoMetasDiariasDialog
+        open={mapasOpen}
+        onOpenChange={setMapasOpen}
+        usuarios={colabs}
       />
     </div>
   );
