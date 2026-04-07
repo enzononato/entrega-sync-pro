@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
   Building2, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Shield, TrendingDown,
-  UserCog, Moon, Sun,
+  UserCog, Moon, Sun, Map,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -32,6 +32,7 @@ const sections = [
       { title: 'Metas', url: '/admin/metas', icon: Flag },
       { title: 'Incentivos', url: '/admin/incentivos', icon: Award },
       { title: 'Descontos', url: '/admin/descontos', icon: TrendingDown },
+      { title: 'Histórico Mapas', url: '/admin/historico-mapas', icon: Map },
     ],
   },
   {
