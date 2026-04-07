@@ -190,7 +190,7 @@ export default function HistoricoMapas() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pg.currentItems.map(row => (
+                {pg.paginatedItems.map(row => (
                   <TableRow key={row.id}>
                     <TableCell className="font-mono font-medium">{row.mapa}</TableCell>
                     <TableCell>
@@ -204,7 +204,7 @@ export default function HistoricoMapas() {
                     <TableCell className="text-sm">{row.hora_operacao || '-'}</TableCell>
                     <TableCell className="text-sm">{row.usuario || '-'}</TableCell>
                     <TableCell className="text-sm">
-                      {matriculaNomeMap.get(row.motorista_matricula) ?? row.motorista_matricula || '-'}
+                      {(matriculaNomeMap.get(row.motorista_matricula) ?? row.motorista_matricula) || '-'}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -213,9 +213,12 @@ export default function HistoricoMapas() {
           </div>
           <div className="p-3 border-t">
             <ListPagination
-              currentPage={pg.currentPage}
+              page={pg.page}
               totalPages={pg.totalPages}
-              onPageChange={pg.goToPage}
+              from={pg.from}
+              to={pg.to}
+              totalCount={pg.totalCount}
+              onPageChange={pg.setPage}
             />
           </div>
         </div>
