@@ -9,6 +9,7 @@ import { ListPagination } from '@/components/shared/ListPagination';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { usePagination } from '@/hooks/usePagination';
 import { ImportacaoMetasDiariasDialog } from '@/components/admin/ImportacaoMetasDiariasDialog';
+import { MapaDetailDialog } from '@/components/admin/MapaDetailDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +17,25 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Search, CalendarIcon, X, Truck } from 'lucide-react';
+import { Upload, Search, CalendarIcon, X, Truck, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type MapaRow = {
+  id: string; mapa: string; fase: string; veiculo: string; placa: string;
+  frota_cadastro: string; tipo_mapa: string; data_operacao: string;
+  hora_operacao: string; usuario: string; motorista_matricula: string;
+  user_id: string | null; created_at: string;
+};
+
+interface GroupedMapa {
+  mapa: string;
+  totalLinhas: number;
+  dataOperacao: string;
+  motoristas: string[];
+  veiculos: string[];
+  fases: string[];
+  rows: MapaRow[];
+}
 
 function useHistoricoMapas() {
   return useQuery({
@@ -30,12 +48,7 @@ function useHistoricoMapas() {
         .order('mapa', { ascending: true })
         .order('hora_operacao', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as Array<{
-        id: string; mapa: string; fase: string; veiculo: string; placa: string;
-        frota_cadastro: string; tipo_mapa: string; data_operacao: string;
-        hora_operacao: string; usuario: string; motorista_matricula: string;
-        user_id: string | null; created_at: string;
-      }>;
+      return (data ?? []) as MapaRow[];
     },
   });
 }
@@ -44,6 +57,7 @@ export default function HistoricoMapas() {
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const colabs = usuarios.filter(u => u.role === 'colaborador');
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedMapa, setSelectedMapa] = useState<GroupedMapa | null>(null);
 
   const [filterMapa, setFilterMapa] = useState('');
   const [filterMotorista, setFilterMotorista] = useState('');
@@ -51,32 +65,63 @@ export default function HistoricoMapas() {
 
   const { data: historico = [], isLoading } = useHistoricoMapas();
 
-  // Build matricula->nome map
   const matriculaNomeMap = useMemo(() => {
     const m = new Map<string, string>();
     colabs.forEach(u => { if (u.matricula) m.set(u.matricula.trim(), u.nome); });
     return m;
   }, [colabs]);
 
+  // Group rows by mapa
+  const grouped = useMemo(() => {
+    const map = new Map<string, MapaRow[]>();
+    historico.forEach(r => {
+      if (!map.has(r.mapa)) map.set(r.mapa, []);
+      map.get(r.mapa)!.push(r);
+    });
+    const result: GroupedMapa[] = [];
+    map.forEach((rows, mapa) => {
+      const motoristasSet = new Set<string>();
+      const veiculosSet = new Set<string>();
+      const fasesSet = new Set<string>();
+      rows.forEach(r => {
+        if (r.motorista_matricula) {
+          const nome = matriculaNomeMap.get(r.motorista_matricula) ?? r.motorista_matricula;
+          motoristasSet.add(nome);
+        }
+        if (r.veiculo) veiculosSet.add(r.veiculo);
+        if (r.fase) fasesSet.add(r.fase);
+      });
+      result.push({
+        mapa,
+        totalLinhas: rows.length,
+        dataOperacao: rows[0]?.data_operacao ?? '',
+        motoristas: Array.from(motoristasSet),
+        veiculos: Array.from(veiculosSet),
+        fases: Array.from(fasesSet),
+        rows,
+      });
+    });
+    // Sort by date desc, then mapa asc
+    result.sort((a, b) => b.dataOperacao.localeCompare(a.dataOperacao) || a.mapa.localeCompare(b.mapa));
+    return result;
+  }, [historico, matriculaNomeMap]);
+
   const filtered = useMemo(() => {
-    let rows = historico;
+    let items = grouped;
     if (filterMapa.trim()) {
       const q = filterMapa.trim().toUpperCase();
-      rows = rows.filter(r => r.mapa.toUpperCase().includes(q));
+      items = items.filter(g => g.mapa.toUpperCase().includes(q));
     }
     if (filterMotorista.trim()) {
       const q = filterMotorista.trim().toUpperCase();
-      rows = rows.filter(r => {
-        const nome = matriculaNomeMap.get(r.motorista_matricula) ?? '';
-        return r.motorista_matricula.toUpperCase().includes(q) || nome.toUpperCase().includes(q);
-      });
+      items = items.filter(g => g.motoristas.some(m => m.toUpperCase().includes(q)));
     }
     if (filterDate) {
       const ds = format(filterDate, 'yyyy-MM-dd');
-      rows = rows.filter(r => r.data_operacao === ds);
+      items = items.filter(g => g.dataOperacao === ds);
     }
-    return rows;
-  }, [historico, filterMapa, filterMotorista, filterDate, matriculaNomeMap]);
+    return items;
+  }, [grouped, filterMapa, filterMotorista, filterDate]);
 
   const pg = usePagination(filtered);
   const hasFilters = !!(filterMapa || filterMotorista || filterDate);
@@ -87,10 +132,13 @@ export default function HistoricoMapas() {
     setFilterDate(undefined);
   };
 
-  // KPIs
-  const totalRegistros = filtered.length;
-  const mapasUnicos = useMemo(() => new Set(filtered.map(r => r.mapa)).size, [filtered]);
-  const motoristasUnicos = useMemo(() => new Set(filtered.filter(r => r.motorista_matricula).map(r => r.motorista_matricula)).size, [filtered]);
+  const totalRegistros = historico.length;
+  const mapasUnicos = grouped.length;
+  const motoristasUnicos = useMemo(() => {
+    const s = new Set<string>();
+    historico.forEach(r => { if (r.motorista_matricula) s.add(r.motorista_matricula); });
+    return s.size;
+  }, [historico]);
 
   return (
     <div className="space-y-6">
@@ -105,7 +153,7 @@ export default function HistoricoMapas() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border bg-card p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{totalRegistros}</p>
-          <p className="text-xs text-muted-foreground">Registros</p>
+          <p className="text-xs text-muted-foreground">Registros totais</p>
         </div>
         <div className="rounded-xl border bg-card p-4 text-center">
           <p className="text-2xl font-bold text-primary">{mapasUnicos}</p>
@@ -123,24 +171,14 @@ export default function HistoricoMapas() {
           <label className="text-xs font-medium text-muted-foreground">Mapa</label>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Nº do mapa..."
-              value={filterMapa}
-              onChange={e => setFilterMapa(e.target.value)}
-              className="pl-9 w-40 h-9"
-            />
+            <Input placeholder="Nº do mapa..." value={filterMapa} onChange={e => setFilterMapa(e.target.value)} className="pl-9 w-40 h-9" />
           </div>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Motorista</label>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Matrícula ou nome..."
-              value={filterMotorista}
-              onChange={e => setFilterMotorista(e.target.value)}
-              className="pl-9 w-52 h-9"
-            />
+            <Input placeholder="Nome do motorista..." value={filterMotorista} onChange={e => setFilterMotorista(e.target.value)} className="pl-9 w-52 h-9" />
           </div>
         </div>
         <div className="space-y-1">
@@ -169,7 +207,7 @@ export default function HistoricoMapas() {
         <LoadingSpinner />
       ) : filtered.length === 0 ? (
         <EmptyState
-          titulo={hasFilters ? 'Nenhum registro encontrado' : 'Nenhum dado importado'}
+          titulo={hasFilters ? 'Nenhum mapa encontrado' : 'Nenhum dado importado'}
           descricao={hasFilters ? 'Tente ajustar os filtros.' : 'Importe um arquivo CSV para começar.'}
           icon={<Truck className="h-10 w-10" />}
         />
@@ -180,31 +218,37 @@ export default function HistoricoMapas() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-24">Mapa</TableHead>
-                  <TableHead>Fase</TableHead>
-                  <TableHead className="w-20">Veículo</TableHead>
-                  <TableHead>Placa</TableHead>
                   <TableHead>Data Op.</TableHead>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Motorista</TableHead>
+                  <TableHead>Motorista(s)</TableHead>
+                  <TableHead>Veículo(s)</TableHead>
+                  <TableHead>Fases</TableHead>
+                  <TableHead className="text-center w-20">Registros</TableHead>
+                  <TableHead className="w-16"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pg.paginatedItems.map(row => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono font-medium">{row.mapa}</TableCell>
+                {pg.paginatedItems.map(g => (
+                  <TableRow key={g.mapa} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedMapa(g)}>
+                    <TableCell className="font-mono font-medium">{g.mapa}</TableCell>
+                    <TableCell className="text-sm">
+                      {g.dataOperacao ? format(new Date(g.dataOperacao + 'T00:00:00'), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[200px] truncate">{g.motoristas.join(', ') || '-'}</TableCell>
+                    <TableCell className="font-mono text-sm">{g.veiculos.join(', ') || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs font-normal">{row.fase}</Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {g.fases.map(f => (
+                          <Badge key={f} variant="outline" className="text-xs font-normal">{f}</Badge>
+                        ))}
+                      </div>
                     </TableCell>
-                    <TableCell className="font-mono">{row.veiculo}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.placa}</TableCell>
-                    <TableCell className="text-sm">
-                      {row.data_operacao ? format(new Date(row.data_operacao + 'T00:00:00'), 'dd/MM/yyyy') : '-'}
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">{g.totalLinhas}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{row.hora_operacao || '-'}</TableCell>
-                    <TableCell className="text-sm">{row.usuario || '-'}</TableCell>
-                    <TableCell className="text-sm">
-                      {(matriculaNomeMap.get(row.motorista_matricula) ?? row.motorista_matricula) || '-'}
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setSelectedMapa(g); }}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -212,23 +256,22 @@ export default function HistoricoMapas() {
             </Table>
           </div>
           <div className="p-3 border-t">
-            <ListPagination
-              page={pg.page}
-              totalPages={pg.totalPages}
-              from={pg.from}
-              to={pg.to}
-              totalCount={pg.totalCount}
-              onPageChange={pg.setPage}
-            />
+            <ListPagination page={pg.page} totalPages={pg.totalPages} from={pg.from} to={pg.to} totalCount={pg.totalCount} onPageChange={pg.setPage} />
           </div>
         </div>
       )}
 
-      <ImportacaoMetasDiariasDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        usuarios={colabs}
-      />
+      {selectedMapa && (
+        <MapaDetailDialog
+          open={!!selectedMapa}
+          onOpenChange={v => { if (!v) setSelectedMapa(null); }}
+          mapa={selectedMapa.mapa}
+          rows={selectedMapa.rows}
+          matriculaNomeMap={matriculaNomeMap}
+        />
+      )}
+
+      <ImportacaoMetasDiariasDialog open={importOpen} onOpenChange={setImportOpen} usuarios={colabs} />
     </div>
   );
 }
