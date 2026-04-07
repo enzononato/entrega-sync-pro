@@ -405,6 +405,62 @@ export type Database = {
         }
         Relationships: []
       }
+      mapa_historico: {
+        Row: {
+          created_at: string
+          data_operacao: string
+          fase: string
+          frota_cadastro: string
+          hora_operacao: string
+          id: string
+          mapa: string
+          motorista_matricula: string
+          placa: string
+          tipo_mapa: string
+          user_id: string | null
+          usuario: string
+          veiculo: string
+        }
+        Insert: {
+          created_at?: string
+          data_operacao?: string
+          fase?: string
+          frota_cadastro?: string
+          hora_operacao?: string
+          id?: string
+          mapa: string
+          motorista_matricula?: string
+          placa?: string
+          tipo_mapa?: string
+          user_id?: string | null
+          usuario?: string
+          veiculo?: string
+        }
+        Update: {
+          created_at?: string
+          data_operacao?: string
+          fase?: string
+          frota_cadastro?: string
+          hora_operacao?: string
+          id?: string
+          mapa?: string
+          motorista_matricula?: string
+          placa?: string
+          tipo_mapa?: string
+          user_id?: string | null
+          usuario?: string
+          veiculo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapa_historico_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
