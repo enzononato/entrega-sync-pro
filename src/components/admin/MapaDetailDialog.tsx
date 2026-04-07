@@ -54,7 +54,11 @@ export function MapaDetailDialog({ open, onOpenChange, mapa, rows, matriculaNome
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(row => (
+              {[...rows].sort((a, b) => {
+                const dtA = `${a.data_operacao} ${a.hora_operacao}`;
+                const dtB = `${b.data_operacao} ${b.hora_operacao}`;
+                return dtB.localeCompare(dtA);
+              }).map(row => (
                 <TableRow key={row.id}>
                   <TableCell>
                     <Badge variant="outline" className="text-xs font-normal">{row.fase}</Badge>
