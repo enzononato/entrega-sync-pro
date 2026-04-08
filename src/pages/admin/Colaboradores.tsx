@@ -139,6 +139,9 @@ export default function Colaboradores() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" />
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setImportMatriculasOpen(true)}>
+            <Hash className="h-4 w-4" /> Matrículas
+          </Button>
           <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4" /> Importar
           </Button>
@@ -487,6 +490,7 @@ export default function Colaboradores() {
       </Sheet>
 
       <ImportColaboradoresDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ImportMatriculasDialog open={importMatriculasOpen} onOpenChange={setImportMatriculasOpen} />
     </div>
   );
 }
