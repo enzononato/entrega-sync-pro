@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 function normalize(str: string) {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
 type MatchType = 'exact' | 'partial' | 'not_found';
@@ -88,8 +88,12 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
         return { nome_lista: p.nome, matricula: p.matricula, match_type: 'exact' as MatchType, user_id: exact.id, nome_banco: exact.nome };
       }
 
-      // Partial match
-      const partial = usersNorm.find(u => u.norm.includes(normLista) || normLista.includes(u.norm));
+      // Token match: all words from lista must exist in banco (or vice-versa)
+      const wordsLista = normLista.split(' ');
+      const partial = usersNorm.find(u => {
+        const wordsBanco = u.norm.split(' ');
+        return wordsLista.every(w => wordsBanco.includes(w)) || wordsBanco.every(w => wordsLista.includes(w));
+      });
       if (partial) {
         return { nome_lista: p.nome, matricula: p.matricula, match_type: 'partial' as MatchType, user_id: partial.id, nome_banco: partial.nome };
       }
