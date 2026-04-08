@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts';
 import { cn } from '@/lib/utils';
+import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: typeof CheckCircle }> = {

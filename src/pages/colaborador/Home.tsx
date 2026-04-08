@@ -18,6 +18,7 @@ import {
   Trophy, ChevronRight, Zap, Flame, Target, ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
 
 /* ── helpers ─────────────────────────────────────── */
