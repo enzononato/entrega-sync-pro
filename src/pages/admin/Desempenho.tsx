@@ -86,10 +86,35 @@ export default function Desempenho() {
   const [batchDate, setBatchDate] = useState(today);
   const [batchRows, setBatchRows] = useState<{ user_id: string; nome: string; valor: number; meta: number }[]>([]);
 
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+
   const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
-  const pg = usePagination(desempenho);
+  // Group desempenho by user, then by mapa_numero
+  const groupedByUser = useMemo(() => {
+    const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
+    for (const d of desempenho) {
+      if (!map.has(d.user_id)) {
+        map.set(d.user_id, { user: d.users, userId: d.user_id, mapas: new Map() });
+      }
+      const entry = map.get(d.user_id)!;
+      const mapaKey = d.mapa_numero ?? 'manual';
+      if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
+      entry.mapas.get(mapaKey)!.push(d);
+    }
+    return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
+  }, [desempenho]);
+
+  const toggleUser = (uid: string) => {
+    setExpandedUsers(prev => {
+      const next = new Set(prev);
+      next.has(uid) ? next.delete(uid) : next.add(uid);
+      return next;
+    });
+  };
+
+  const pg = usePagination(groupedByUser);
 
   // KPIs
   const avgAtingimento = useMemo(() => {
