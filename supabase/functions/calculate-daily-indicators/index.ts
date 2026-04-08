@@ -48,17 +48,6 @@ function findPhaseTime(rows: any[], keywords: string[]): number | null {
   return null;
 }
 
-function calcStatus(valor: number, meta: number, lowerIsBetter: boolean): string {
-  const pct = meta > 0 ? (valor / meta) * 100 : 0;
-  if (lowerIsBetter) {
-    if (valor <= meta) return "dentro_meta";
-    return "abaixo_meta";
-  }
-  if (pct >= 100) return "acima_meta";
-  if (pct >= 80) return "dentro_meta";
-  return "abaixo_meta";
-}
-
 interface IndicatorResult {
   indicator_id: string;
   valor: number;
@@ -67,8 +56,7 @@ interface IndicatorResult {
   status: string;
 }
 
-function calculateIndicators(rows: any[]): IndicatorResult[] {
-  // Sort rows by time
+function calculateIndicatorsForMapa(rows: any[]): IndicatorResult[] {
   const sorted = [...rows].sort((a, b) => {
     const ta = parseTime(a.hora_operacao) ?? 0;
     const tb = parseTime(b.hora_operacao) ?? 0;
@@ -77,19 +65,17 @@ function calculateIndicators(rows: any[]): IndicatorResult[] {
 
   const results: IndicatorResult[] = [];
 
-  // Find phase times
   const saidaCdd = findPhaseTime(sorted, ["SAIDA CDD", "SAIDA FAB"]);
   const entradaCdd = findPhaseTime(sorted, ["ENTRADA CDD", "ENTRADA FAB"]);
   const pcFisica = findPhaseTime(sorted, ["PC_FISICA", "PC FISICA"]);
   const pcFinanceira = findPhaseTime(sorted, ["PC_FINANCEIRA", "PC FINANCEIRA"]);
 
-  // TML: diff between Saída CDD and 07:50. If saída > 08:20 → lost (meta exceeded)
-  const REF_TIME = 7 * 60 + 50; // 07:50
-  const LIMIT_TIME = 8 * 60 + 20; // 08:20
+  // TML: diff between Saída CDD and 07:50. If > 08:20 → lost
+  const REF_TIME = 7 * 60 + 50;
+  const LIMIT_TIME = 8 * 60 + 20;
   let tmlVal: number | null = null;
   if (saidaCdd !== null) {
     if (saidaCdd > LIMIT_TIME) {
-      // Lost TML - set to a high value (exceeded limit)
       tmlVal = saidaCdd - REF_TIME;
     } else {
       tmlVal = Math.max(0, saidaCdd - REF_TIME);
@@ -105,18 +91,14 @@ function calculateIndicators(rows: any[]): IndicatorResult[] {
   // TI: (PC Física - Entrada CDD) + (PC Financeira - PC Física)
   let tiVal: number | null = null;
   if (pcFisica !== null && entradaCdd !== null && pcFinanceira !== null) {
-    const part1 = Math.max(0, pcFisica - entradaCdd);
-    const part2 = Math.max(0, pcFinanceira - pcFisica);
-    tiVal = part1 + part2;
+    tiVal = Math.max(0, pcFisica - entradaCdd) + Math.max(0, pcFinanceira - pcFisica);
   } else if (pcFisica !== null && entradaCdd !== null) {
     tiVal = Math.max(0, pcFisica - entradaCdd);
   }
 
-  // Build results for calculated indicators
   const addResult = (code: string, valor: number | null) => {
     if (valor === null) return;
     const meta = METAS[code];
-    // All time indicators: lower is better
     const pct = meta > 0 ? Math.round((valor / meta) * 100) : 0;
     const status = valor <= meta ? "dentro_meta" : "abaixo_meta";
     results.push({
@@ -132,7 +114,6 @@ function calculateIndicators(rows: any[]): IndicatorResult[] {
   addResult("TR", trVal);
   addResult("TI", tiVal);
 
-  // JL = TML + TR + TI
   if (tmlVal !== null && trVal !== null && tiVal !== null) {
     addResult("JL", tmlVal + trVal + tiVal);
   }
@@ -159,11 +140,11 @@ Deno.serve(async (req) => {
     if (data_referencia) {
       dates = Array.isArray(data_referencia) ? data_referencia : [data_referencia];
     } else {
-      // Get all distinct dates from mapa_historico
       const { data: allDates } = await supabase
         .from("mapa_historico")
         .select("data_operacao")
-        .order("data_operacao", { ascending: false });
+        .order("data_operacao", { ascending: false })
+        .limit(10000);
       
       if (allDates) {
         dates = [...new Set(allDates.map((d: any) => d.data_operacao))];
@@ -171,39 +152,47 @@ Deno.serve(async (req) => {
     }
 
     let totalInserted = 0;
+    const indicatorIds = Object.values(INDICATOR_IDS);
 
     for (const date of dates) {
-      // Get all mapa_historico for this date
-      const { data: mapas, error: fetchErr } = await supabase
-        .from("mapa_historico")
-        .select("*")
-        .eq("data_operacao", date);
-
-      if (fetchErr) throw fetchErr;
-      if (!mapas || mapas.length === 0) continue;
-
-      // Group by user_id (skip null user_id)
-      const byUser: Record<string, any[]> = {};
-      for (const row of mapas) {
-        if (!row.user_id) continue;
-        if (!byUser[row.user_id]) byUser[row.user_id] = [];
-        byUser[row.user_id].push(row);
+      // Fetch all mapa_historico for this date (handle >1000 rows)
+      let allMapas: any[] = [];
+      let offset = 0;
+      const PAGE = 1000;
+      while (true) {
+        const { data: chunk, error: fetchErr } = await supabase
+          .from("mapa_historico")
+          .select("*")
+          .eq("data_operacao", date)
+          .range(offset, offset + PAGE - 1);
+        if (fetchErr) throw fetchErr;
+        if (!chunk || chunk.length === 0) break;
+        allMapas = allMapas.concat(chunk);
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
       }
 
+      if (allMapas.length === 0) continue;
+
+      // Group by mapa number
+      const byMapa: Record<string, any[]> = {};
+      for (const row of allMapas) {
+        if (!byMapa[row.mapa]) byMapa[row.mapa] = [];
+        byMapa[row.mapa].push(row);
+      }
+
+      // For each mapa, find the motorista (user_id) and calculate indicators
       const upserts: any[] = [];
+      const affectedUserIds = new Set<string>();
 
-      for (const [userId, userRows] of Object.entries(byUser)) {
-        // Group by mapa number - pick the first mapa for this user
-        // A user may have multiple mapas on same day; use the one with Saída CDD
-        const byMapa: Record<string, any[]> = {};
-        for (const r of userRows) {
-          if (!byMapa[r.mapa]) byMapa[r.mapa] = [];
-          byMapa[r.mapa].push(r);
-        }
+      for (const [_mapaNum, mapaRows] of Object.entries(byMapa)) {
+        // Find the user_id for this mapa - use the first row that has a user_id
+        const userId = mapaRows.find(r => r.user_id)?.user_id;
+        if (!userId) continue; // skip mapas without linked motorista
 
-        // Combine all phases from all mapas for this user on this date
-        const allRows = userRows;
-        const indicators = calculateIndicators(allRows);
+        affectedUserIds.add(userId);
+
+        const indicators = calculateIndicatorsForMapa(mapaRows);
 
         for (const ind of indicators) {
           upserts.push({
@@ -220,11 +209,8 @@ Deno.serve(async (req) => {
       }
 
       if (upserts.length > 0) {
-        // Delete existing auto-calculated records for these dates/indicators
-        const indicatorIds = Object.values(INDICATOR_IDS);
-        const userIds = [...new Set(upserts.map(u => u.user_id))];
-
-        for (const uid of userIds) {
+        // Delete existing auto-calculated records for affected users on this date
+        for (const uid of affectedUserIds) {
           await supabase
             .from("user_indicator_daily")
             .delete()
@@ -234,12 +220,15 @@ Deno.serve(async (req) => {
             .eq("origem_dado", "mapa_historico");
         }
 
-        // Insert new
-        const { error: insertErr } = await supabase
-          .from("user_indicator_daily")
-          .insert(upserts);
+        // Insert in batches of 200
+        for (let i = 0; i < upserts.length; i += 200) {
+          const batch = upserts.slice(i, i + 200);
+          const { error: insertErr } = await supabase
+            .from("user_indicator_daily")
+            .insert(batch);
+          if (insertErr) throw insertErr;
+        }
 
-        if (insertErr) throw insertErr;
         totalInserted += upserts.length;
       }
     }
