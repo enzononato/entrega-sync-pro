@@ -23,6 +23,7 @@ import {
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
+import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
