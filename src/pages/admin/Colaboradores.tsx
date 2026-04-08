@@ -23,6 +23,7 @@ import {
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
+import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
@@ -57,6 +58,7 @@ export default function Colaboradores() {
   const [toggleTarget, setToggleTarget] = useState<UserWithRelations | null>(null);
   const [perfDrawer, setPerfDrawer] = useState<UserWithRelations | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [importMatriculasOpen, setImportMatriculasOpen] = useState(false);
 
   const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
   const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
@@ -137,6 +139,9 @@ export default function Colaboradores() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <PageHeader title="Colaboradores" subtitle="Gerencie a equipe de entrega" />
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setImportMatriculasOpen(true)}>
+            <Hash className="h-4 w-4" /> Matrículas
+          </Button>
           <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4" /> Importar
           </Button>
@@ -485,6 +490,7 @@ export default function Colaboradores() {
       </Sheet>
 
       <ImportColaboradoresDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ImportMatriculasDialog open={importMatriculasOpen} onOpenChange={setImportMatriculasOpen} />
     </div>
   );
 }
