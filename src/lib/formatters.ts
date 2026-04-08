@@ -10,6 +10,13 @@ export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+export function formatMinutesHHMM(minutes: number): string {
+  const h = Math.floor(Math.abs(minutes) / 60);
+  const m = Math.round(Math.abs(minutes) % 60);
+  const sign = minutes < 0 ? '-' : '';
+  return `${sign}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
