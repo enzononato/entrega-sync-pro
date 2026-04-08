@@ -12,11 +12,26 @@ import { toast } from 'sonner';
 function normalize(str: string) {
   return str
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')   // remove diacritics
-    .replace(/[^A-Za-z0-9 ]/g, '')     // remove non-alphanumeric (handles corrupt chars like �)
+    .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+async function readUploadedText(file: File) {
+  const buffer = await file.arrayBuffer();
+  const utf8Text = new TextDecoder('utf-8').decode(buffer);
+
+  if (!utf8Text.includes('\uFFFD')) {
+    return utf8Text;
+  }
+
+  try {
+    return new TextDecoder('windows-1252').decode(buffer);
+  } catch {
+    return utf8Text;
+  }
 }
 
 type MatchType = 'exact' | 'partial' | 'not_found';
@@ -55,7 +70,7 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const text = await file.text();
+    const text = await readUploadedText(file);
     const lines = text.split('\n');
     const regex = /^(.*?)\s*(?:-)?\s*\((\d+)\)/;
 
@@ -75,7 +90,6 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
       return;
     }
 
-    // Fetch all users
     const { data: users, error } = await supabase.from('users').select('id, nome');
     if (error || !users) {
       toast.error('Erro ao buscar usuários: ' + (error?.message ?? 'desconhecido'));
@@ -88,19 +102,20 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
     const results: ParsedEntry[] = parsed.map(p => {
       const normLista = normalize(p.nome);
 
-      // Exact match
       const exact = usersNorm.find(u => u.norm === normLista);
       if (exact) {
         return { nome_lista: p.nome, matricula: p.matricula, match_type: 'exact' as MatchType, user_id: exact.id, nome_banco: exact.nome };
       }
 
-      // Token match: all words from lista (min 2 chars) must exist in banco (or vice-versa)
-      const wordsLista = normLista.split(' ').filter(w => w.length >= 2);
+      const wordsLista = normLista.split(' ').filter(word => word.length >= 2);
       const partial = usersNorm.find(u => {
-        const wordsBanco = u.norm.split(' ').filter(w => w.length >= 2);
-        return (wordsLista.length >= 2 && wordsLista.every(w => wordsBanco.includes(w))) ||
-               (wordsBanco.length >= 2 && wordsBanco.every(w => wordsLista.includes(w)));
+        const wordsBanco = u.norm.split(' ').filter(word => word.length >= 2);
+        const listaDentroDoBanco = wordsLista.length > 0 && wordsLista.every(word => wordsBanco.includes(word));
+        const bancoDentroDaLista = wordsBanco.length > 0 && wordsBanco.every(word => wordsLista.includes(word));
+
+        return listaDentroDoBanco || bancoDentroDaLista;
       });
+
       if (partial) {
         return { nome_lista: p.nome, matricula: p.matricula, match_type: 'partial' as MatchType, user_id: partial.id, nome_banco: partial.nome };
       }
@@ -174,7 +189,6 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
 
         {step === 2 && (
           <>
-            {/* Summary */}
             <div className="px-6 pt-4 flex flex-wrap gap-3">
               <Badge variant="outline" className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
                 <CheckCircle2 className="h-3 w-3" /> {exactCount} exato(s)
@@ -187,8 +201,7 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
               </Badge>
             </div>
 
-            {/* Table */}
-            <ScrollArea className="flex-1 px-6 py-3" style={{ maxHeight: '50vh' }}>
+            <ScrollArea className="h-[50vh] px-6 py-3">
               <div className="rounded-lg border">
                 <Table>
                   <TableHeader>
@@ -227,7 +240,6 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
               </div>
             </ScrollArea>
 
-            {/* Actions */}
             <div className="px-6 pb-6 pt-3 flex items-center justify-between border-t border-border/50">
               <Button variant="ghost" size="sm" className="gap-1" onClick={reset}>
                 <ArrowLeft className="h-4 w-4" /> Voltar
