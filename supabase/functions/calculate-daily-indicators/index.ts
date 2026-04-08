@@ -135,7 +135,55 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { data_referencia } = body;
 
-    // Get all distinct dates to process
+    // ── Step 1: Link user_id on mapa_historico rows that have no user_id ──
+    // Fetch all users with matricula
+    const { data: allUsers } = await supabase
+      .from("users")
+      .select("id, matricula")
+      .neq("matricula", "")
+      .eq("ativo", true);
+
+    if (allUsers && allUsers.length > 0) {
+      const matriculaMap = new Map<string, string>();
+      for (const u of allUsers) {
+        if (u.matricula) matriculaMap.set(u.matricula.trim(), u.id);
+      }
+
+      // Fetch unlinked rows
+      let unlinked: any[] = [];
+      let offset = 0;
+      const PAGE = 1000;
+      while (true) {
+        const { data: chunk } = await supabase
+          .from("mapa_historico")
+          .select("id, motorista_matricula")
+          .is("user_id", null)
+          .neq("motorista_matricula", "")
+          .range(offset, offset + PAGE - 1);
+        if (!chunk || chunk.length === 0) break;
+        unlinked = unlinked.concat(chunk);
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
+      }
+
+      console.log(`Found ${unlinked.length} unlinked mapa_historico rows`);
+
+      // Update each unlinked row
+      let linked = 0;
+      for (const row of unlinked) {
+        const userId = matriculaMap.get(row.motorista_matricula.trim());
+        if (userId) {
+          await supabase
+            .from("mapa_historico")
+            .update({ user_id: userId })
+            .eq("id", row.id);
+          linked++;
+        }
+      }
+      console.log(`Linked ${linked} rows to users`);
+    }
+
+    // ── Step 2: Get all distinct dates to process ──
     let dates: string[] = [];
     if (data_referencia) {
       dates = Array.isArray(data_referencia) ? data_referencia : [data_referencia];
@@ -155,7 +203,7 @@ Deno.serve(async (req) => {
     const indicatorIds = Object.values(INDICATOR_IDS);
 
     for (const date of dates) {
-      // Fetch all mapa_historico for this date (handle >1000 rows)
+      // Fetch all mapa_historico for this date
       let allMapas: any[] = [];
       let offset = 0;
       const PAGE = 1000;
@@ -186,9 +234,8 @@ Deno.serve(async (req) => {
       const affectedUserIds = new Set<string>();
 
       for (const [_mapaNum, mapaRows] of Object.entries(byMapa)) {
-        // Find the user_id for this mapa - use the first row that has a user_id
         const userId = mapaRows.find(r => r.user_id)?.user_id;
-        if (!userId) continue; // skip mapas without linked motorista
+        if (!userId) continue;
 
         affectedUserIds.add(userId);
 
