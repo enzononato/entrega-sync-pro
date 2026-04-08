@@ -10,7 +10,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 function normalize(str: string) {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // remove diacritics
+    .replace(/[^A-Za-z0-9 ]/g, '')     // remove non-alphanumeric (handles corrupt chars like �)
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 type MatchType = 'exact' | 'partial' | 'not_found';
@@ -88,11 +94,12 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
         return { nome_lista: p.nome, matricula: p.matricula, match_type: 'exact' as MatchType, user_id: exact.id, nome_banco: exact.nome };
       }
 
-      // Token match: all words from lista must exist in banco (or vice-versa)
-      const wordsLista = normLista.split(' ');
+      // Token match: all words from lista (min 2 chars) must exist in banco (or vice-versa)
+      const wordsLista = normLista.split(' ').filter(w => w.length >= 2);
       const partial = usersNorm.find(u => {
-        const wordsBanco = u.norm.split(' ');
-        return wordsLista.every(w => wordsBanco.includes(w)) || wordsBanco.every(w => wordsLista.includes(w));
+        const wordsBanco = u.norm.split(' ').filter(w => w.length >= 2);
+        return (wordsLista.length >= 2 && wordsLista.every(w => wordsBanco.includes(w))) ||
+               (wordsBanco.length >= 2 && wordsBanco.every(w => wordsLista.includes(w)));
       });
       if (partial) {
         return { nome_lista: p.nome, matricula: p.matricula, match_type: 'partial' as MatchType, user_id: partial.id, nome_banco: partial.nome };
@@ -181,7 +188,7 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
             </div>
 
             {/* Table */}
-            <ScrollArea className="flex-1 px-6 py-3">
+            <ScrollArea className="flex-1 px-6 py-3" style={{ maxHeight: '50vh' }}>
               <div className="rounded-lg border">
                 <Table>
                   <TableHeader>
