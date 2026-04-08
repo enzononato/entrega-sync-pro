@@ -221,7 +221,18 @@ export function ImportacaoMetasDiariasDialog({ open, onOpenChange, usuarios }: P
         setProgress(Math.round((done / total) * 100));
       }
 
-      toast.success(`${total} registros importados com sucesso!`);
+      // Calculate daily indicators from imported data
+      const dates = [...new Set(result.rows.map(r => r.data_operacao))];
+      try {
+        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', {
+          body: { data_referencia: dates },
+        });
+        if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
+        else toast.success(`${total} registros importados e indicadores calculados!`);
+      } catch (calcE) {
+        console.error('Erro ao calcular indicadores:', calcE);
+        toast.success(`${total} registros importados (indicadores serão calculados em breve)`);
+      }
       setStep(3);
     } catch (err: any) {
       toast.error('Erro na importação: ' + (err.message ?? err));
