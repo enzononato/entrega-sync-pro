@@ -17,8 +17,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Search, CalendarIcon, X, Truck, Eye } from 'lucide-react';
+import { Upload, Search, CalendarIcon, X, Truck, Eye, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type MapaRow = {
   id: string; mapa: string; fase: string; veiculo: string; placa: string;
@@ -58,6 +59,22 @@ export default function HistoricoMapas() {
   const colabs = usuarios.filter(u => u.role === 'colaborador');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedMapa, setSelectedMapa] = useState<GroupedMapa | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+
+  const handleRecalcular = async () => {
+    setRecalculating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('calculate-daily-indicators', {
+        body: {},
+      });
+      if (error) throw error;
+      toast.success('Indicadores recalculados com sucesso!');
+    } catch (err: any) {
+      toast.error('Erro ao recalcular: ' + (err.message || 'erro desconhecido'));
+    } finally {
+      setRecalculating(false);
+    }
+  };
 
   const [filterMapa, setFilterMapa] = useState('');
   const [filterMotorista, setFilterMotorista] = useState('');
@@ -144,9 +161,14 @@ export default function HistoricoMapas() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <PageHeader title="Histórico de Mapas" subtitle="Importação e visualização do histórico de mapas de entrega." />
-        <Button onClick={() => setImportOpen(true)} className="gap-2">
-          <Upload className="h-4 w-4" /> Importar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRecalcular} disabled={recalculating} className="gap-2">
+            <RefreshCw className={cn("h-4 w-4", recalculating && "animate-spin")} /> Recalcular Indicadores
+          </Button>
+          <Button onClick={() => setImportOpen(true)} className="gap-2">
+            <Upload className="h-4 w-4" /> Importar CSV
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
