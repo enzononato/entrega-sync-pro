@@ -26,7 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle, Pencil, Trash2,
   Loader2, CalendarIcon, Users, Truck, UserCheck, BarChart3, Layers,
-  ChevronRight, Download, Upload, FileSpreadsheet,
+  ChevronRight, Download, Upload,
 } from 'lucide-react';
 import { ImportDesempenhoDialog } from '@/components/admin/ImportDesempenhoDialog';
 
