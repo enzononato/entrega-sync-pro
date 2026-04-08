@@ -192,7 +192,7 @@ export default function ColaboradorHome() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">
                       {(() => {
-                        const isTime = d.indicators?.categoria === 'tempo' || ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                        const isTime = ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
                         const valStr = isTime ? formatMinutesHHMM(d.valor) : '';
                         const metaStr = d.meta != null && isTime ? formatMinutesHHMM(d.meta) : '';
                         return (
