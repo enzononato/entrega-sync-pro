@@ -666,6 +666,7 @@ export type Database = {
           desafio: number | null
           id: string
           indicator_id: string
+          mapa_numero: string | null
           meta: number | null
           origem_dado: string
           percentual_atingimento: number | null
@@ -682,6 +683,7 @@ export type Database = {
           desafio?: number | null
           id?: string
           indicator_id: string
+          mapa_numero?: string | null
           meta?: number | null
           origem_dado?: string
           percentual_atingimento?: number | null
@@ -698,6 +700,7 @@ export type Database = {
           desafio?: number | null
           id?: string
           indicator_id?: string
+          mapa_numero?: string | null
           meta?: number | null
           origem_dado?: string
           percentual_atingimento?: number | null

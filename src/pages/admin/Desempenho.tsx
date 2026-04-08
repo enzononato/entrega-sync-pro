@@ -26,9 +26,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle, Pencil, Trash2,
   Loader2, CalendarIcon, Users, Truck, UserCheck, BarChart3, Layers,
-  ChevronRight, Download, Upload,
+  ChevronRight, ChevronDown, Download, Upload, MapPin,
 } from 'lucide-react';
 import { ImportDesempenhoDialog } from '@/components/admin/ImportDesempenhoDialog';
+import { formatMinutesHHMM } from '@/lib/formatters';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -85,10 +86,35 @@ export default function Desempenho() {
   const [batchDate, setBatchDate] = useState(today);
   const [batchRows, setBatchRows] = useState<{ user_id: string; nome: string; valor: number; meta: number }[]>([]);
 
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+
   const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
-  const pg = usePagination(desempenho);
+  // Group desempenho by user, then by mapa_numero
+  const groupedByUser = useMemo(() => {
+    const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
+    for (const d of desempenho) {
+      if (!map.has(d.user_id)) {
+        map.set(d.user_id, { user: d.users, userId: d.user_id, mapas: new Map() });
+      }
+      const entry = map.get(d.user_id)!;
+      const mapaKey = d.mapa_numero ?? 'manual';
+      if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
+      entry.mapas.get(mapaKey)!.push(d);
+    }
+    return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
+  }, [desempenho]);
+
+  const toggleUser = (uid: string) => {
+    setExpandedUsers(prev => {
+      const next = new Set(prev);
+      next.has(uid) ? next.delete(uid) : next.add(uid);
+      return next;
+    });
+  };
+
+  const pg = usePagination(groupedByUser);
 
   // KPIs
   const avgAtingimento = useMemo(() => {
@@ -342,10 +368,9 @@ export default function Desempenho() {
         </div>
       )}
 
-      {/* List */}
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : desempenho.length === 0 ? (
+      ) : groupedByUser.length === 0 ? (
         <div className="rounded-xl border bg-card p-12 text-center">
           <BarChart3 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-sm font-medium text-muted-foreground">Nenhum lançamento encontrado</p>
@@ -353,54 +378,104 @@ export default function Desempenho() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden divide-y divide-border/50">
-            {pg.paginatedItems.map(d => {
-              const isMot = d.users?.worker_type === 'motorista';
-              const pct = d.percentual_atingimento ?? 0;
-              const statusColor = d.status === 'acima_meta' ? 'text-emerald-600' : d.status === 'dentro_meta' ? 'text-blue-600' : 'text-red-600';
-              const barColor = d.status === 'acima_meta' ? 'green' : d.status === 'dentro_meta' ? 'blue' : 'red';
+          <div className="space-y-3">
+            {pg.paginatedItems.map(group => {
+              const isMot = group.user?.worker_type === 'motorista';
+              const allRows = Array.from(group.mapas.values()).flat();
+              const avgPct = allRows.length > 0
+                ? Math.round(allRows.reduce((s, r) => s + (r.percentual_atingimento ?? 0), 0) / allRows.length)
+                : 0;
+              const isExpanded = expandedUsers.has(group.userId);
 
               return (
-                <div key={d.id} className="flex items-center gap-4 px-5 py-4 transition-colors group hover:bg-muted/30">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback className={cn('text-xs font-bold', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>
-                      {getInitials(d.users?.nome ?? '')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-semibold text-sm text-foreground truncate">{d.users?.nome}</span>
-                      <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>
-                        {isMot ? 'Mot' : 'Aj'}
-                      </span>
-                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono">
-                        {d.indicators?.codigo}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground hidden sm:inline">{d.indicators?.nome}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">
-                        <strong className="text-foreground">{d.valor}</strong> / {d.meta ?? '—'}
-                      </span>
-                      <div className="flex items-center gap-2 flex-1 max-w-[200px]">
-                        <ProgressBar value={pct} color={barColor} className="flex-1" />
-                        <span className={cn('text-xs font-bold w-12 text-right', statusColor)}>
-                          {pct.toFixed(1)}%
+                <div key={group.userId} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                  {/* User header - clickable */}
+                  <button
+                    onClick={() => toggleUser(group.userId)}
+                    className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors"
+                  >
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarFallback className={cn('text-xs font-bold', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>
+                        {getInitials(group.user?.nome ?? '')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-foreground truncate">{group.user?.nome}</span>
+                        <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>
+                          {isMot ? 'Motorista' : 'Ajudante'}
+                        </span>
+                        {group.user?.matricula && (
+                          <span className="text-[10px] text-muted-foreground font-mono">Mat: {group.user.matricula}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-muted-foreground">{group.mapas.size} mapa{group.mapas.size > 1 ? 's' : ''}</span>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <span className={cn('text-xs font-bold', avgPct >= 100 ? 'text-emerald-600' : avgPct >= 90 ? 'text-blue-600' : 'text-red-600')}>
+                          Média: {avgPct}%
                         </span>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusBadge status={d.status ?? 'abaixo_meta'} />
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openSingle(d)}>
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(d)}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                    <ChevronDown className={cn('h-5 w-5 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
+                  </button>
+
+                  {/* Expanded: show each map */}
+                  {isExpanded && (
+                    <div className="border-t border-border/50">
+                      {Array.from(group.mapas.entries()).map(([mapaNum, rows]) => (
+                        <div key={mapaNum} className="border-b border-border/30 last:border-b-0">
+                          {/* Map header */}
+                          <div className="flex items-center gap-2 px-5 py-2.5 bg-muted/30">
+                            <MapPin className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-xs font-bold text-foreground">
+                              {mapaNum === 'manual' ? 'Lançamento Manual' : `Mapa ${mapaNum}`}
+                            </span>
+                          </div>
+                          {/* Indicators for this map */}
+                          <div className="divide-y divide-border/30">
+                            {rows.map(d => {
+                              const pct = d.percentual_atingimento ?? 0;
+                              const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                              const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
+                              const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                              const stColor = d.status === 'acima_meta' ? 'text-emerald-600' : d.status === 'dentro_meta' ? 'text-blue-600' : 'text-red-600';
+                              const barColor = d.status === 'acima_meta' ? 'green' as const : d.status === 'dentro_meta' ? 'blue' as const : 'red' as const;
+
+                              return (
+                                <div key={d.id} className="flex items-center gap-3 px-5 py-2.5 pl-10 group hover:bg-muted/20 transition-colors">
+                                  <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono shrink-0">
+                                    {d.indicators?.codigo}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground hidden sm:inline truncate min-w-0">
+                                    {d.indicators?.nome}
+                                  </span>
+                                  <div className="flex items-center gap-2 ml-auto shrink-0">
+                                    <span className="text-xs text-muted-foreground">
+                                      <strong className="text-foreground">{valStr}</strong> / {metaStr}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 w-28">
+                                      <ProgressBar value={pct} color={barColor} className="flex-1" />
+                                      <span className={cn('text-[11px] font-bold w-10 text-right', stColor)}>{pct}%</span>
+                                    </div>
+                                    <StatusBadge status={d.status ?? 'abaixo_meta'} />
+                                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openSingle(d); }}>
+                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); }}>
+                                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}

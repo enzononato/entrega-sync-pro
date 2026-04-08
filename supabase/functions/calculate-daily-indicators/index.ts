@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
       const upserts: any[] = [];
       const affectedUserIds = new Set<string>();
 
-      for (const [_mapaNum, mapaRows] of Object.entries(byMapa)) {
+      for (const [mapaNum, mapaRows] of Object.entries(byMapa)) {
         const userId = mapaRows.find(r => r.user_id)?.user_id;
         if (!userId) continue;
 
@@ -251,6 +251,7 @@ Deno.serve(async (req) => {
             percentual_atingimento: ind.percentual_atingimento,
             status: ind.status,
             origem_dado: "mapa_historico",
+            mapa_numero: mapaNum,
           });
         }
       }

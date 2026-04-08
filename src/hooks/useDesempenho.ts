@@ -6,6 +6,7 @@ export interface DesempenhoRow {
   id: string; user_id: string; indicator_id: string; data_referencia: string;
   valor: number; meta: number | null; percentual_atingimento: number | null;
   status: string | null; origem_dado: string; created_at: string; updated_at: string;
+  mapa_numero: string | null;
   users: { nome: string; worker_type: string | null; matricula: string; unidade_id: string | null } | null;
   indicators: { nome: string; codigo: string } | null;
 }
