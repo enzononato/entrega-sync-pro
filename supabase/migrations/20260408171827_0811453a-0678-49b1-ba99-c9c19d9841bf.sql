@@ -1,0 +1,1 @@
+ALTER TABLE public.user_indicator_daily ADD COLUMN mapa_numero text DEFAULT NULL;
