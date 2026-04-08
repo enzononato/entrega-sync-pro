@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Loader2, ArrowLeft, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -22,16 +22,19 @@ function normalize(str: string) {
 async function readUploadedText(file: File) {
   const buffer = await file.arrayBuffer();
   const utf8Text = new TextDecoder('utf-8').decode(buffer);
+  if (!utf8Text.includes('\uFFFD')) return utf8Text;
+  try { return new TextDecoder('windows-1252').decode(buffer); } catch { return utf8Text; }
+}
 
-  if (!utf8Text.includes('\uFFFD')) {
-    return utf8Text;
-  }
-
-  try {
-    return new TextDecoder('windows-1252').decode(buffer);
-  } catch {
-    return utf8Text;
-  }
+function generateEmail(nome: string) {
+  const normalized = nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '.');
+  return `${normalized}@entrega.com`;
 }
 
 type MatchType = 'exact' | 'partial' | 'not_found';
@@ -53,12 +56,14 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [entries, setEntries] = useState<ParsedEntry[]>([]);
   const [updating, setUpdating] = useState(false);
+  const [creating, setCreating] = useState(false);
   const queryClient = useQueryClient();
 
   const reset = useCallback(() => {
     setStep(1);
     setEntries([]);
     setUpdating(false);
+    setCreating(false);
   }, []);
 
   const handleClose = (v: boolean) => {
@@ -110,10 +115,8 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
       const wordsLista = normLista.split(' ').filter(word => word.length >= 2);
       const partial = usersNorm.find(u => {
         const wordsBanco = u.norm.split(' ').filter(word => word.length >= 2);
-        const listaDentroDoBanco = wordsLista.length > 0 && wordsLista.every(word => wordsBanco.includes(word));
-        const bancoDentroDaLista = wordsBanco.length > 0 && wordsBanco.every(word => wordsLista.includes(word));
-
-        return listaDentroDoBanco || bancoDentroDaLista;
+        return (wordsLista.length > 0 && wordsLista.every(word => wordsBanco.includes(word))) ||
+               (wordsBanco.length > 0 && wordsBanco.every(word => wordsLista.includes(word)));
       });
 
       if (partial) {
@@ -129,9 +132,10 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
   };
 
   const matched = entries.filter(e => e.match_type !== 'not_found');
+  const notFound = entries.filter(e => e.match_type === 'not_found');
   const exactCount = entries.filter(e => e.match_type === 'exact').length;
   const partialCount = entries.filter(e => e.match_type === 'partial').length;
-  const notFoundCount = entries.filter(e => e.match_type === 'not_found').length;
+  const notFoundCount = notFound.length;
 
   const handleUpdate = async () => {
     if (matched.length === 0) return;
@@ -156,6 +160,54 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
       setUpdating(false);
     }
   };
+
+  const handleCreateNotFound = async () => {
+    if (notFound.length === 0) return;
+    setCreating(true);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const entry of notFound) {
+      const nome = normalize(entry.nome_lista)
+        .split(' ')
+        .map(w => w.charAt(0) + w.slice(1).toLowerCase())
+        .join(' ');
+
+      const email = generateEmail(entry.nome_lista);
+
+      const { error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email,
+          password: 'Entrega@2026',
+          nome,
+          matricula: entry.matricula,
+          role: 'colaborador',
+          worker_type: 'motorista',
+        },
+      });
+
+      if (error) {
+        errorCount++;
+        console.error(`Erro ao criar ${nome}:`, error);
+      } else {
+        successCount++;
+      }
+    }
+
+    if (errorCount > 0) {
+      toast.error(`${errorCount} erro(s) ao criar colaboradores.`);
+    }
+    if (successCount > 0) {
+      toast.success(`${successCount} colaborador(es) criado(s) com sucesso!`);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+    handleClose(false);
+    setCreating(false);
+  };
+
+  const isProcessing = updating || creating;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -241,13 +293,27 @@ export function ImportMatriculasDialog({ open, onOpenChange }: Props) {
             </ScrollArea>
 
             <div className="px-6 pb-6 pt-3 flex items-center justify-between border-t border-border/50">
-              <Button variant="ghost" size="sm" className="gap-1" onClick={reset}>
+              <Button variant="ghost" size="sm" className="gap-1" onClick={reset} disabled={isProcessing}>
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Button>
-              <Button onClick={handleUpdate} disabled={updating || matched.length === 0} className="gap-2">
-                {updating && <Loader2 className="h-4 w-4 animate-spin" />}
-                Atualizar {matched.length} Matrícula(s)
-              </Button>
+              <div className="flex gap-2">
+                {notFoundCount > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleCreateNotFound}
+                    disabled={isProcessing}
+                    className="gap-2"
+                  >
+                    {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {!creating && <UserPlus className="h-4 w-4" />}
+                    Criar {notFoundCount} Colaborador(es)
+                  </Button>
+                )}
+                <Button onClick={handleUpdate} disabled={isProcessing || matched.length === 0} className="gap-2">
+                  {updating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Atualizar {matched.length} Matrícula(s)
+                </Button>
+              </div>
             </div>
           </>
         )}
