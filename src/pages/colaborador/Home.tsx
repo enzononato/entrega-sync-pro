@@ -191,7 +191,19 @@ export default function ColaboradorHome() {
                   <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', statusColor[status ?? ''] ?? 'bg-muted')} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-medium text-foreground truncate">{d.indicators?.nome ?? ''}</span>
+                      {(() => {
+                        const isTime = d.indicators?.categoria === 'tempo' || ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                        const valStr = isTime ? formatMinutesHHMM(d.valor) : '';
+                        const metaStr = d.meta != null && isTime ? formatMinutesHHMM(d.meta) : '';
+                        return (
+                          <>
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {d.indicators?.nome ?? ''}
+                              {isTime && <span className="text-[10px] text-muted-foreground ml-1.5">{valStr} / {metaStr}</span>}
+                            </span>
+                          </>
+                        );
+                      })()}
                       <span className={cn(
                         'text-sm font-bold ml-2 shrink-0',
                         isGood ? 'text-success' : 'text-destructive'

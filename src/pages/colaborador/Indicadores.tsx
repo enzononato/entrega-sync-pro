@@ -175,9 +175,16 @@ export default function IndicadoresColaborador() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {d.valor} / {d.meta ?? '—'}
-                        </p>
+                        {(() => {
+                          const isTime = d.indicators?.categoria === 'tempo' || ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                          const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
+                          const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                          return (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {valStr} / {metaStr}
+                            </p>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="text-right shrink-0 flex items-center gap-1.5">
