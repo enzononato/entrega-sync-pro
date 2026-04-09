@@ -476,20 +476,7 @@ export default function Colaboradores() {
           <SheetHeader>
             <SheetTitle>Desempenho</SheetTitle>
           </SheetHeader>
-          {perfDrawer && (
-            <div className="mt-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/10 text-primary">{getInitials(perfDrawer.nome)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold">{perfDrawer.nome}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{perfDrawer.worker_type ?? perfDrawer.role}</p>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">Dados de indicadores não disponíveis ainda.</p>
-            </div>
-          )}
+          {perfDrawer && <PerfDrawerContent user={perfDrawer} getInitials={getInitials} />}
         </SheetContent>
       </Sheet>
 
