@@ -243,10 +243,10 @@ export default function RankingAdmin() {
                       {entry.nome.split(' ').slice(0, 2).join(' ')}
                     </p>
                     <p className={cn('font-bold mt-1', isFirst ? 'text-2xl' : 'text-xl', getPerformanceColor(entry.avg_atingimento))}>
-                      {entry.avg_atingimento.toFixed(1)}%
+                      {entry.on_target_count}/{entry.total_indicators}
                     </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {entry.on_target_count}/{entry.total_indicators} na meta
+                      metas atingidas ({entry.avg_atingimento.toFixed(0)}%)
                     </p>
                     {entry.unidade_nome && (
                       <p className="text-[9px] text-muted-foreground mt-1 truncate">📍 {entry.unidade_nome}</p>
