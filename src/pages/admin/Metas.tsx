@@ -450,7 +450,7 @@ export default function Metas() {
                             ? 'border-2 border-primary bg-primary/10 text-primary shadow-sm'
                             : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
                         )}
-                        onClick={() => setForm(f => ({ ...f, formato_meta: o.v, valor_meta: 0 }))}
+                        onClick={() => { setForm(f => ({ ...f, formato_meta: o.v, valor_meta: 0 })); setMetaTimeStr(''); }}
                       >
                         {o.l}
                       </button>
