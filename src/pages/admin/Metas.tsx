@@ -471,10 +471,12 @@ export default function Metas() {
                         placeholder="HH:MM (ex: 09:20)"
                         value={metaTimeStr}
                         onChange={e => {
-                          let v = e.target.value.replace(/[^0-9:]/g, '');
-                          if (v.length > 5) v = v.slice(0, 5);
-                          setMetaTimeStr(v);
-                          const mins = parseHHMM(v);
+                          let v = e.target.value.replace(/[^0-9]/g, '');
+                          if (v.length > 4) v = v.slice(0, 4);
+                          let display = v;
+                          if (v.length > 2) display = v.slice(0, 2) + ':' + v.slice(2);
+                          setMetaTimeStr(display);
+                          const mins = parseHHMM(display);
                           setForm(f => ({ ...f, valor_meta: mins }));
                         }}
                         className="h-9"
@@ -483,11 +485,13 @@ export default function Metas() {
                       <Input
                         type="text"
                         inputMode="decimal"
-                        placeholder="Ex: 95.5"
-                        value={form.valor_meta || ''}
+                        placeholder="Ex: 95,5"
+                        value={metaValorStr}
                         onChange={e => {
-                          const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                          setForm(f => ({ ...f, valor_meta: v === '' ? 0 : Number(v) }));
+                          const v = e.target.value.replace(/[^0-9,]/g, '');
+                          setMetaValorStr(v);
+                          const num = parseFloat(v.replace(',', '.'));
+                          setForm(f => ({ ...f, valor_meta: isNaN(num) ? 0 : num }));
                         }}
                         className="h-9"
                       />
@@ -498,11 +502,13 @@ export default function Metas() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="Ex: 50.00"
-                      value={form.valor_bonificacao || ''}
+                      placeholder="Ex: 50,00"
+                      value={bonusStr}
                       onChange={e => {
-                        const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                        setForm(f => ({ ...f, valor_bonificacao: v === '' ? 0 : Number(v) }));
+                        const v = e.target.value.replace(/[^0-9,]/g, '');
+                        setBonusStr(v);
+                        const num = parseFloat(v.replace(',', '.'));
+                        setForm(f => ({ ...f, valor_bonificacao: isNaN(num) ? 0 : num }));
                       }}
                       className="h-9"
                     />
