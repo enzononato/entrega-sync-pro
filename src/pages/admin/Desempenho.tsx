@@ -140,16 +140,17 @@ export default function Desempenho() {
     return worst.taxaFalha > 0 ? worst : null;
   }, [desempenho]);
 
-  // Chart data
+  // Chart data - show % of goals met per indicator
   const chartData = useMemo(() => {
-    const byInd: Record<string, { nome: string; vals: number[] }> = {};
+    const byInd: Record<string, { nome: string; total: number; atingiu: number }> = {};
     desempenho.forEach(d => {
       const key = d.indicator_id;
-      if (!byInd[key]) byInd[key] = { nome: d.indicators?.codigo ?? '', vals: [] };
-      if (d.percentual_atingimento != null) byInd[key].vals.push(d.percentual_atingimento);
+      if (!byInd[key]) byInd[key] = { nome: d.indicators?.codigo ?? '', total: 0, atingiu: 0 };
+      byInd[key].total++;
+      if (d.status === 'dentro_meta' || d.status === 'acima_meta') byInd[key].atingiu++;
     });
     return Object.values(byInd).map(v => {
-      const media = Math.round(v.vals.reduce((a, b) => a + b, 0) / v.vals.length * 10) / 10;
+      const media = v.total > 0 ? Math.round((v.atingiu / v.total) * 100) : 0;
       return { indicador: v.nome, media };
     }).sort((a, b) => a.media - b.media);
   }, [desempenho]);
@@ -353,13 +354,13 @@ export default function Desempenho() {
       {/* Chart */}
       {chartData.length > 0 && (
         <div className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-foreground mb-4">Média de Atingimento por Indicador</h3>
+          <h3 className="text-sm font-bold text-foreground mb-4">% de Metas Atingidas por Indicador</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 'auto']} />
               <YAxis type="category" dataKey="indicador" tick={{ fontSize: 11 }} width={60} />
-              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Tooltip formatter={(v: number) => `${v}% atingiram`} />
               <ReferenceLine x={90} stroke="hsl(0, 84%, 60%)" strokeDasharray="5 5" />
               <ReferenceLine x={100} stroke="hsl(160, 84%, 39%)" strokeDasharray="5 5" />
               <Bar dataKey="media" radius={[0, 4, 4, 0]} barSize={20}>
@@ -386,9 +387,8 @@ export default function Desempenho() {
             {pg.paginatedItems.map(group => {
               const isMot = group.user?.worker_type === 'motorista';
               const allRows = Array.from(group.mapas.values()).flat();
-              const avgPct = allRows.length > 0
-                ? Math.round(allRows.reduce((s, r) => s + (r.percentual_atingimento ?? 0), 0) / allRows.length)
-                : 0;
+              const metasAtingidas = allRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+              const totalMetasUser = allRows.length;
               const isExpanded = expandedUsers.has(group.userId);
 
               return (
@@ -416,8 +416,8 @@ export default function Desempenho() {
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-muted-foreground">{group.mapas.size} mapa{group.mapas.size > 1 ? 's' : ''}</span>
                         <span className="text-xs text-muted-foreground">•</span>
-                        <span className={cn('text-xs font-bold', avgPct >= 100 ? 'text-emerald-600' : avgPct >= 90 ? 'text-blue-600' : 'text-red-600')}>
-                          Média: {avgPct}%
+                        <span className={cn('text-xs font-bold', metasAtingidas === totalMetasUser ? 'text-emerald-600' : 'text-red-600')}>
+                          {metasAtingidas}/{totalMetasUser} metas atingidas
                         </span>
                       </div>
                     </div>
