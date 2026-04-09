@@ -24,12 +24,15 @@ export interface RankingEntry {
   best_indicator: string | null;
   worst_indicator: string | null;
   indicators_breakdown: IndicatorBreakdown[];
+  bonus_potencial: number;
+  bonus_ganho: number;
 }
 
 export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string; worker_type?: string }) {
   return useQuery({
     queryKey: ['ranking', filters],
     queryFn: async () => {
+      // Fetch performance data
       let q = supabase
         .from('user_indicator_daily')
         .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
@@ -39,6 +42,13 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       const { data, error } = await q;
       if (error) throw error;
       if (!data || data.length === 0) return [];
+
+      // Fetch active goals with bonificacao
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('indicator_id, worker_type, user_id, valor_bonificacao')
+        .eq('ativo', true)
+        .gt('valor_bonificacao', 0);
 
       // Group by user
       const map = new Map<string, {
