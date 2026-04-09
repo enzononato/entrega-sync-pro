@@ -428,20 +428,60 @@ export default function Metas() {
                   </Select>
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Formato da Meta</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { v: 'tempo' as const, l: '⏱ Tempo (HH:MM)' },
+                      { v: 'porcentagem' as const, l: '% Porcentagem' },
+                    ].map(o => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        className={cn(
+                          'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                          form.formato_meta === o.v
+                            ? 'border-2 border-primary bg-primary/10 text-primary shadow-sm'
+                            : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
+                        )}
+                        onClick={() => setForm(f => ({ ...f, formato_meta: o.v, valor_meta: 0 }))}
+                      >
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor da Meta *</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="Ex: 560 (minutos)"
-                      value={form.valor_meta || ''}
-                      onChange={e => {
-                        const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                        setForm(f => ({ ...f, valor_meta: v === '' ? 0 : Number(v) }));
-                      }}
-                      className="h-9"
-                    />
+                    {form.formato_meta === 'tempo' ? (
+                      <Input
+                        type="text"
+                        placeholder="HH:MM (ex: 09:20)"
+                        value={form.valor_meta ? minutesToHHMM(form.valor_meta) : ''}
+                        onChange={e => {
+                          let v = e.target.value.replace(/[^0-9:]/g, '');
+                          if (v.length === 2 && !v.includes(':')) v += ':';
+                          if (v.length > 5) v = v.slice(0, 5);
+                          const mins = parseHHMM(v);
+                          setForm(f => ({ ...f, valor_meta: mins }));
+                        }}
+                        className="h-9"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 95.5"
+                        value={form.valor_meta || ''}
+                        onChange={e => {
+                          const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+                          setForm(f => ({ ...f, valor_meta: v === '' ? 0 : Number(v) }));
+                        }}
+                        className="h-9"
+                      />
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Bonificação (R$)</Label>
