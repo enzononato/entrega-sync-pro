@@ -34,18 +34,16 @@ export default function IncentivoColaborador() {
   const breakdown = useMemo(() => {
     return regras.map(r => {
       const d = desempenho.find(x => x.indicator_id === r.indicator_id);
-      const pct = d?.percentual_atingimento ?? 0;
-      const status = d?.status ?? 'abaixo_meta';
+      const atingiu = d?.status === 'dentro_meta' || d?.status === 'acima_meta';
       let valorGerado = 0;
-      if (pct >= 100) valorGerado = r.valor_maximo * r.peso;
-      else if (pct >= 90) valorGerado = r.valor_minimo + (r.valor_maximo - r.valor_minimo) * ((pct - 90) / 10) * r.peso;
+      if (atingiu) valorGerado = r.valor_maximo * r.peso;
       return {
         indicador: r.indicators?.nome ?? '',
         peso: r.peso,
         meta: r.meta,
         valor: d?.valor ?? 0,
-        pct,
-        status,
+        atingiu,
+        status: d?.status ?? 'abaixo_meta',
         valorGerado: Math.round(valorGerado * 100) / 100,
       };
     });
@@ -126,7 +124,7 @@ export default function IncentivoColaborador() {
               Metas Atingidas
             </p>
             <p className="text-base font-bold text-white">
-              {breakdown.filter(b => b.pct >= 100).length}/{breakdown.length}
+              {breakdown.filter(b => b.atingiu).length}/{breakdown.length}
             </p>
           </div>
         </div>
@@ -194,9 +192,8 @@ export default function IncentivoColaborador() {
           {showBreakdown && (
             <div className="divide-y divide-border/40">
               {breakdown.map((b, i) => {
-                const isGood = b.status === 'acima_meta' || b.status === 'dentro_meta';
-                const StatusIcon = isGood ? CheckCircle2 : b.pct >= 90 ? Minus : XCircle;
-                const statusClr = isGood ? 'text-success' : b.pct >= 90 ? 'text-warning' : 'text-destructive';
+                const StatusIcon = b.atingiu ? CheckCircle2 : XCircle;
+                const statusClr = b.atingiu ? 'text-success' : 'text-destructive';
                 return (
                   <div key={i} className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
@@ -207,13 +204,11 @@ export default function IncentivoColaborador() {
                           <span className="text-sm font-bold text-primary ml-2 shrink-0">{fmtBRL(b.valorGerado)}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1">
-                          <ProgressBar
-                            value={Math.min(b.pct, 120)}
-                            color={isGood ? 'green' : b.pct >= 90 ? 'yellow' : 'red'}
-                            className="h-1.5 flex-1"
-                          />
-                          <span className={cn('text-[11px] font-bold shrink-0 w-10 text-right', statusClr)}>
-                            {b.pct.toFixed(0)}%
+                          <span className={cn(
+                            'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                            b.atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                          )}>
+                            {b.atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                           </span>
                         </div>
                       </div>

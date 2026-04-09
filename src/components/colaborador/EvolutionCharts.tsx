@@ -36,13 +36,13 @@ export function EvolutionCharts({ userId }: Props) {
     return days.map(day => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const dayRecords = rawData.filter(r => r.data_referencia === dateStr);
-      const avgReal = dayRecords.length > 0
-        ? dayRecords.reduce((s, r) => s + (r.percentual_atingimento ?? 0), 0) / dayRecords.length
-        : 0;
+      const total = dayRecords.length;
+      const atingiu = dayRecords.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+      const pctAtingidas = total > 0 ? Math.round((atingiu / total) * 100) : 0;
       return {
         label: format(day, 'EEE', { locale: ptBR }).replace('.', ''),
         fullDate: format(day, 'dd/MM'),
-        realizado: Math.round(avgReal),
+        realizado: pctAtingidas,
         meta: 100,
       };
     });
@@ -56,13 +56,13 @@ export function EvolutionCharts({ userId }: Props) {
     return months.map(month => {
       const mStr = format(month, 'yyyy-MM');
       const monthRecords = rawData.filter(r => r.data_referencia.startsWith(mStr));
-      const avgReal = monthRecords.length > 0
-        ? monthRecords.reduce((s, r) => s + (r.percentual_atingimento ?? 0), 0) / monthRecords.length
-        : 0;
+      const total = monthRecords.length;
+      const atingiu = monthRecords.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+      const pctAtingidas = total > 0 ? Math.round((atingiu / total) * 100) : 0;
       return {
         label: format(month, 'MMM', { locale: ptBR }),
         fullDate: format(month, 'MMM/yy', { locale: ptBR }),
-        realizado: Math.round(avgReal),
+        realizado: pctAtingidas,
         meta: 100,
       };
     });

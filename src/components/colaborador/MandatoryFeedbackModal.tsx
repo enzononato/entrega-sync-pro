@@ -52,7 +52,7 @@ export function MandatoryFeedbackModal({ pendingIndicators, onComplete }: Props)
 
   if (!current || !user) return null;
 
-  const pct = current.percentual_atingimento ?? 0;
+  const atingiu = (current.percentual_atingimento ?? 0) >= 100;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -65,7 +65,7 @@ export function MandatoryFeedbackModal({ pendingIndicators, onComplete }: Props)
         descricao_problema: descricao.trim(),
         categoria_causa: categoria,
         causa_raiz: descricao.trim(),
-        impacto: `Atingimento: ${pct.toFixed(1)}%`,
+        impacto: `Status: Não Atingiu`,
       });
 
       if (isLast) {
@@ -112,7 +112,7 @@ export function MandatoryFeedbackModal({ pendingIndicators, onComplete }: Props)
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span>Realizado: <strong className="text-destructive">{current.valor}</strong></span>
             <span>Meta: <strong>{current.meta ?? '—'}</strong></span>
-            <span>Atingimento: <strong className="text-destructive">{pct.toFixed(0)}%</strong></span>
+            <span className="text-destructive font-bold">Não Atingiu ✗</span>
           </div>
         </div>
 

@@ -64,7 +64,7 @@ export default function ColaboradorHome() {
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
   const allOnTarget = kpis.length > 0 && badCount === 0;
   const overallPct = kpis.length > 0
-    ? Math.round(kpis.reduce((s, d) => s + (d.percentual_atingimento ?? 0), 0) / kpis.length)
+    ? Math.round((okCount / kpis.length) * 100)
     : 0;
   const acoesAbertas = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
   const todayStr = new Date().toISOString().split('T')[0];
@@ -179,7 +179,6 @@ export default function ColaboradorHome() {
         ) : (
           <div className="card-elevated divide-y divide-border/40 overflow-hidden">
             {kpis.map(d => {
-              const pct = d.percentual_atingimento ?? 0;
               const status = d.status as IndicatorStatus | undefined;
               const isGood = status === 'acima_meta' || status === 'dentro_meta';
               return (
@@ -190,26 +189,25 @@ export default function ColaboradorHome() {
                 >
                   <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', statusColor[status ?? ''] ?? 'bg-muted')} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       {(() => {
                         const isTime = ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
                         const valStr = isTime ? formatMinutesHHMM(d.valor) : '';
                         const metaStr = d.meta != null && isTime ? formatMinutesHHMM(d.meta) : '';
                         return (
-                          <>
-                            <span className="text-sm font-medium text-foreground truncate">
-                              {d.indicators?.nome ?? ''}
-                              {isTime && <span className="text-[10px] text-muted-foreground ml-1.5">{valStr} / {metaStr}</span>}
-                            </span>
-                          </>
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {d.indicators?.nome ?? ''}
+                            {isTime && <span className="text-[10px] text-muted-foreground ml-1.5">{valStr} / {metaStr}</span>}
+                          </span>
                         );
                       })()}
                       <span className={cn(
-                        'text-sm font-bold ml-2 shrink-0',
-                        isGood ? 'text-success' : 'text-destructive'
-                      )}>{pct.toFixed(0)}%</span>
+                        'text-[10px] font-bold ml-2 shrink-0 px-2 py-0.5 rounded-full',
+                        isGood ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                      )}>
+                        {isGood ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                      </span>
                     </div>
-                    <ProgressBar value={pct} color={isGood ? 'green' : 'red'} className="h-1.5" />
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
                 </div>

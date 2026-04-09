@@ -117,43 +117,40 @@ export default function Desempenho() {
 
   const pg = usePagination(groupedByUser);
 
-  // KPIs
-  const avgAtingimento = useMemo(() => {
-    if (!desempenho.length) return 0;
-    const vals = desempenho.filter(d => d.percentual_atingimento != null).map(d => d.percentual_atingimento!);
-    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : 0;
-  }, [desempenho]);
-
-  const acimaMeta = desempenho.filter(d => d.status === 'acima_meta').length;
-  const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta').length;
+  // KPIs - binary: count of goals met vs not met
+  const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
   const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
+  const totalMetas = dentroMeta + abaixoMeta;
+  const pctAtingidas = totalMetas > 0 ? Math.round((dentroMeta / totalMetas) * 100) : 0;
 
   const piorIndicador = useMemo(() => {
     if (!desempenho.length) return null;
-    const byInd: Record<string, { nome: string; vals: number[] }> = {};
+    const byInd: Record<string, { nome: string; total: number; falhas: number }> = {};
     desempenho.forEach(d => {
       const key = d.indicator_id;
-      if (!byInd[key]) byInd[key] = { nome: d.indicators?.nome ?? '', vals: [] };
-      if (d.percentual_atingimento != null) byInd[key].vals.push(d.percentual_atingimento);
+      if (!byInd[key]) byInd[key] = { nome: d.indicators?.nome ?? '', total: 0, falhas: 0 };
+      byInd[key].total++;
+      if (d.status === 'abaixo_meta') byInd[key].falhas++;
     });
-    let worst = { nome: '', avg: Infinity };
+    let worst = { nome: '', taxaFalha: -1 };
     Object.values(byInd).forEach(v => {
-      const avg = v.vals.reduce((a, b) => a + b, 0) / v.vals.length;
-      if (avg < worst.avg) worst = { nome: v.nome, avg };
+      const taxa = v.falhas / v.total;
+      if (taxa > worst.taxaFalha) worst = { nome: v.nome, taxaFalha: taxa };
     });
-    return worst.avg < Infinity ? worst : null;
+    return worst.taxaFalha > 0 ? worst : null;
   }, [desempenho]);
 
-  // Chart data
+  // Chart data - show % of goals met per indicator
   const chartData = useMemo(() => {
-    const byInd: Record<string, { nome: string; vals: number[] }> = {};
+    const byInd: Record<string, { nome: string; total: number; atingiu: number }> = {};
     desempenho.forEach(d => {
       const key = d.indicator_id;
-      if (!byInd[key]) byInd[key] = { nome: d.indicators?.codigo ?? '', vals: [] };
-      if (d.percentual_atingimento != null) byInd[key].vals.push(d.percentual_atingimento);
+      if (!byInd[key]) byInd[key] = { nome: d.indicators?.codigo ?? '', total: 0, atingiu: 0 };
+      byInd[key].total++;
+      if (d.status === 'dentro_meta' || d.status === 'acima_meta') byInd[key].atingiu++;
     });
     return Object.values(byInd).map(v => {
-      const media = Math.round(v.vals.reduce((a, b) => a + b, 0) / v.vals.length * 10) / 10;
+      const media = v.total > 0 ? Math.round((v.atingiu / v.total) * 100) : 0;
       return { indicador: v.nome, media };
     }).sort((a, b) => a.media - b.media);
   }, [desempenho]);
@@ -225,8 +222,9 @@ export default function Desempenho() {
     setDeleteTarget(null);
   };
 
-  const previewPct = sForm.meta > 0 ? Math.round((sForm.valor / sForm.meta) * 1000) / 10 : 0;
-  const previewStatus = previewPct >= 100 ? 'acima_meta' : previewPct >= 90 ? 'dentro_meta' : 'abaixo_meta';
+  const previewWithinTarget = sForm.meta > 0 && sForm.valor <= sForm.meta;
+  const previewPct = previewWithinTarget ? 100 : 0;
+  const previewStatus = previewWithinTarget ? 'dentro_meta' : 'abaixo_meta';
 
   const userIndicators = useMemo(() => {
     if (!selectedUser?.worker_type) return indicators;
@@ -242,10 +240,10 @@ export default function Desempenho() {
   };
 
   const kpis = [
-    { label: 'Média Geral', value: `${avgAtingimento}%`, icon: Target, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
-    { label: 'Acima da Meta', value: acimaMeta, icon: TrendingUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
-    { label: 'Na Meta', value: dentroMeta, icon: BarChart3, iconBg: 'bg-sky-100', iconColor: 'text-sky-600', borderColor: 'border-l-sky-500' },
-    { label: 'Abaixo da Meta', value: abaixoMeta, icon: TrendingDown, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
+    { label: 'Metas Atingidas', value: `${dentroMeta}/${totalMetas}`, icon: Target, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
+    { label: '% Atingimento', value: `${pctAtingidas}%`, icon: TrendingUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+    { label: 'Atingiu', value: dentroMeta, icon: BarChart3, iconBg: 'bg-sky-100', iconColor: 'text-sky-600', borderColor: 'border-l-sky-500' },
+    { label: 'Não Atingiu', value: abaixoMeta, icon: TrendingDown, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
   ];
 
   return (
@@ -309,7 +307,7 @@ export default function Desempenho() {
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              Indicador com pior desempenho: <strong>{piorIndicador.nome}</strong> — média de {piorIndicador.avg.toFixed(1)}%
+              Indicador com mais falhas: <strong>{piorIndicador.nome}</strong> — {Math.round(piorIndicador.taxaFalha * 100)}% não atingiram
             </p>
           </div>
         </div>
@@ -356,13 +354,13 @@ export default function Desempenho() {
       {/* Chart */}
       {chartData.length > 0 && (
         <div className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-foreground mb-4">Média de Atingimento por Indicador</h3>
+          <h3 className="text-sm font-bold text-foreground mb-4">% de Metas Atingidas por Indicador</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 'auto']} />
               <YAxis type="category" dataKey="indicador" tick={{ fontSize: 11 }} width={60} />
-              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Tooltip formatter={(v: number) => `${v}% atingiram`} />
               <ReferenceLine x={90} stroke="hsl(0, 84%, 60%)" strokeDasharray="5 5" />
               <ReferenceLine x={100} stroke="hsl(160, 84%, 39%)" strokeDasharray="5 5" />
               <Bar dataKey="media" radius={[0, 4, 4, 0]} barSize={20}>
@@ -389,9 +387,8 @@ export default function Desempenho() {
             {pg.paginatedItems.map(group => {
               const isMot = group.user?.worker_type === 'motorista';
               const allRows = Array.from(group.mapas.values()).flat();
-              const avgPct = allRows.length > 0
-                ? Math.round(allRows.reduce((s, r) => s + (r.percentual_atingimento ?? 0), 0) / allRows.length)
-                : 0;
+              const metasAtingidas = allRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+              const totalMetasUser = allRows.length;
               const isExpanded = expandedUsers.has(group.userId);
 
               return (
@@ -419,8 +416,8 @@ export default function Desempenho() {
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-muted-foreground">{group.mapas.size} mapa{group.mapas.size > 1 ? 's' : ''}</span>
                         <span className="text-xs text-muted-foreground">•</span>
-                        <span className={cn('text-xs font-bold', avgPct >= 100 ? 'text-emerald-600' : avgPct >= 90 ? 'text-blue-600' : 'text-red-600')}>
-                          Média: {avgPct}%
+                        <span className={cn('text-xs font-bold', metasAtingidas === totalMetasUser ? 'text-emerald-600' : 'text-red-600')}>
+                          {metasAtingidas}/{totalMetasUser} metas atingidas
                         </span>
                       </div>
                     </div>
@@ -442,12 +439,10 @@ export default function Desempenho() {
                           {/* Indicators for this map */}
                           <div className="divide-y divide-border/30">
                             {rows.map(d => {
-                              const pct = d.percentual_atingimento ?? 0;
                               const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
                               const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
-                              const stColor = d.status === 'acima_meta' ? 'text-emerald-600' : d.status === 'dentro_meta' ? 'text-blue-600' : 'text-red-600';
-                              const barColor = d.status === 'acima_meta' ? 'green' as const : d.status === 'dentro_meta' ? 'blue' as const : 'red' as const;
+                              const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
 
                               return (
                                 <div key={d.id} className="flex items-center gap-3 px-5 py-2.5 pl-10 group hover:bg-muted/20 transition-colors">
@@ -461,11 +456,12 @@ export default function Desempenho() {
                                     <span className="text-xs text-muted-foreground">
                                       <strong className="text-foreground">{valStr}</strong> / {metaStr}
                                     </span>
-                                    <div className="flex items-center gap-1.5 w-28">
-                                      <ProgressBar value={pct} color={barColor} className="flex-1" />
-                                      <span className={cn('text-[11px] font-bold w-10 text-right', stColor)}>{pct}%</span>
-                                    </div>
-                                    <StatusBadge status={d.status ?? 'abaixo_meta'} />
+                                    <span className={cn(
+                                      'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                      atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                    )}>
+                                      {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                    </span>
                                     <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openSingle(d); }}>
                                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
@@ -533,13 +529,16 @@ export default function Desempenho() {
             {sForm.valor > 0 && sForm.meta > 0 && (
               <div className={cn(
                 'rounded-lg border p-3 flex items-center justify-between',
-                previewStatus === 'acima_meta' ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20' :
-                previewStatus === 'dentro_meta' ? 'border-blue-200 bg-blue-50 dark:bg-blue-950/20' :
+                previewStatus === 'dentro_meta' ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20' :
                 'border-red-200 bg-red-50 dark:bg-red-950/20'
               )}>
                 <div className="flex items-center gap-2">
-                  <ProgressBar value={previewPct} color={previewStatus === 'acima_meta' ? 'green' : previewStatus === 'dentro_meta' ? 'blue' : 'red'} className="w-20" />
-                  <span className="text-sm font-bold">{previewPct}%</span>
+                  <span className={cn(
+                    'text-sm font-bold px-2.5 py-1 rounded-full',
+                    previewStatus === 'dentro_meta' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                  )}>
+                    {previewStatus === 'dentro_meta' ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                  </span>
                 </div>
                 <StatusBadge status={previewStatus} />
               </div>

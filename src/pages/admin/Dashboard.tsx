@@ -115,23 +115,21 @@ export default function Dashboard() {
   const incentivoTotal = useMemo(() => filteredIncentivos.reduce((s, i) => s + (i.valor_estimado ?? 0), 0), [filteredIncentivos]);
   const incentivoMedio = filteredIncentivos.length ? Math.round(incentivoTotal / filteredIncentivos.length * 100) / 100 : 0;
 
-  const avgAtingimento = useMemo(() => {
-    if (!filteredDesempenho.length) return 0;
-    const vals = filteredDesempenho.filter(d => d.percentual_atingimento != null).map(d => d.percentual_atingimento!);
-    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : 0;
-  }, [filteredDesempenho]);
-  const acimaMeta = filteredDesempenho.filter(d => d.status === 'acima_meta').length;
+  const dentroMeta = filteredDesempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
   const abaixoMeta = filteredDesempenho.filter(d => d.status === 'abaixo_meta').length;
+  const totalMetasDash = dentroMeta + abaixoMeta;
+  const pctAtingidas = totalMetasDash > 0 ? Math.round((dentroMeta / totalMetasDash) * 100) : 0;
 
   const barData = useMemo(() => {
-    const byInd: Record<string, { codigo: string; nome: string; vals: number[] }> = {};
+    const byInd: Record<string, { codigo: string; nome: string; total: number; atingiu: number }> = {};
     filteredDesempenho.forEach(d => {
-      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { codigo: d.indicators?.codigo ?? '', nome: d.indicators?.nome ?? '', vals: [] };
-      if (d.percentual_atingimento != null) byInd[d.indicator_id].vals.push(d.percentual_atingimento);
+      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { codigo: d.indicators?.codigo ?? '', nome: d.indicators?.nome ?? '', total: 0, atingiu: 0 };
+      byInd[d.indicator_id].total++;
+      if (d.status === 'dentro_meta' || d.status === 'acima_meta') byInd[d.indicator_id].atingiu++;
     });
     return Object.values(byInd).map(v => ({
       indicador: v.codigo, nome: v.nome,
-      media: Math.round(v.vals.reduce((a, b) => a + b, 0) / v.vals.length * 10) / 10,
+      media: v.total > 0 ? Math.round((v.atingiu / v.total) * 100) : 0,
     })).sort((a, b) => a.media - b.media);
   }, [filteredDesempenho]);
 
@@ -143,16 +141,19 @@ export default function Dashboard() {
   const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   const topCritical = useMemo(() => {
-    const byInd: Record<string, { nome: string; codigo: string; vals: number[] }> = {};
+    const byInd: Record<string, { nome: string; codigo: string; total: number; falhas: number }> = {};
     filteredDesempenho.forEach(d => {
-      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { nome: d.indicators?.nome ?? '', codigo: d.indicators?.codigo ?? '', vals: [] };
-      if (d.percentual_atingimento != null) byInd[d.indicator_id].vals.push(d.percentual_atingimento);
+      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { nome: d.indicators?.nome ?? '', codigo: d.indicators?.codigo ?? '', total: 0, falhas: 0 };
+      byInd[d.indicator_id].total++;
+      if (d.status === 'abaixo_meta') byInd[d.indicator_id].falhas++;
     });
     return Object.values(byInd)
-      .map(v => {
-        const avg = v.vals.reduce((a, b) => a + b, 0) / v.vals.length;
-        return { nome: v.nome, codigo: v.codigo, media: Math.round(avg * 10) / 10, gap: Math.round((avg - 100) * 10) / 10, afetados: v.vals.length };
-      })
+      .map(v => ({
+        nome: v.nome, codigo: v.codigo,
+        media: v.total > 0 ? Math.round((1 - v.falhas / v.total) * 100) : 100,
+        gap: v.total > 0 ? -Math.round((v.falhas / v.total) * 100) : 0,
+        afetados: v.total,
+      }))
       .filter(v => v.gap < 0)
       .sort((a, b) => a.gap - b.gap)
       .slice(0, 5);
@@ -220,7 +221,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Colaboradores Ativos', value: filteredUsers.length, sub: `${motoristas} mot · ${ajudantes} aj · ${distribuicao} dist`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
-          { label: 'Média Atingimento', value: `${avgAtingimento}%`, sub: `${acimaMeta} acima · ${abaixoMeta} abaixo`, icon: Target, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-l-emerald-500', href: '/admin/desempenho' },
+          { label: 'Metas Atingidas', value: `${dentroMeta}/${totalMetasDash}`, sub: `${pctAtingidas}% atingidas · ${abaixoMeta} não atingiram`, icon: Target, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-l-emerald-500', href: '/admin/desempenho' },
           { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: feedbacksCriticos > 0 ? `⚠️ ${feedbacksCriticos} críticos` : 'Nenhum crítico', icon: MessageSquare, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400', borderColor: 'border-l-amber-500', href: '/admin/feedbacks' },
           { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400', borderColor: 'border-l-green-500', isText: true, href: '/admin/incentivos' },
         ].map(k => {
@@ -294,7 +295,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 'auto']} />
                 <YAxis type="category" dataKey="indicador" tick={{ fontSize: 11 }} width={55} />
-                <Tooltip formatter={(v: number, _n: string, p: any) => [`${v}%`, p.payload.nome]} contentStyle={{ borderRadius: 12, border: '1px solid hsl(214 20% 92%)' }} />
+                <Tooltip formatter={(v: number, _n: string, p: any) => [`${v}% atingiram`, p.payload.nome]} contentStyle={{ borderRadius: 12, border: '1px solid hsl(214 20% 92%)' }} />
                 <ReferenceLine x={90} stroke="hsl(0, 84%, 60%)" strokeDasharray="5 5" />
                 <ReferenceLine x={100} stroke="hsl(160, 84%, 39%)" strokeDasharray="5 5" />
                 <Bar dataKey="media" radius={[0, 4, 4, 0]} barSize={18}>
