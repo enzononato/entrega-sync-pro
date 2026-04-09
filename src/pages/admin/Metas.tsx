@@ -465,11 +465,11 @@ export default function Metas() {
                       <Input
                         type="text"
                         placeholder="HH:MM (ex: 09:20)"
-                        value={form.valor_meta ? minutesToHHMM(form.valor_meta) : ''}
+                        value={metaTimeStr}
                         onChange={e => {
                           let v = e.target.value.replace(/[^0-9:]/g, '');
-                          if (v.length === 2 && !v.includes(':')) v += ':';
                           if (v.length > 5) v = v.slice(0, 5);
+                          setMetaTimeStr(v);
                           const mins = parseHHMM(v);
                           setForm(f => ({ ...f, valor_meta: mins }));
                         }}
