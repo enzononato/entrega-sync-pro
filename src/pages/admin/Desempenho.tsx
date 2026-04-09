@@ -270,14 +270,8 @@ export default function Desempenho() {
 
       {/* Action buttons */}
       <div className="flex gap-2">
-        <Button onClick={() => openSingle()} className="gap-2">
-          <Target className="h-4 w-4" /> Lançar Indicador
-        </Button>
-        <Button variant="outline" onClick={openBatch} className="gap-2">
-          <Layers className="h-4 w-4" /> Lançamento em Lote
-        </Button>
-        <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
-          <Upload className="h-4 w-4" /> Importar CSV/Excel
+        <Button variant="outline" onClick={handleExport} className="gap-2">
+          <Download className="h-4 w-4" /> Exportar CSV
         </Button>
       </div>
 
