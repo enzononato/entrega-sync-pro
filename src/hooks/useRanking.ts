@@ -4,7 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 export interface IndicatorBreakdown {
   indicator_id: string;
   indicator_nome: string;
+  indicator_codigo: string;
   avg_pct: number;
+  avg_valor: number;
+  avg_meta: number;
   count: number;
 }
 
@@ -28,7 +31,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
     queryFn: async () => {
       let q = supabase
         .from('user_indicator_daily')
-        .select('user_id, indicator_id, percentual_atingimento, status, indicators(nome), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
+        .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
         .gte('data_referencia', filters.dataInicio)
         .lte('data_referencia', filters.dataFim);
 
@@ -41,7 +44,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         nome: string; worker_type: string | null; unidade_id: string | null;
         unidade_nome: string | null; avatar_url: string | null;
         pcts: number[]; onTarget: number;
-        byIndicator: Map<string, { nome: string; pcts: number[] }>;
+        byIndicator: Map<string, { nome: string; codigo: string; pcts: number[]; valores: number[]; metas: number[] }>;
       }>();
 
       for (const row of data as any[]) {
@@ -74,10 +77,14 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         // Track per-indicator
         const indId = row.indicator_id;
         const indNome = row.indicators?.nome ?? '—';
+        const indCodigo = row.indicators?.codigo ?? '';
         if (!entry.byIndicator.has(indId)) {
-          entry.byIndicator.set(indId, { nome: indNome, pcts: [] });
+          entry.byIndicator.set(indId, { nome: indNome, codigo: indCodigo, pcts: [], valores: [], metas: [] });
         }
-        entry.byIndicator.get(indId)!.pcts.push(pct);
+        const indEntry = entry.byIndicator.get(indId)!;
+        indEntry.pcts.push(pct);
+        indEntry.valores.push(row.valor ?? 0);
+        indEntry.metas.push(row.meta ?? 0);
       }
 
       const result: RankingEntry[] = [];
@@ -90,7 +97,9 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
 
         for (const [ind_id, ind] of e.byIndicator) {
           const indAvg = ind.pcts.reduce((a, b) => a + b, 0) / ind.pcts.length;
-          breakdown.push({ indicator_id: ind_id, indicator_nome: ind.nome, avg_pct: Math.round(indAvg * 10) / 10, count: ind.pcts.length });
+          const avgValor = ind.valores.reduce((a, b) => a + b, 0) / ind.valores.length;
+          const avgMeta = ind.metas.reduce((a, b) => a + b, 0) / ind.metas.length;
+          breakdown.push({ indicator_id: ind_id, indicator_nome: ind.nome, indicator_codigo: ind.codigo, avg_pct: Math.round(indAvg * 10) / 10, avg_valor: Math.round(avgValor * 10) / 10, avg_meta: Math.round(avgMeta * 10) / 10, count: ind.pcts.length });
           if (indAvg > bestPct) { bestPct = indAvg; bestName = ind.nome; }
           if (indAvg < worstPct) { worstPct = indAvg; worstName = ind.nome; }
         }
