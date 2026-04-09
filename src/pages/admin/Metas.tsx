@@ -114,6 +114,7 @@ export default function Metas() {
   const [formTab, setFormTab] = useState('tipo');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<GoalWithRelations | null>(null);
+  const [metaTimeStr, setMetaTimeStr] = useState('');
 
   // KPIs
   const { data: allMetas = [] } = useMetas({});
@@ -133,7 +134,7 @@ export default function Metas() {
   }, [metas, activeTab]);
   const pg = usePagination(filteredMetas);
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setFormTab('tipo'); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
     const fmt = detectFormato(g.valor_meta, g.indicators?.codigo);
     setEditing(g);
@@ -144,6 +145,7 @@ export default function Metas() {
       vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
       formato_meta: fmt,
     });
+    setMetaTimeStr(fmt === 'tempo' && g.valor_meta ? minutesToHHMM(g.valor_meta) : '');
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
   };
@@ -448,7 +450,7 @@ export default function Metas() {
                             ? 'border-2 border-primary bg-primary/10 text-primary shadow-sm'
                             : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
                         )}
-                        onClick={() => setForm(f => ({ ...f, formato_meta: o.v, valor_meta: 0 }))}
+                        onClick={() => { setForm(f => ({ ...f, formato_meta: o.v, valor_meta: 0 })); setMetaTimeStr(''); }}
                       >
                         {o.l}
                       </button>
@@ -463,11 +465,11 @@ export default function Metas() {
                       <Input
                         type="text"
                         placeholder="HH:MM (ex: 09:20)"
-                        value={form.valor_meta ? minutesToHHMM(form.valor_meta) : ''}
+                        value={metaTimeStr}
                         onChange={e => {
                           let v = e.target.value.replace(/[^0-9:]/g, '');
-                          if (v.length === 2 && !v.includes(':')) v += ':';
                           if (v.length > 5) v = v.slice(0, 5);
+                          setMetaTimeStr(v);
                           const mins = parseHHMM(v);
                           setForm(f => ({ ...f, valor_meta: mins }));
                         }}
