@@ -15,7 +15,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   CheckCircle, AlertCircle, DollarSign, ClipboardList,
-  Trophy, ChevronRight, Zap, Flame, Target, ArrowUpRight,
+  Trophy, ChevronRight, Zap, Flame, Target, ArrowUpRight, MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
