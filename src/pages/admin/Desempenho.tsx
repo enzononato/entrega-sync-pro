@@ -268,12 +268,6 @@ export default function Desempenho() {
         </Button>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={handleExport} className="gap-2">
-          <Download className="h-4 w-4" /> Exportar CSV
-        </Button>
-      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
