@@ -53,11 +53,12 @@ function DatePick({ value, onChange, placeholder }: { value: string; onChange: (
 
 export default function Desempenho() {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [dateFilter, setDateFilter] = useState(today);
+  const [dateStart, setDateStart] = useState(today);
+  const [dateEnd, setDateEnd] = useState(today);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('todos');
 
-  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateFilter, {
+  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStart, dateEnd, {
     unidade_id: filters.unidade_id,
     worker_type: activeTab !== 'todos' ? activeTab : filters.worker_type,
     user_id: filters.user_id, indicator_id: filters.indicator_id,
@@ -252,7 +253,10 @@ export default function Desempenho() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <PageHeader
           title="Desempenho Operacional"
-          subtitle={`Data: ${format(new Date(dateFilter + 'T00:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`}
+          subtitle={dateStart === dateEnd
+            ? `Data: ${format(new Date(dateStart + 'T00:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
+            : `Período: ${format(new Date(dateStart + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })} — ${format(new Date(dateEnd + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}`
+          }
         />
         <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
           const rows = desempenho.map(d => [
@@ -260,7 +264,7 @@ export default function Desempenho() {
             d.valor, d.meta ?? '', d.percentual_atingimento != null ? `${d.percentual_atingimento}%` : '',
             d.status ?? '', d.data_referencia,
           ]);
-          exportToCsv(`desempenho-${dateFilter}.csv`, ['Colaborador', 'Código', 'Indicador', 'Valor', 'Meta', '% Ating.', 'Status', 'Data'], rows);
+          exportToCsv(`desempenho-${dateStart}_${dateEnd}.csv`, ['Colaborador', 'Código', 'Indicador', 'Valor', 'Meta', '% Ating.', 'Status', 'Data'], rows);
         }}>
           <Download className="h-4 w-4" /> CSV
         </Button>
@@ -329,7 +333,10 @@ export default function Desempenho() {
         </Tabs>
         <div className="flex flex-wrap gap-2">
           <div className="w-full sm:w-44">
-            <DatePick value={dateFilter} onChange={v => { setDateFilter(v); pg.resetPage(); }} placeholder="Data" />
+            <DatePick value={dateStart} onChange={v => { setDateStart(v); if (v > dateEnd) setDateEnd(v); pg.resetPage(); }} placeholder="Data início" />
+          </div>
+          <div className="w-full sm:w-44">
+            <DatePick value={dateEnd} onChange={v => { setDateEnd(v); if (v < dateStart) setDateStart(v); pg.resetPage(); }} placeholder="Data fim" />
           </div>
           <Select value={filters.unidade_id ?? ''} onValueChange={v => { setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v })); pg.resetPage(); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
