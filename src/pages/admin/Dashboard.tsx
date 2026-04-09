@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
+import { useMetas } from '@/hooks/useMetas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -73,6 +74,37 @@ export default function Dashboard() {
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
+  const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
+
+  // Monthly bonus calculation
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const mesInicio = mesAtual + '-01';
+  const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim, {
+    unidade_id: unidadeFilter || undefined,
+    worker_type: tipoFilter || undefined,
+  });
+
+  const bonusMes = useMemo(() => {
+    const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
+    if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
+
+    let total = 0;
+    for (const d of desempenhoMes) {
+      if (d.status !== 'dentro_meta' && d.status !== 'acima_meta') continue;
+      // Find matching goal
+      const user = usuarios.find(u => u.id === d.user_id);
+      const goal = goalsComBonus.find(g => {
+        if (g.indicator_id !== d.indicator_id) return false;
+        if (g.user_id === d.user_id) return true;
+        if (!g.user_id && g.worker_type === user?.worker_type) return true;
+        if (!g.user_id && !g.worker_type) return true;
+        return false;
+      });
+      if (goal) total += goal.valor_bonificacao;
+    }
+    return total;
+  }, [metasAtivas, desempenhoMes, usuarios]);
 
   // Filter usuarios by unidade
   const filteredUsers = useMemo(() => {
@@ -223,7 +255,7 @@ export default function Dashboard() {
           { label: 'Colaboradores Ativos', value: filteredUsers.length, sub: `${motoristas} mot · ${ajudantes} aj · ${distribuicao} dist`, icon: Users, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-l-blue-500', href: '/admin/colaboradores' },
           { label: 'Metas Atingidas', value: `${dentroMeta}/${totalMetasDash}`, sub: `${pctAtingidas}% atingidas · ${abaixoMeta} não atingiram`, icon: Target, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-l-emerald-500', href: '/admin/desempenho' },
           { label: 'Feedbacks Abertos', value: feedbacksAbertos, sub: feedbacksCriticos > 0 ? `⚠️ ${feedbacksCriticos} críticos` : 'Nenhum crítico', icon: MessageSquare, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400', borderColor: 'border-l-amber-500', href: '/admin/feedbacks' },
-          { label: 'Incentivo Médio', value: fmtBRL(incentivoMedio), sub: `Total: ${fmtBRL(incentivoTotal)}`, icon: DollarSign, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400', borderColor: 'border-l-green-500', isText: true, href: '/admin/incentivos' },
+          { label: 'Bônus do Mês', value: fmtBRL(bonusMes), sub: `Baseado em metas atingidas`, icon: DollarSign, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400', borderColor: 'border-l-green-500', isText: true, href: '/admin/metas' },
         ].map(k => {
           const Icon = k.icon;
           return (
