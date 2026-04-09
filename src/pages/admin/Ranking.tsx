@@ -402,26 +402,30 @@ export default function RankingAdmin() {
                       <Target className="h-3.5 w-3.5 text-primary" /> Desempenho por Indicador
                     </p>
                     <div className="space-y-2.5">
-                      {selectedEntry.indicators_breakdown.map(ind => {
-                        const indAtingiu = ind.avg_pct >= 100;
-                        return (
-                          <div key={ind.indicator_id} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-muted-foreground">{formatIndicatorPair(ind)}</span>
-                                <span className={cn(
-                                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                                  indAtingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                )}>
-                                  {indAtingiu ? 'Atingiu' : 'Não Atingiu'}
-                                </span>
-                              </div>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
+                      {selectedEntry.indicators_breakdown.map(ind => (
+                        <div key={ind.indicator_id} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                          <div>
+                            <span className="text-xs text-foreground font-medium">{ind.indicator_nome}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1">({ind.indicator_codigo})</span>
                           </div>
-                        );
-                      })}
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              'text-xs font-bold',
+                              ind.on_target === ind.count ? 'text-emerald-600' : ind.on_target > 0 ? 'text-amber-600' : 'text-red-600'
+                            )}>
+                              {ind.on_target}/{ind.count}
+                            </span>
+                            <span className={cn(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                              ind.on_target === ind.count ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30' : 
+                              ind.on_target > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30' :
+                              'bg-red-100 text-red-700 dark:bg-red-950/30'
+                            )}>
+                              {ind.on_target === ind.count ? 'Sempre atingiu' : ind.on_target === 0 ? 'Nunca atingiu' : 'Parcial'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
