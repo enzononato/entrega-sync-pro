@@ -53,11 +53,12 @@ function DatePick({ value, onChange, placeholder }: { value: string; onChange: (
 
 export default function Desempenho() {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [dateFilter, setDateFilter] = useState(today);
+  const [dateStart, setDateStart] = useState(today);
+  const [dateEnd, setDateEnd] = useState(today);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('todos');
 
-  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateFilter, {
+  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStart, dateEnd, {
     unidade_id: filters.unidade_id,
     worker_type: activeTab !== 'todos' ? activeTab : filters.worker_type,
     user_id: filters.user_id, indicator_id: filters.indicator_id,

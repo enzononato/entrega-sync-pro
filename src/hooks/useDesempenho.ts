@@ -11,13 +11,16 @@ export interface DesempenhoRow {
   indicators: { nome: string; codigo: string } | null;
 }
 
-export function useDesempenhoDiario(data: string, filters?: { unidade_id?: string; worker_type?: string; user_id?: string; indicator_id?: string }) {
+export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters?: { unidade_id?: string; worker_type?: string; user_id?: string; indicator_id?: string }) {
   return useQuery({
-    queryKey: ['user_indicator_daily', data, filters],
+    queryKey: ['user_indicator_daily', dataInicio, dataFim, filters],
     queryFn: async () => {
       let q = supabase.from('user_indicator_daily')
         .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo)')
-        .eq('data_referencia', data).order('created_at', { ascending: false });
+        .gte('data_referencia', dataInicio)
+        .lte('data_referencia', dataFim)
+        .order('data_referencia', { ascending: false })
+        .order('created_at', { ascending: false });
       if (filters?.user_id) q = q.eq('user_id', filters.user_id);
       if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
       const { data: rows, error } = await q;
