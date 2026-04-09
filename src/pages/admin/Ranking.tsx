@@ -71,15 +71,19 @@ function getMedalConfig(position: number) {
   }
 }
 
-function getPerformanceColor(pct: number) {
-  if (pct >= 75) return 'text-success';
-  if (pct >= 50) return 'text-warning';
+function getRatioColor(onTarget: number, total: number) {
+  if (total === 0) return 'text-muted-foreground';
+  const ratio = onTarget / total;
+  if (ratio >= 0.75) return 'text-success';
+  if (ratio >= 0.5) return 'text-warning';
   return 'text-destructive';
 }
 
-function getBarColor(pct: number): 'green' | 'yellow' | 'red' {
-  if (pct >= 75) return 'green';
-  if (pct >= 50) return 'yellow';
+function getRatioBarColor(onTarget: number, total: number): 'green' | 'yellow' | 'red' {
+  if (total === 0) return 'red';
+  const ratio = onTarget / total;
+  if (ratio >= 0.75) return 'green';
+  if (ratio >= 0.5) return 'yellow';
   return 'red';
 }
 
