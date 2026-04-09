@@ -9,6 +9,7 @@ export interface IndicatorBreakdown {
   avg_valor: number;
   avg_meta: number;
   count: number;
+  on_target: number;
 }
 
 export interface RankingEntry {
