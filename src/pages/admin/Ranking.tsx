@@ -190,8 +190,8 @@ export default function RankingAdmin() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Colaboradores', value: ranking.length, icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
-              { label: '% Metas Atingidas', value: `${avgGeral.toFixed(0)}%`, icon: BarChart3, iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-l-primary' },
-              { label: '100% Metas', value: todosAtingiram, icon: ArrowUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+              { label: 'Metas Atingidas', value: `${totalAtingidas}/${totalMetas}`, icon: BarChart3, iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-l-primary' },
+              { label: 'Todas as Metas', value: todosAtingiram, icon: ArrowUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
               { label: '< 50% Metas', value: menosMetade, icon: ArrowDown, iconBg: 'bg-destructive/10', iconColor: 'text-destructive', borderColor: 'border-l-destructive' },
             ].map(k => {
               const Icon = k.icon;
@@ -251,11 +251,11 @@ export default function RankingAdmin() {
                     <p className={cn('font-bold text-foreground truncate', isFirst ? 'text-sm' : 'text-xs')}>
                       {entry.nome.split(' ').slice(0, 2).join(' ')}
                     </p>
-                    <p className={cn('font-bold mt-1', isFirst ? 'text-2xl' : 'text-xl', getPerformanceColor(entry.avg_atingimento))}>
+                    <p className={cn('font-bold mt-1', isFirst ? 'text-2xl' : 'text-xl', getRatioColor(entry.on_target_count, entry.total_indicators))}>
                       {entry.on_target_count}/{entry.total_indicators}
                     </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      metas atingidas ({entry.avg_atingimento.toFixed(0)}%)
+                      metas atingidas
                     </p>
                     {entry.unidade_nome && (
                       <p className="text-[9px] text-muted-foreground mt-1 truncate">📍 {entry.unidade_nome}</p>
@@ -316,11 +316,11 @@ export default function RankingAdmin() {
                       ))}
                     </div>
                     <div className="text-right shrink-0 ml-2">
-                      <p className={cn('text-sm font-bold', getPerformanceColor(entry.avg_atingimento))}>
+                      <p className={cn('text-sm font-bold', getRatioColor(entry.on_target_count, entry.total_indicators))}>
                         {entry.on_target_count}/{entry.total_indicators}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {entry.avg_atingimento.toFixed(0)}%
+                        metas
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
@@ -338,18 +338,21 @@ export default function RankingAdmin() {
                 <span className="text-sm font-semibold text-foreground">Desempenho por Unidade</span>
               </div>
               <div className="space-y-3">
-                {unitBreakdown.map(u => (
+                {unitBreakdown.map(u => {
+                  const ratio = u.totalMetas > 0 ? (u.totalAtingidas / u.totalMetas) * 100 : 0;
+                  return (
                   <div key={u.nome} className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-foreground">{u.nome}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-muted-foreground">{u.count} colab.</span>
-                        <span className={cn('text-xs font-bold', getPerformanceColor(u.avg))}>{u.avg.toFixed(1)}%</span>
+                        <span className={cn('text-xs font-bold', getRatioColor(u.totalAtingidas, u.totalMetas))}>{u.totalAtingidas}/{u.totalMetas}</span>
                       </div>
                     </div>
-                    <ProgressBar value={Math.min(u.avg, 100)} color={getBarColor(u.avg)} className="h-2" />
+                    <ProgressBar value={Math.min(ratio, 100)} color={getRatioBarColor(u.totalAtingidas, u.totalMetas)} className="h-2" />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -380,10 +383,10 @@ export default function RankingAdmin() {
                       </div>
                       <div className="ml-auto text-right">
                         <p className="text-xs text-muted-foreground">{pos}º lugar</p>
-                        <p className={cn('text-xl font-bold', getPerformanceColor(selectedEntry.avg_atingimento))}>
+                        <p className={cn('text-xl font-bold', getRatioColor(selectedEntry.on_target_count, selectedEntry.total_indicators))}>
                           {selectedEntry.on_target_count}/{selectedEntry.total_indicators}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">{selectedEntry.avg_atingimento.toFixed(0)}% metas</p>
+                        <p className="text-[10px] text-muted-foreground">metas atingidas</p>
                       </div>
                     </div>
                   </DialogHeader>
