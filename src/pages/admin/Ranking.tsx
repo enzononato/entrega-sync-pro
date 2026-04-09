@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import {
   Medal, TrendingUp, TrendingDown, Users, Crown, Star, Flame,
-  ChevronRight, BarChart3, Target, ArrowUp, ArrowDown,
+  ChevronRight, BarChart3, Target, ArrowUp, ArrowDown, DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
@@ -88,6 +88,7 @@ function getRatioBarColor(onTarget: number, total: number): 'green' | 'yellow' |
 }
 
 const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 export default function RankingAdmin() {
   const [periodo, setPeriodo] = useState('mes_atual');
@@ -257,6 +258,11 @@ export default function RankingAdmin() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       metas atingidas
                     </p>
+                    {entry.bonus_ganho > 0 && (
+                      <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        💰 {fmtBRL(entry.bonus_ganho)}
+                      </p>
+                    )}
                     {entry.unidade_nome && (
                       <p className="text-[9px] text-muted-foreground mt-1 truncate">📍 {entry.unidade_nome}</p>
                     )}
@@ -322,6 +328,11 @@ export default function RankingAdmin() {
                       <p className="text-[10px] text-muted-foreground">
                         metas
                       </p>
+                      {entry.bonus_ganho > 0 && (
+                        <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          {fmtBRL(entry.bonus_ganho)}
+                        </p>
+                      )}
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
                   </div>
@@ -393,7 +404,7 @@ export default function RankingAdmin() {
                 </div>
                 <div className="px-6 py-5 space-y-4">
                   {/* Summary */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="rounded-lg bg-muted/40 p-3 text-center">
                       <p className="text-lg font-bold text-foreground">{selectedEntry.total_indicators}</p>
                       <p className="text-[10px] text-muted-foreground">Lançamentos</p>
@@ -405,6 +416,10 @@ export default function RankingAdmin() {
                     <div className="rounded-lg bg-red-50 dark:bg-red-950/20 p-3 text-center">
                       <p className="text-lg font-bold text-destructive">{selectedEntry.total_indicators - selectedEntry.on_target_count}</p>
                       <p className="text-[10px] text-muted-foreground">Fora</p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 p-3 text-center">
+                      <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{fmtBRL(selectedEntry.bonus_ganho)}</p>
+                      <p className="text-[10px] text-muted-foreground">Bônus Ganho</p>
                     </div>
                   </div>
 

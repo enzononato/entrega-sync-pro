@@ -24,12 +24,15 @@ export interface RankingEntry {
   best_indicator: string | null;
   worst_indicator: string | null;
   indicators_breakdown: IndicatorBreakdown[];
+  bonus_potencial: number;
+  bonus_ganho: number;
 }
 
 export function useRanking(filters: { dataInicio: string; dataFim: string; unidade_id?: string; worker_type?: string }) {
   return useQuery({
     queryKey: ['ranking', filters],
     queryFn: async () => {
+      // Fetch performance data
       let q = supabase
         .from('user_indicator_daily')
         .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
@@ -40,11 +43,35 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
+      // Fetch active goals with bonificacao
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('indicator_id, worker_type, user_id, valor_bonificacao')
+        .eq('ativo', true)
+        .gt('valor_bonificacao', 0);
+
+      const goals = goalsData ?? [];
+
+      // Helper: find bonus for a given indicator + user
+      function getBonus(indicatorId: string, userId: string, workerType: string | null): number {
+        // Individual goal
+        const individual = goals.find(g => g.indicator_id === indicatorId && g.user_id === userId);
+        if (individual) return individual.valor_bonificacao;
+        // Worker type goal
+        const byType = goals.find(g => g.indicator_id === indicatorId && !g.user_id && g.worker_type === workerType);
+        if (byType) return byType.valor_bonificacao;
+        // General goal
+        const general = goals.find(g => g.indicator_id === indicatorId && !g.user_id && !g.worker_type);
+        if (general) return general.valor_bonificacao;
+        return 0;
+      }
+
       // Group by user
       const map = new Map<string, {
         nome: string; worker_type: string | null; unidade_id: string | null;
         unidade_nome: string | null; avatar_url: string | null;
         pcts: number[]; onTarget: number;
+        bonusPotencial: number; bonusGanho: number;
         byIndicator: Map<string, { nome: string; codigo: string; pcts: number[]; valores: number[]; metas: number[]; onTarget: number }>;
       }>();
 
@@ -65,15 +92,20 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             avatar_url: u.avatar_url,
             pcts: [],
             onTarget: 0,
+            bonusPotencial: 0,
+            bonusGanho: 0,
             byIndicator: new Map(),
           });
         }
         const entry = map.get(uid)!;
         const pct = row.percentual_atingimento ?? 0;
         entry.pcts.push(pct);
-        if (row.status === 'acima_meta' || row.status === 'dentro_meta') {
-          entry.onTarget++;
-        }
+        const isOnTarget = row.status === 'acima_meta' || row.status === 'dentro_meta';
+        if (isOnTarget) entry.onTarget++;
+
+        const bonus = getBonus(row.indicator_id, uid, u.worker_type);
+        entry.bonusPotencial += bonus;
+        if (isOnTarget) entry.bonusGanho += bonus;
 
         // Track per-indicator
         const indId = row.indicator_id;
@@ -123,6 +155,8 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           best_indicator: bestName,
           worst_indicator: worstName,
           indicators_breakdown: breakdown,
+          bonus_potencial: Math.round(e.bonusPotencial * 100) / 100,
+          bonus_ganho: Math.round(e.bonusGanho * 100) / 100,
         });
       }
 
