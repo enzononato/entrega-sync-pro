@@ -145,6 +145,7 @@ export default function Metas() {
       vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
       formato_meta: fmt,
     });
+    setMetaTimeStr(fmt === 'tempo' && g.valor_meta ? minutesToHHMM(g.valor_meta) : '');
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
   };
