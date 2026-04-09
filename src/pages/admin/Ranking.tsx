@@ -253,17 +253,14 @@ export default function RankingAdmin() {
                     )}
                     {/* Indicator values */}
                     <div className="mt-2 space-y-0.5">
-                      {entry.indicators_breakdown.slice(0, 3).map(ind => {
-                        const indAtingiu = ind.avg_pct >= 100;
-                        return (
-                          <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
-                            <span className="font-medium">{ind.indicator_codigo}:</span>{' '}
-                            <span className={cn('font-bold', indAtingiu ? 'text-emerald-500' : 'text-red-400')}>
-                              {formatIndicatorPair(ind)} {indAtingiu ? '✓' : '✗'}
-                            </span>
-                          </p>
-                        );
-                      })}
+                      {entry.indicators_breakdown.slice(0, 4).map(ind => (
+                        <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
+                          <span className="font-medium">{ind.indicator_codigo}:</span>{' '}
+                          <span className={cn('font-bold', ind.on_target === ind.count ? 'text-emerald-500' : ind.on_target > 0 ? 'text-amber-500' : 'text-red-400')}>
+                            {ind.on_target}/{ind.count}
+                          </span>
+                        </p>
+                      ))}
                     </div>
                   </div>
                 );
