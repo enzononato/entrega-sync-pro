@@ -243,27 +243,24 @@ export default function RankingAdmin() {
                       {entry.nome.split(' ').slice(0, 2).join(' ')}
                     </p>
                     <p className={cn('font-bold mt-1', isFirst ? 'text-2xl' : 'text-xl', getPerformanceColor(entry.avg_atingimento))}>
-                      {entry.avg_atingimento.toFixed(1)}%
+                      {entry.on_target_count}/{entry.total_indicators}
                     </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {entry.on_target_count}/{entry.total_indicators} na meta
+                      metas atingidas ({entry.avg_atingimento.toFixed(0)}%)
                     </p>
                     {entry.unidade_nome && (
                       <p className="text-[9px] text-muted-foreground mt-1 truncate">📍 {entry.unidade_nome}</p>
                     )}
                     {/* Indicator values */}
                     <div className="mt-2 space-y-0.5">
-                      {entry.indicators_breakdown.slice(0, 3).map(ind => {
-                        const indAtingiu = ind.avg_pct >= 100;
-                        return (
-                          <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
-                            <span className="font-medium">{ind.indicator_codigo}:</span>{' '}
-                            <span className={cn('font-bold', indAtingiu ? 'text-emerald-500' : 'text-red-400')}>
-                              {formatIndicatorPair(ind)} {indAtingiu ? '✓' : '✗'}
-                            </span>
-                          </p>
-                        );
-                      })}
+                      {entry.indicators_breakdown.slice(0, 4).map(ind => (
+                        <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
+                          <span className="font-medium">{ind.indicator_codigo}:</span>{' '}
+                          <span className={cn('font-bold', ind.on_target === ind.count ? 'text-emerald-500' : ind.on_target > 0 ? 'text-amber-500' : 'text-red-400')}>
+                            {ind.on_target}/{ind.count}
+                          </span>
+                        </p>
+                      ))}
                     </div>
                   </div>
                 );
@@ -299,26 +296,22 @@ export default function RankingAdmin() {
                       </div>
                     </div>
                     {/* Mini indicator breakdown */}
-                    <div className="hidden lg:flex items-center gap-1.5 shrink-0">
-                      {entry.indicators_breakdown.slice(0, 3).map(ind => {
-                        const indAtingiu = ind.avg_pct >= 100;
-                        return (
-                          <div key={ind.indicator_id} className="text-center">
-                            <p className="text-[9px] text-muted-foreground truncate max-w-[70px]">{ind.indicator_codigo}</p>
-                            <p className={cn('text-[10px] font-bold', indAtingiu ? 'text-emerald-600' : 'text-red-600')}>
-                              {indAtingiu ? '✓' : '✗'}
-                            </p>
-                            <p className="text-[9px] text-muted-foreground">{formatIndicatorPair(ind)}</p>
-                          </div>
-                        );
-                      })}
+                    <div className="hidden lg:flex items-center gap-2 shrink-0">
+                      {entry.indicators_breakdown.slice(0, 4).map(ind => (
+                        <div key={ind.indicator_id} className="text-center min-w-[50px]">
+                          <p className="text-[9px] text-muted-foreground">{ind.indicator_codigo}</p>
+                          <p className={cn('text-[11px] font-bold', ind.on_target === ind.count ? 'text-emerald-600' : ind.on_target > 0 ? 'text-amber-600' : 'text-red-600')}>
+                            {ind.on_target}/{ind.count}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                     <div className="text-right shrink-0 ml-2">
                       <p className={cn('text-sm font-bold', getPerformanceColor(entry.avg_atingimento))}>
-                        {entry.avg_atingimento.toFixed(1)}%
+                        {entry.on_target_count}/{entry.total_indicators}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {entry.on_target_count}/{entry.total_indicators}
+                        {entry.avg_atingimento.toFixed(0)}%
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
@@ -379,8 +372,9 @@ export default function RankingAdmin() {
                       <div className="ml-auto text-right">
                         <p className="text-xs text-muted-foreground">{pos}º lugar</p>
                         <p className={cn('text-xl font-bold', getPerformanceColor(selectedEntry.avg_atingimento))}>
-                          {selectedEntry.avg_atingimento.toFixed(1)}%
+                          {selectedEntry.on_target_count}/{selectedEntry.total_indicators}
                         </p>
+                        <p className="text-[10px] text-muted-foreground">{selectedEntry.avg_atingimento.toFixed(0)}% metas</p>
                       </div>
                     </div>
                   </DialogHeader>
@@ -408,26 +402,30 @@ export default function RankingAdmin() {
                       <Target className="h-3.5 w-3.5 text-primary" /> Desempenho por Indicador
                     </p>
                     <div className="space-y-2.5">
-                      {selectedEntry.indicators_breakdown.map(ind => {
-                        const indAtingiu = ind.avg_pct >= 100;
-                        return (
-                          <div key={ind.indicator_id} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-muted-foreground">{formatIndicatorPair(ind)}</span>
-                                <span className={cn(
-                                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                                  indAtingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                )}>
-                                  {indAtingiu ? 'Atingiu' : 'Não Atingiu'}
-                                </span>
-                              </div>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
+                      {selectedEntry.indicators_breakdown.map(ind => (
+                        <div key={ind.indicator_id} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                          <div>
+                            <span className="text-xs text-foreground font-medium">{ind.indicator_nome}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1">({ind.indicator_codigo})</span>
                           </div>
-                        );
-                      })}
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              'text-xs font-bold',
+                              ind.on_target === ind.count ? 'text-emerald-600' : ind.on_target > 0 ? 'text-amber-600' : 'text-red-600'
+                            )}>
+                              {ind.on_target}/{ind.count}
+                            </span>
+                            <span className={cn(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                              ind.on_target === ind.count ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30' : 
+                              ind.on_target > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30' :
+                              'bg-red-100 text-red-700 dark:bg-red-950/30'
+                            )}>
+                              {ind.on_target === ind.count ? 'Sempre atingiu' : ind.on_target === 0 ? 'Nunca atingiu' : 'Parcial'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

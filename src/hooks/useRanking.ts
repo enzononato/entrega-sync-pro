@@ -9,6 +9,7 @@ export interface IndicatorBreakdown {
   avg_valor: number;
   avg_meta: number;
   count: number;
+  on_target: number;
 }
 
 export interface RankingEntry {
@@ -99,7 +100,8 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           const indAvg = ind.pcts.reduce((a, b) => a + b, 0) / ind.pcts.length;
           const avgValor = ind.valores.reduce((a, b) => a + b, 0) / ind.valores.length;
           const avgMeta = ind.metas.reduce((a, b) => a + b, 0) / ind.metas.length;
-          breakdown.push({ indicator_id: ind_id, indicator_nome: ind.nome, indicator_codigo: ind.codigo, avg_pct: Math.round(indAvg * 10) / 10, avg_valor: Math.round(avgValor * 10) / 10, avg_meta: Math.round(avgMeta * 10) / 10, count: ind.pcts.length });
+          const onTarget = ind.pcts.filter(p => p >= 100).length;
+          breakdown.push({ indicator_id: ind_id, indicator_nome: ind.nome, indicator_codigo: ind.codigo, avg_pct: Math.round(indAvg * 10) / 10, avg_valor: Math.round(avgValor * 10) / 10, avg_meta: Math.round(avgMeta * 10) / 10, count: ind.pcts.length, on_target: onTarget });
           if (indAvg > bestPct) { bestPct = indAvg; bestName = ind.nome; }
           if (indAvg < worstPct) { worstPct = indAvg; worstName = ind.nome; }
         }
