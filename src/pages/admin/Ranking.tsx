@@ -72,14 +72,14 @@ function getMedalConfig(position: number) {
 }
 
 function getPerformanceColor(pct: number) {
-  if (pct >= 100) return 'text-success';
-  if (pct >= 90) return 'text-warning';
+  if (pct >= 75) return 'text-success';
+  if (pct >= 50) return 'text-warning';
   return 'text-destructive';
 }
 
 function getBarColor(pct: number): 'green' | 'yellow' | 'red' {
-  if (pct >= 100) return 'green';
-  if (pct >= 80) return 'yellow';
+  if (pct >= 75) return 'green';
+  if (pct >= 50) return 'yellow';
   return 'red';
 }
 
@@ -106,8 +106,8 @@ export default function RankingAdmin() {
 
   // Stats
   const avgGeral = ranking.length > 0 ? ranking.reduce((s, r) => s + r.avg_atingimento, 0) / ranking.length : 0;
-  const acimaMeta = ranking.filter(r => r.avg_atingimento >= 100).length;
-  const abaixo80 = ranking.filter(r => r.avg_atingimento < 80).length;
+  const todosAtingiram = ranking.filter(r => r.avg_atingimento >= 100).length;
+  const menosMetade = ranking.filter(r => r.avg_atingimento < 50).length;
 
   // Per-unit breakdown
   const unitBreakdown = useMemo(() => {
@@ -181,9 +181,9 @@ export default function RankingAdmin() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Colaboradores', value: ranking.length, icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
-              { label: 'Média Geral', value: `${avgGeral.toFixed(1)}%`, icon: BarChart3, iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-l-primary' },
-              { label: 'Acima da Meta', value: acimaMeta, icon: ArrowUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
-              { label: 'Abaixo de 80%', value: abaixo80, icon: ArrowDown, iconBg: 'bg-destructive/10', iconColor: 'text-destructive', borderColor: 'border-l-destructive' },
+              { label: '% Metas Atingidas', value: `${avgGeral.toFixed(0)}%`, icon: BarChart3, iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-l-primary' },
+              { label: '100% Metas', value: todosAtingiram, icon: ArrowUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+              { label: '< 50% Metas', value: menosMetade, icon: ArrowDown, iconBg: 'bg-destructive/10', iconColor: 'text-destructive', borderColor: 'border-l-destructive' },
             ].map(k => {
               const Icon = k.icon;
               return (
@@ -253,12 +253,17 @@ export default function RankingAdmin() {
                     )}
                     {/* Indicator values */}
                     <div className="mt-2 space-y-0.5">
-                      {entry.indicators_breakdown.slice(0, 3).map(ind => (
-                        <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
-                          <span className="font-medium">{ind.indicator_nome}:</span>{' '}
-                          <span className={cn('font-bold', getPerformanceColor(ind.avg_pct))}>{formatIndicatorPair(ind)}</span>
-                        </p>
-                      ))}
+                      {entry.indicators_breakdown.slice(0, 3).map(ind => {
+                        const indAtingiu = ind.avg_pct >= 100;
+                        return (
+                          <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
+                            <span className="font-medium">{ind.indicator_codigo}:</span>{' '}
+                            <span className={cn('font-bold', indAtingiu ? 'text-emerald-500' : 'text-red-400')}>
+                              {formatIndicatorPair(ind)} {indAtingiu ? '✓' : '✗'}
+                            </span>
+                          </p>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -295,13 +300,18 @@ export default function RankingAdmin() {
                     </div>
                     {/* Mini indicator breakdown */}
                     <div className="hidden lg:flex items-center gap-1.5 shrink-0">
-                      {entry.indicators_breakdown.slice(0, 3).map(ind => (
-                        <div key={ind.indicator_id} className="text-center">
-                          <p className="text-[9px] text-muted-foreground truncate max-w-[70px]">{ind.indicator_nome}</p>
-                          <p className={cn('text-[10px] font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(0)}%</p>
-                          <p className="text-[9px] text-muted-foreground">{formatIndicatorPair(ind)}</p>
-                        </div>
-                      ))}
+                      {entry.indicators_breakdown.slice(0, 3).map(ind => {
+                        const indAtingiu = ind.avg_pct >= 100;
+                        return (
+                          <div key={ind.indicator_id} className="text-center">
+                            <p className="text-[9px] text-muted-foreground truncate max-w-[70px]">{ind.indicator_codigo}</p>
+                            <p className={cn('text-[10px] font-bold', indAtingiu ? 'text-emerald-600' : 'text-red-600')}>
+                              {indAtingiu ? '✓' : '✗'}
+                            </p>
+                            <p className="text-[9px] text-muted-foreground">{formatIndicatorPair(ind)}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                     <div className="text-right shrink-0 ml-2">
                       <p className={cn('text-sm font-bold', getPerformanceColor(entry.avg_atingimento))}>
@@ -398,19 +408,26 @@ export default function RankingAdmin() {
                       <Target className="h-3.5 w-3.5 text-primary" /> Desempenho por Indicador
                     </p>
                     <div className="space-y-2.5">
-                      {selectedEntry.indicators_breakdown.map(ind => (
-                        <div key={ind.indicator_id} className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-muted-foreground">{formatIndicatorPair(ind)}</span>
-                              <span className={cn('text-xs font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(1)}%</span>
+                      {selectedEntry.indicators_breakdown.map(ind => {
+                        const indAtingiu = ind.avg_pct >= 100;
+                        return (
+                          <div key={ind.indicator_id} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-muted-foreground">{formatIndicatorPair(ind)}</span>
+                                <span className={cn(
+                                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                                  indAtingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                )}>
+                                  {indAtingiu ? 'Atingiu' : 'Não Atingiu'}
+                                </span>
+                              </div>
                             </div>
+                            <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
                           </div>
-                          <ProgressBar value={Math.min(ind.avg_pct, 100)} color={getBarColor(ind.avg_pct)} className="h-1.5" />
-                          <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
