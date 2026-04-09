@@ -34,7 +34,7 @@ export default function IndicadoresColaborador() {
   const [dateStr, setDateStr] = useState(todayStr);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStr, { user_id: user?.id });
+  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStr, dateStr, { user_id: user?.id });
 
   const startDate = format(subDays(new Date(dateStr + 'T00:00:00'), 6), 'yyyy-MM-dd');
   const { data: historico = [] } = useDesempenhoPorColaborador(user?.id, startDate, dateStr);

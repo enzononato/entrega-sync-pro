@@ -28,7 +28,7 @@ export default function IncentivoColaborador() {
   const { data: incentivo, isLoading: loadInc } = useIncentivoDiario(user?.id, today);
   const { data: historico = [], isLoading: loadHist } = useIncentivoDiarioHistorico(user?.id, 30);
   const { data: regras = [] } = useIncentivos({ worker_type: user?.worker_type ?? undefined, ativo: 'true' });
-  const { data: desempenho = [] } = useDesempenhoDiario(today, { user_id: user?.id });
+  const { data: desempenho = [] } = useDesempenhoDiario(today, today, { user_id: user?.id });
   const { data: descontos = [] } = useDescontosColaborador(user?.id, 60);
 
   const breakdown = useMemo(() => {

@@ -67,7 +67,7 @@ export default function Dashboard() {
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
   const { data: planos = [] } = usePlanosDeAcao();
-  const { data: desempenho = [] } = useDesempenhoDiario(dateFilter, {
+  const { data: desempenho = [] } = useDesempenhoDiario(dateFilter, dateFilter, {
     unidade_id: unidadeFilter || undefined,
     worker_type: tipoFilter || undefined,
   });

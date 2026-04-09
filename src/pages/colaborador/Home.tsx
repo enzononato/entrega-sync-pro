@@ -44,7 +44,7 @@ export default function ColaboradorHome() {
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const { data: desempenho = [], isLoading: loadDes } = useDesempenhoDiario(today, { user_id: user?.id });
+  const { data: desempenho = [], isLoading: loadDes } = useDesempenhoDiario(today, today, { user_id: user?.id });
   const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);

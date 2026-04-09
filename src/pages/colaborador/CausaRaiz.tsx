@@ -62,7 +62,7 @@ export default function CausaRaizColaborador() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const { data: causas = [], isLoading } = useCausaRaizPorColaborador(user?.id);
   const { data: indicators = [] } = useIndicadoresByWorkerType(user?.worker_type ?? undefined);
-  const { data: desempenho = [] } = useDesempenhoDiario(today, { user_id: user?.id });
+  const { data: desempenho = [] } = useDesempenhoDiario(today, today, { user_id: user?.id });
   const createCausa = useCreateCausaRaiz();
   const createPlan = useCreateActionPlan();
   const { toast } = useToast();
