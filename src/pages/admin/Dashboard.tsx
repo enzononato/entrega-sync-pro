@@ -9,6 +9,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
+import { useMetas } from '@/hooks/useMetas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
