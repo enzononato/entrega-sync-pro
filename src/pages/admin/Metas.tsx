@@ -298,7 +298,11 @@ export default function Metas() {
                     <div className="flex items-baseline gap-1.5 bg-muted/40 rounded-lg px-3 py-2.5">
                       <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span className="text-2xl font-bold text-foreground">
-                        {['TML','TR','TI','JL'].includes(g.indicators?.codigo?.toUpperCase() ?? '') ? formatMinutesHHMM(g.valor_meta) : g.valor_meta}
+                        {['TML','TR','TI','JL'].includes(g.indicators?.codigo?.toUpperCase() ?? '')
+                          ? formatMinutesHHMM(g.valor_meta)
+                          : g.valor_meta > 200
+                            ? formatMinutesHHMM(g.valor_meta)
+                            : `${g.valor_meta}%`}
                       </span>
                       
                       <span className="ml-auto text-xs text-muted-foreground bg-background rounded-md px-2 py-0.5 border">
