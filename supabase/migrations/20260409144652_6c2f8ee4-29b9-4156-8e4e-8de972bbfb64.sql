@@ -1,0 +1,1 @@
+ALTER TABLE public.goals ADD COLUMN valor_bonificacao numeric NOT NULL DEFAULT 0;
