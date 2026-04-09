@@ -135,12 +135,14 @@ export default function Metas() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
+    const fmt = detectFormato(g.valor_meta, g.indicators?.codigo);
     setEditing(g);
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
       worker_type: g.worker_type ?? '', user_id: g.user_id ?? '',
       valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0, periodo_tipo: g.periodo_tipo,
       vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
+      formato_meta: fmt,
     });
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
