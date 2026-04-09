@@ -372,8 +372,9 @@ export default function RankingAdmin() {
                       <div className="ml-auto text-right">
                         <p className="text-xs text-muted-foreground">{pos}º lugar</p>
                         <p className={cn('text-xl font-bold', getPerformanceColor(selectedEntry.avg_atingimento))}>
-                          {selectedEntry.avg_atingimento.toFixed(1)}%
+                          {selectedEntry.on_target_count}/{selectedEntry.total_indicators}
                         </p>
+                        <p className="text-[10px] text-muted-foreground">{selectedEntry.avg_atingimento.toFixed(0)}% metas</p>
                       </div>
                     </div>
                   </DialogHeader>
