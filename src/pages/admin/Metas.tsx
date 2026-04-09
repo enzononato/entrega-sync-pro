@@ -50,8 +50,8 @@ function getScope(g: GoalWithRelations) {
 
 const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
-  user_id: '' as string | null, valor_meta: 0, periodo_tipo: 'diario',
-  vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), vigencia_fim: '' as string | null, ativo: true,
+  user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
+  vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
 };
 
 function DatePick({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
@@ -119,8 +119,8 @@ export default function Metas() {
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
       worker_type: g.worker_type ?? '', user_id: g.user_id ?? '',
-      valor_meta: g.valor_meta, periodo_tipo: g.periodo_tipo,
-      vigencia_inicio: g.vigencia_inicio, vigencia_fim: g.vigencia_fim ?? '', ativo: g.ativo,
+      valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0, periodo_tipo: g.periodo_tipo,
+      vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
     });
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
@@ -134,9 +134,10 @@ export default function Metas() {
       worker_type: isIndividual ? null : (form.worker_type || null),
       user_id: isIndividual ? (form.user_id || null) : null,
       valor_meta: form.valor_meta,
+      valor_bonificacao: form.valor_bonificacao,
       periodo_tipo: form.periodo_tipo,
       vigencia_inicio: form.vigencia_inicio,
-      vigencia_fim: form.vigencia_fim || null,
+      vigencia_fim: null,
       ativo: form.ativo,
     };
     if (editing?.id) await updateMut.mutateAsync({ id: editing.id, ...payload });
@@ -283,6 +284,14 @@ export default function Metas() {
                       </span>
                     </div>
 
+                    {/* Bonus value */}
+                    {g.valor_bonificacao > 0 && (
+                      <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">💰 Bonificação:</span>
+                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">R$ {g.valor_bonificacao.toFixed(2)}</span>
+                      </div>
+                    )}
+
                     {/* Details */}
                     <div className="space-y-1.5 text-xs text-muted-foreground">
                       {userName && (
@@ -302,13 +311,11 @@ export default function Metas() {
                         </div>
                       )}
                       <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
-                        <span>
-                          {format(new Date(g.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}
-                          {' → '}
-                          {g.vigencia_fim ? format(new Date(g.vigencia_fim + 'T00:00:00'), 'dd/MM/yy') : 'Sem fim'}
-                        </span>
-                      </div>
+                          <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            Início: {format(new Date(g.vigencia_inicio + 'T00:00:00'), 'dd/MM/yy')}
+                          </span>
+                        </div>
                     </div>
 
                     {/* Actions */}
@@ -405,7 +412,7 @@ export default function Metas() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="Ex: 95"
+                      placeholder="Ex: 560 (minutos)"
                       value={form.valor_meta || ''}
                       onChange={e => {
                         const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
@@ -415,22 +422,32 @@ export default function Metas() {
                     />
                   </div>
                   <div className="space-y-1.5">
+                    <Label className="text-xs">Bonificação (R$)</Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 50.00"
+                      value={form.valor_bonificacao || ''}
+                      onChange={e => {
+                        const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+                        setForm(f => ({ ...f, valor_bonificacao: v === '' ? 0 : Number(v) }));
+                      }}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
                     <Label className="text-xs">Período</Label>
                     <Select value={form.periodo_tipo} onValueChange={v => setForm(f => ({ ...f, periodo_tipo: v }))}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>{PERIODOS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Início *</Label>
                     <DatePick value={form.vigencia_inicio} onChange={v => setForm(f => ({ ...f, vigencia_inicio: v }))} placeholder="Selecione" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Fim</Label>
-                    <DatePick value={form.vigencia_fim ?? ''} onChange={v => setForm(f => ({ ...f, vigencia_fim: v || null }))} placeholder="Sem fim" />
                   </div>
                 </div>
 
