@@ -485,3 +485,106 @@ export default function Colaboradores() {
     </div>
   );
 }
+
+/* ── Performance Drawer Content ── */
+function PerfDrawerContent({ user, getInitials }: { user: UserWithRelations; getInitials: (n: string) => string }) {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [dateStart, setDateStart] = useState(today);
+  const [dateEnd, setDateEnd] = useState(today);
+  const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStart, dateEnd, { user_id: user.id });
+
+  // Group by mapa
+  const groupedByMapa = useMemo(() => {
+    const map = new Map<string, typeof desempenho>();
+    desempenho.forEach(d => {
+      const key = d.mapa_numero ?? 'manual';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [desempenho]);
+
+  const okCount = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
+  const isMot = user.worker_type === 'motorista';
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="flex items-center gap-3">
+        <Avatar className="h-12 w-12">
+          <AvatarFallback className={cn('text-xs font-bold', isMot ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>
+            {getInitials(user.nome)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-semibold">{user.nome}</p>
+          <p className="text-sm text-muted-foreground capitalize">{user.worker_type ?? user.role}</p>
+          {user.matricula && <p className="text-xs text-muted-foreground font-mono">Mat: {user.matricula}</p>}
+        </div>
+      </div>
+
+      {/* Date range */}
+      <div className="flex gap-2">
+        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); if (e.target.value > dateEnd) setDateEnd(e.target.value); }} className="h-8 text-xs flex-1" />
+        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); if (e.target.value < dateStart) setDateStart(e.target.value); }} className="h-8 text-xs flex-1" />
+      </div>
+
+      {/* Summary */}
+      <div className="rounded-lg bg-muted/40 p-3 flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">Metas atingidas</span>
+        <span className={cn('text-sm font-bold', okCount === desempenho.length && desempenho.length > 0 ? 'text-emerald-600' : 'text-foreground')}>
+          {okCount}/{desempenho.length}
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : desempenho.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">Sem lançamentos para este período.</p>
+      ) : (
+        <div className="space-y-3">
+          {groupedByMapa.map(([mapaKey, rows]) => {
+            const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+            return (
+              <div key={mapaKey} className="rounded-lg border bg-card overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border-b border-border/40">
+                  <MapPin className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-bold text-foreground flex-1">
+                    {mapaKey === 'manual' ? 'Manual' : `Mapa ${mapaKey}`}
+                  </span>
+                  <span className={cn('text-xs font-bold', mapaOk === rows.length ? 'text-emerald-600' : 'text-red-600')}>
+                    {mapaOk}/{rows.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-border/30">
+                  {rows.map(d => {
+                    const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                    const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
+                    const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                    const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
+                    return (
+                      <div key={d.id} className="flex items-center gap-2 px-3 py-2">
+                        <span className="text-[10px] font-bold font-mono text-primary bg-primary/10 rounded px-1.5 py-0.5 shrink-0">
+                          {d.indicators?.codigo}
+                        </span>
+                        <span className="text-xs text-muted-foreground flex-1 truncate">{d.indicators?.nome}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          <strong className="text-foreground">{valStr}</strong> / {metaStr}
+                        </span>
+                        <span className={cn(
+                          'text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0',
+                          atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        )}>
+                          {atingiu ? '✓' : '✗'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
