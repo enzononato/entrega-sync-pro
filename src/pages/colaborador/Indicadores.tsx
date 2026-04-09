@@ -62,7 +62,7 @@ export default function IndicadoresColaborador() {
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
   const avgPct = kpis.length > 0
-    ? Math.round(kpis.reduce((s, d) => s + (d.percentual_atingimento ?? 0), 0) / kpis.length)
+    ? Math.round((okCount / kpis.length) * 100)
     : 0;
 
   const getSparkData = (indicatorId: string) =>
@@ -154,12 +154,12 @@ export default function IndicadoresColaborador() {
       ) : (
         <div className="space-y-3">
           {kpis.map(d => {
-            const pct = d.percentual_atingimento ?? 0;
             const status = (d.status as IndicatorStatus | undefined) ?? 'abaixo_meta';
             const cfg = statusConfig[status] ?? statusConfig.abaixo_meta;
             const StatusIcon = cfg.icon;
             const isExpanded = expanded === d.indicator_id;
             const sparkData = isExpanded ? getSparkData(d.indicator_id) : [];
+            const atingiu = status === 'acima_meta' || status === 'dentro_meta';
 
             return (
               <div key={d.id} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all">
@@ -188,11 +188,15 @@ export default function IndicadoresColaborador() {
                       </div>
                     </div>
                     <div className="text-right shrink-0 flex items-center gap-1.5">
-                      <span className={cn('text-lg font-bold', cfg.color)}>{pct.toFixed(0)}%</span>
+                      <span className={cn(
+                        'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                        atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                      )}>
+                        {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                      </span>
                       <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
                     </div>
                   </div>
-                  <ProgressBar value={pct} color={progressColor[status] ?? 'blue'} className="h-1.5" />
                 </button>
 
                 {/* Expanded chart */}
