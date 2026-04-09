@@ -117,31 +117,27 @@ export default function Desempenho() {
 
   const pg = usePagination(groupedByUser);
 
-  // KPIs
-  const avgAtingimento = useMemo(() => {
-    if (!desempenho.length) return 0;
-    const vals = desempenho.filter(d => d.percentual_atingimento != null).map(d => d.percentual_atingimento!);
-    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : 0;
-  }, [desempenho]);
-
-  const acimaMeta = desempenho.filter(d => d.status === 'acima_meta').length;
-  const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta').length;
+  // KPIs - binary: count of goals met vs not met
+  const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
   const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
+  const totalMetas = dentroMeta + abaixoMeta;
+  const pctAtingidas = totalMetas > 0 ? Math.round((dentroMeta / totalMetas) * 100) : 0;
 
   const piorIndicador = useMemo(() => {
     if (!desempenho.length) return null;
-    const byInd: Record<string, { nome: string; vals: number[] }> = {};
+    const byInd: Record<string, { nome: string; total: number; falhas: number }> = {};
     desempenho.forEach(d => {
       const key = d.indicator_id;
-      if (!byInd[key]) byInd[key] = { nome: d.indicators?.nome ?? '', vals: [] };
-      if (d.percentual_atingimento != null) byInd[key].vals.push(d.percentual_atingimento);
+      if (!byInd[key]) byInd[key] = { nome: d.indicators?.nome ?? '', total: 0, falhas: 0 };
+      byInd[key].total++;
+      if (d.status === 'abaixo_meta') byInd[key].falhas++;
     });
-    let worst = { nome: '', avg: Infinity };
+    let worst = { nome: '', taxaFalha: -1 };
     Object.values(byInd).forEach(v => {
-      const avg = v.vals.reduce((a, b) => a + b, 0) / v.vals.length;
-      if (avg < worst.avg) worst = { nome: v.nome, avg };
+      const taxa = v.falhas / v.total;
+      if (taxa > worst.taxaFalha) worst = { nome: v.nome, taxaFalha: taxa };
     });
-    return worst.avg < Infinity ? worst : null;
+    return worst.taxaFalha > 0 ? worst : null;
   }, [desempenho]);
 
   // Chart data
@@ -225,8 +221,9 @@ export default function Desempenho() {
     setDeleteTarget(null);
   };
 
-  const previewPct = sForm.meta > 0 ? Math.round((sForm.valor / sForm.meta) * 1000) / 10 : 0;
-  const previewStatus = previewPct >= 100 ? 'acima_meta' : previewPct >= 90 ? 'dentro_meta' : 'abaixo_meta';
+  const previewWithinTarget = sForm.meta > 0 && sForm.valor <= sForm.meta;
+  const previewPct = previewWithinTarget ? 100 : 0;
+  const previewStatus = previewWithinTarget ? 'dentro_meta' : 'abaixo_meta';
 
   const userIndicators = useMemo(() => {
     if (!selectedUser?.worker_type) return indicators;
@@ -242,10 +239,10 @@ export default function Desempenho() {
   };
 
   const kpis = [
-    { label: 'Média Geral', value: `${avgAtingimento}%`, icon: Target, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
-    { label: 'Acima da Meta', value: acimaMeta, icon: TrendingUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
-    { label: 'Na Meta', value: dentroMeta, icon: BarChart3, iconBg: 'bg-sky-100', iconColor: 'text-sky-600', borderColor: 'border-l-sky-500' },
-    { label: 'Abaixo da Meta', value: abaixoMeta, icon: TrendingDown, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
+    { label: 'Metas Atingidas', value: `${dentroMeta}/${totalMetas}`, icon: Target, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
+    { label: '% Atingimento', value: `${pctAtingidas}%`, icon: TrendingUp, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', borderColor: 'border-l-emerald-500' },
+    { label: 'Atingiu', value: dentroMeta, icon: BarChart3, iconBg: 'bg-sky-100', iconColor: 'text-sky-600', borderColor: 'border-l-sky-500' },
+    { label: 'Não Atingiu', value: abaixoMeta, icon: TrendingDown, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
   ];
 
   return (

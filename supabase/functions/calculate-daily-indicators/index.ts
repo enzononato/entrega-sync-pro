@@ -99,14 +99,14 @@ function calculateIndicatorsForMapa(rows: any[]): IndicatorResult[] {
   const addResult = (code: string, valor: number | null) => {
     if (valor === null) return;
     const meta = METAS[code];
-    const pct = meta > 0 ? Math.round((valor / meta) * 100) : 0;
-    const status = valor <= meta ? "dentro_meta" : "abaixo_meta";
+    // Binary logic: either met the goal (100) or not (0)
+    const withinTarget = valor <= meta;
     results.push({
       indicator_id: INDICATOR_IDS[code],
       valor,
       meta,
-      percentual_atingimento: pct,
-      status,
+      percentual_atingimento: withinTarget ? 100 : 0,
+      status: withinTarget ? "dentro_meta" : "abaixo_meta",
     });
   };
 
