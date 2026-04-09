@@ -134,7 +134,7 @@ export default function Metas() {
   }, [metas, activeTab]);
   const pg = usePagination(filteredMetas);
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setFormTab('tipo'); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
     const fmt = detectFormato(g.valor_meta, g.indicators?.codigo);
     setEditing(g);
