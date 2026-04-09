@@ -4,19 +4,19 @@ import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDesempenhoDiario, useDesempenhoPorColaborador } from '@/hooks/useDesempenho';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   ChevronLeft, ChevronRight, CalendarIcon, AlertCircle,
-  BarChart3, TrendingUp, TrendingDown, Target, CheckCircle, XCircle, ChevronDown,
+  BarChart3, TrendingUp, TrendingDown, Target, CheckCircle, XCircle, ChevronDown, MapPin,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
+import type { DesempenhoRow } from '@/hooks/useDesempenho';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: typeof CheckCircle }> = {
   acima_meta: { label: 'Acima', color: 'text-success', bg: 'bg-success/10', icon: TrendingUp },
@@ -24,15 +24,12 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
   abaixo_meta: { label: 'Abaixo', color: 'text-destructive', bg: 'bg-destructive/10', icon: TrendingDown },
 };
 
-const progressColor: Record<string, 'green' | 'blue' | 'red'> = {
-  acima_meta: 'green', dentro_meta: 'blue', abaixo_meta: 'red',
-};
-
 export default function IndicadoresColaborador() {
   const { user } = useAuth();
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [dateStr, setDateStr] = useState(todayStr);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
 
   const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStr, dateStr, { user_id: user?.id });
 
@@ -46,6 +43,17 @@ export default function IndicadoresColaborador() {
     if (user.worker_type === 'ajudante' && cod.includes('repos')) return false;
     return true;
   }), [desempenho, user?.worker_type]);
+
+  // Group by mapa_numero
+  const groupedByMapa = useMemo(() => {
+    const map = new Map<string, DesempenhoRow[]>();
+    for (const d of kpis) {
+      const key = d.mapa_numero ?? 'manual';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [kpis]);
 
   const prevDay = () => {
     const d = new Date(dateStr + 'T00:00:00');
@@ -61,9 +69,15 @@ export default function IndicadoresColaborador() {
 
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
-  const avgPct = kpis.length > 0
-    ? Math.round((okCount / kpis.length) * 100)
-    : 0;
+  const avgPct = kpis.length > 0 ? Math.round((okCount / kpis.length) * 100) : 0;
+
+  const toggleMapa = (key: string) => {
+    setExpandedMapas(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
 
   const getSparkData = (indicatorId: string) =>
     historico
@@ -117,7 +131,7 @@ export default function IndicadoresColaborador() {
           <div className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Média Geral</p>
+                <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Metas Atingidas</p>
                 <p className={cn('text-4xl font-extrabold mt-1', avgPct >= 100 ? 'text-success' : avgPct >= 80 ? 'text-warning' : 'text-destructive')}>
                   {avgPct}<span className="text-lg text-white/50">%</span>
                 </p>
@@ -126,17 +140,17 @@ export default function IndicadoresColaborador() {
                 <div className="flex items-center gap-1.5 justify-end">
                   <CheckCircle className="h-3.5 w-3.5 text-success" />
                   <span className="text-sm font-bold text-white">{okCount}</span>
-                  <span className="text-[10px] text-white/50">na meta</span>
+                  <span className="text-[10px] text-white/50">atingiu</span>
                 </div>
                 <div className="flex items-center gap-1.5 justify-end">
                   <XCircle className="h-3.5 w-3.5 text-destructive" />
                   <span className="text-sm font-bold text-white">{badCount}</span>
-                  <span className="text-[10px] text-white/50">abaixo</span>
+                  <span className="text-[10px] text-white/50">não atingiu</span>
                 </div>
                 <div className="flex items-center gap-1.5 justify-end">
                   <Target className="h-3.5 w-3.5 text-white/40" />
-                  <span className="text-sm font-bold text-white">{kpis.length}</span>
-                  <span className="text-[10px] text-white/50">total</span>
+                  <span className="text-sm font-bold text-white">{groupedByMapa.length}</span>
+                  <span className="text-[10px] text-white/50">mapa{groupedByMapa.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
             </div>
@@ -144,7 +158,7 @@ export default function IndicadoresColaborador() {
         </div>
       )}
 
-      {/* Indicator cards */}
+      {/* Indicator cards grouped by mapa */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
@@ -153,94 +167,124 @@ export default function IndicadoresColaborador() {
         <EmptyState titulo="Sem indicadores para esta data" icon={<AlertCircle className="h-10 w-10" />} />
       ) : (
         <div className="space-y-3">
-          {kpis.map(d => {
-            const status = (d.status as IndicatorStatus | undefined) ?? 'abaixo_meta';
-            const cfg = statusConfig[status] ?? statusConfig.abaixo_meta;
-            const StatusIcon = cfg.icon;
-            const isExpanded = expanded === d.indicator_id;
-            const sparkData = isExpanded ? getSparkData(d.indicator_id) : [];
-            const atingiu = status === 'acima_meta' || status === 'dentro_meta';
+          {groupedByMapa.map(([mapaKey, rows]) => {
+            const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+            const isMapaExpanded = expandedMapas.has(mapaKey) || groupedByMapa.length === 1;
 
             return (
-              <div key={d.id} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all">
-                {/* Card header */}
+              <div key={mapaKey} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                {/* Mapa header */}
                 <button
-                  onClick={() => setExpanded(isExpanded ? null : d.indicator_id)}
-                  className="w-full text-left px-4 py-3.5 active:bg-muted/30 transition-colors"
+                  onClick={() => toggleMapa(mapaKey)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', cfg.bg)}>
-                        <StatusIcon className={cn('h-4 w-4', cfg.color)} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
-                        {(() => {
-                          const isTime = ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
-                          const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
-                          const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
-                          return (
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {valStr} / {metaStr}
-                            </p>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0 flex items-center gap-1.5">
-                      <span className={cn(
-                        'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                        atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                      )}>
-                        {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                      </span>
-                      <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
-                    </div>
+                  <MapPin className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex-1 text-left">
+                    <span className="text-sm font-bold text-foreground">
+                      {mapaKey === 'manual' ? 'Lançamento Manual' : `Mapa ${mapaKey}`}
+                    </span>
                   </div>
+                  <span className={cn(
+                    'text-xs font-bold',
+                    mapaOk === rows.length ? 'text-emerald-600' : 'text-red-600'
+                  )}>
+                    {mapaOk}/{rows.length}
+                  </span>
+                  {groupedByMapa.length > 1 && (
+                    <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isMapaExpanded && 'rotate-180')} />
+                  )}
                 </button>
 
-                {/* Expanded chart */}
-                {isExpanded && sparkData.length > 1 && (
-                  <div className="px-4 pb-4 pt-1 border-t border-border/50">
-                    <p className="text-[10px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Últimos 7 dias</p>
-                    <ResponsiveContainer width="100%" height={100}>
-                      <AreaChart data={sparkData}>
-                        <defs>
-                          <linearGradient id={`grad-${d.id}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="data" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
-                        <YAxis hide domain={[0, 'auto']} />
-                        <Tooltip
-                          contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
-                          formatter={(v: number) => [`${v.toFixed(1)}%`, 'Atingimento']}
-                        />
-                        <ReferenceLine y={100} stroke="hsl(var(--destructive)/0.4)" strokeDasharray="3 3" />
-                        <Area
-                          type="monotone" dataKey="valor"
-                          stroke="hsl(var(--primary))" strokeWidth={2}
-                          fill={`url(#grad-${d.id})`}
-                          dot={(props: any) => {
-                            const { cx, cy, payload } = props;
-                            const dotCfg = statusConfig[payload.status] ?? statusConfig.abaixo_meta;
-                            return (
-                              <circle
-                                key={payload.data} cx={cx} cy={cy} r={3.5}
-                                fill={payload.status === 'abaixo_meta' ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
-                                stroke="white" strokeWidth={1.5}
-                              />
-                            );
-                          }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-                {isExpanded && sparkData.length <= 1 && (
-                  <div className="px-4 pb-3 pt-1 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground text-center py-2">Sem histórico suficiente</p>
+                {/* Indicators inside mapa */}
+                {isMapaExpanded && (
+                  <div className="border-t border-border/50 divide-y divide-border/30">
+                    {rows.map(d => {
+                      const status = (d.status as IndicatorStatus | undefined) ?? 'abaixo_meta';
+                      const cfg = statusConfig[status] ?? statusConfig.abaixo_meta;
+                      const StatusIcon = cfg.icon;
+                      const atingiu = status === 'acima_meta' || status === 'dentro_meta';
+                      const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                      const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
+                      const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                      const isItemExpanded = expanded === `${mapaKey}-${d.indicator_id}`;
+                      const sparkData = isItemExpanded ? getSparkData(d.indicator_id) : [];
+
+                      return (
+                        <div key={d.id}>
+                          <button
+                            onClick={() => setExpanded(isItemExpanded ? null : `${mapaKey}-${d.indicator_id}`)}
+                            className="w-full text-left px-4 py-3 active:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', cfg.bg)}>
+                                  <StatusIcon className={cn('h-4 w-4', cfg.color)} />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    {valStr} / {metaStr}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={cn(
+                                  'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                  atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                )}>
+                                  {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                </span>
+                                <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isItemExpanded && 'rotate-180')} />
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Expanded chart */}
+                          {isItemExpanded && sparkData.length > 1 && (
+                            <div className="px-4 pb-4 pt-1 border-t border-border/50">
+                              <p className="text-[10px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Últimos 7 dias</p>
+                              <ResponsiveContainer width="100%" height={100}>
+                                <AreaChart data={sparkData}>
+                                  <defs>
+                                    <linearGradient id={`grad-${d.id}`} x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                    </linearGradient>
+                                  </defs>
+                                  <XAxis dataKey="data" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                                  <YAxis hide domain={[0, 'auto']} />
+                                  <Tooltip
+                                    contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                                    formatter={(v: number) => [v === 100 ? 'Atingiu' : 'Não Atingiu', 'Status']}
+                                  />
+                                  <ReferenceLine y={100} stroke="hsl(var(--destructive)/0.4)" strokeDasharray="3 3" />
+                                  <Area
+                                    type="monotone" dataKey="valor"
+                                    stroke="hsl(var(--primary))" strokeWidth={2}
+                                    fill={`url(#grad-${d.id})`}
+                                    dot={(props: any) => {
+                                      const { cx, cy, payload } = props;
+                                      return (
+                                        <circle
+                                          key={payload.data} cx={cx} cy={cy} r={3.5}
+                                          fill={payload.status === 'abaixo_meta' ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
+                                          stroke="white" strokeWidth={1.5}
+                                        />
+                                      );
+                                    }}
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+                          {isItemExpanded && sparkData.length <= 1 && (
+                            <div className="px-4 pb-3 pt-1 border-t border-border/50">
+                              <p className="text-xs text-muted-foreground text-center py-2">Sem histórico suficiente</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

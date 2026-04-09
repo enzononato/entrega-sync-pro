@@ -177,42 +177,69 @@ export default function ColaboradorHome() {
             <p className="text-sm text-muted-foreground">Sem indicadores lançados hoje</p>
           </div>
         ) : (
-          <div className="card-elevated divide-y divide-border/40 overflow-hidden">
-            {kpis.map(d => {
-              const status = d.status as IndicatorStatus | undefined;
-              const isGood = status === 'acima_meta' || status === 'dentro_meta';
-              return (
-                <div
-                  key={d.id}
-                  className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50"
-                  onClick={() => navigate('/colaborador/indicadores')}
-                >
-                  <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', statusColor[status ?? ''] ?? 'bg-muted')} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      {(() => {
+          <div className="space-y-2">
+            {(() => {
+              // Group by mapa_numero
+              const mapaMap = new Map<string, typeof kpis>();
+              kpis.forEach(d => {
+                const key = d.mapa_numero ?? 'manual';
+                if (!mapaMap.has(key)) mapaMap.set(key, []);
+                mapaMap.get(key)!.push(d);
+              });
+              const entries = Array.from(mapaMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+              return entries.map(([mapaKey, rows]) => {
+                const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+                return (
+                  <div key={mapaKey} className="card-elevated overflow-hidden">
+                    {/* Mapa header */}
+                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/30 border-b border-border/40">
+                      <MapPin className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-bold text-foreground flex-1">
+                        {mapaKey === 'manual' ? 'Manual' : `Mapa ${mapaKey}`}
+                      </span>
+                      <span className={cn('text-xs font-bold', mapaOk === rows.length ? 'text-emerald-600' : 'text-red-600')}>
+                        {mapaOk}/{rows.length}
+                      </span>
+                    </div>
+                    {/* Indicators */}
+                    <div className="divide-y divide-border/40">
+                      {rows.map(d => {
+                        const status = d.status as IndicatorStatus | undefined;
+                        const isGood = status === 'acima_meta' || status === 'dentro_meta';
                         const isTime = ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
                         const valStr = isTime ? formatMinutesHHMM(d.valor) : '';
                         const metaStr = d.meta != null && isTime ? formatMinutesHHMM(d.meta) : '';
                         return (
-                          <span className="text-sm font-medium text-foreground truncate">
-                            {d.indicators?.nome ?? ''}
-                            {isTime && <span className="text-[10px] text-muted-foreground ml-1.5">{valStr} / {metaStr}</span>}
-                          </span>
+                          <div
+                            key={d.id}
+                            className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50"
+                            onClick={() => navigate('/colaborador/indicadores')}
+                          >
+                            <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', statusColor[status ?? ''] ?? 'bg-muted')} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-foreground truncate">
+                                  {d.indicators?.nome ?? ''}
+                                  {isTime && <span className="text-[10px] text-muted-foreground ml-1.5">{valStr} / {metaStr}</span>}
+                                </span>
+                                <span className={cn(
+                                  'text-[10px] font-bold ml-2 shrink-0 px-2 py-0.5 rounded-full',
+                                  isGood ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                )}>
+                                  {isGood ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                </span>
+                              </div>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                          </div>
                         );
-                      })()}
-                      <span className={cn(
-                        'text-[10px] font-bold ml-2 shrink-0 px-2 py-0.5 rounded-full',
-                        isGood ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                      )}>
-                        {isGood ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                      </span>
+                      })}
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         )}
       </section>
