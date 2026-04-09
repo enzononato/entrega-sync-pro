@@ -439,12 +439,10 @@ export default function Desempenho() {
                           {/* Indicators for this map */}
                           <div className="divide-y divide-border/30">
                             {rows.map(d => {
-                              const pct = d.percentual_atingimento ?? 0;
                               const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
                               const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
-                              const stColor = d.status === 'acima_meta' ? 'text-emerald-600' : d.status === 'dentro_meta' ? 'text-blue-600' : 'text-red-600';
-                              const barColor = d.status === 'acima_meta' ? 'green' as const : d.status === 'dentro_meta' ? 'blue' as const : 'red' as const;
+                              const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
 
                               return (
                                 <div key={d.id} className="flex items-center gap-3 px-5 py-2.5 pl-10 group hover:bg-muted/20 transition-colors">
@@ -458,11 +456,12 @@ export default function Desempenho() {
                                     <span className="text-xs text-muted-foreground">
                                       <strong className="text-foreground">{valStr}</strong> / {metaStr}
                                     </span>
-                                    <div className="flex items-center gap-1.5 w-28">
-                                      <ProgressBar value={pct} color={barColor} className="flex-1" />
-                                      <span className={cn('text-[11px] font-bold w-10 text-right', stColor)}>{pct}%</span>
-                                    </div>
-                                    <StatusBadge status={d.status ?? 'abaixo_meta'} />
+                                    <span className={cn(
+                                      'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                      atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                    )}>
+                                      {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                    </span>
                                     <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openSingle(d); }}>
                                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
