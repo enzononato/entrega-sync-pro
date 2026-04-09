@@ -306,7 +306,7 @@ export default function Desempenho() {
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              Indicador com pior desempenho: <strong>{piorIndicador.nome}</strong> — média de {piorIndicador.avg.toFixed(1)}%
+              Indicador com mais falhas: <strong>{piorIndicador.nome}</strong> — {Math.round(piorIndicador.taxaFalha * 100)}% não atingiram
             </p>
           </div>
         </div>
