@@ -50,11 +50,28 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         .eq('ativo', true)
         .gt('valor_bonificacao', 0);
 
+      const goals = goalsData ?? [];
+
+      // Helper: find bonus for a given indicator + user
+      function getBonus(indicatorId: string, userId: string, workerType: string | null): number {
+        // Individual goal
+        const individual = goals.find(g => g.indicator_id === indicatorId && g.user_id === userId);
+        if (individual) return individual.valor_bonificacao;
+        // Worker type goal
+        const byType = goals.find(g => g.indicator_id === indicatorId && !g.user_id && g.worker_type === workerType);
+        if (byType) return byType.valor_bonificacao;
+        // General goal
+        const general = goals.find(g => g.indicator_id === indicatorId && !g.user_id && !g.worker_type);
+        if (general) return general.valor_bonificacao;
+        return 0;
+      }
+
       // Group by user
       const map = new Map<string, {
         nome: string; worker_type: string | null; unidade_id: string | null;
         unidade_nome: string | null; avatar_url: string | null;
         pcts: number[]; onTarget: number;
+        bonusPotencial: number; bonusGanho: number;
         byIndicator: Map<string, { nome: string; codigo: string; pcts: number[]; valores: number[]; metas: number[]; onTarget: number }>;
       }>();
 
