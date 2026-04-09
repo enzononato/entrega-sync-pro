@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico } from '@/hooks/useIncentivoDiario';
-import { useIncentivos } from '@/hooks/useIncentivos';
+import { useMetas } from '@/hooks/useMetas';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useDescontosColaborador } from '@/hooks/useDescontos';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -27,27 +27,39 @@ export default function IncentivoColaborador() {
 
   const { data: incentivo, isLoading: loadInc } = useIncentivoDiario(user?.id, today);
   const { data: historico = [], isLoading: loadHist } = useIncentivoDiarioHistorico(user?.id, 30);
-  const { data: regras = [] } = useIncentivos({ worker_type: user?.worker_type ?? undefined, ativo: 'true' });
+  const { data: metas = [] } = useMetas({ vigentes: true });
   const { data: desempenho = [] } = useDesempenhoDiario(today, today, { user_id: user?.id });
   const { data: descontos = [] } = useDescontosColaborador(user?.id, 60);
 
+  // Filter goals relevant to this user's worker_type and with bonus > 0
+  const metasRelevantes = useMemo(() => {
+    return metas.filter(m => {
+      if (m.valor_bonificacao <= 0) return false;
+      // Individual goal for this user
+      if (m.user_id === user?.id) return true;
+      // Goal for user's worker_type (no specific user)
+      if (!m.user_id && m.worker_type === user?.worker_type) return true;
+      // General goal (no user, no worker_type)
+      if (!m.user_id && !m.worker_type) return true;
+      return false;
+    });
+  }, [metas, user]);
+
   const breakdown = useMemo(() => {
-    return regras.map(r => {
-      const d = desempenho.find(x => x.indicator_id === r.indicator_id);
+    return metasRelevantes.map(m => {
+      const d = desempenho.find(x => x.indicator_id === m.indicator_id);
       const atingiu = d?.status === 'dentro_meta' || d?.status === 'acima_meta';
-      let valorGerado = 0;
-      if (atingiu) valorGerado = r.valor_maximo * r.peso;
+      const valorGerado = atingiu ? m.valor_bonificacao : 0;
       return {
-        indicador: r.indicators?.nome ?? '',
-        peso: r.peso,
-        meta: r.meta,
+        indicador: m.indicators?.nome ?? '',
+        codigo: m.indicators?.codigo ?? '',
         valor: d?.valor ?? 0,
         atingiu,
         status: d?.status ?? 'abaixo_meta',
-        valorGerado: Math.round(valorGerado * 100) / 100,
+        valorGerado,
       };
     });
-  }, [regras, desempenho]);
+  }, [metasRelevantes, desempenho]);
 
   const totalEstimado = breakdown.reduce((s, b) => s + b.valorGerado, 0);
   const valorHoje = incentivo?.valor_estimado ?? totalEstimado;
