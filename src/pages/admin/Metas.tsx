@@ -52,7 +52,27 @@ const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
   user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
   vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
+  formato_meta: 'tempo' as 'tempo' | 'porcentagem',
 };
+
+function parseHHMM(str: string): number {
+  const parts = str.split(':');
+  if (parts.length !== 2) return 0;
+  const h = parseInt(parts[0] || '0', 10);
+  const m = parseInt(parts[1] || '0', 10);
+  return h * 60 + m;
+}
+
+function minutesToHHMM(minutes: number): string {
+  const h = Math.floor(Math.abs(minutes) / 60);
+  const m = Math.round(Math.abs(minutes) % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function detectFormato(valorMeta: number, indicatorCodigo?: string): 'tempo' | 'porcentagem' {
+  if (['TML', 'TR', 'TI', 'JL'].includes((indicatorCodigo ?? '').toUpperCase())) return 'tempo';
+  return valorMeta > 200 ? 'tempo' : 'porcentagem';
+}
 
 function DatePick({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const date = value ? new Date(value + 'T00:00:00') : undefined;
