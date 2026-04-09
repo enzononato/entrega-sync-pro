@@ -148,6 +148,8 @@ export default function Metas() {
       formato_meta: fmt,
     });
     setMetaTimeStr(fmt === 'tempo' && g.valor_meta ? minutesToHHMM(g.valor_meta) : '');
+    setMetaValorStr(fmt !== 'tempo' && g.valor_meta ? String(g.valor_meta).replace('.', ',') : '');
+    setBonusStr(g.valor_bonificacao ? String(g.valor_bonificacao).replace('.', ',') : '');
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
   };
