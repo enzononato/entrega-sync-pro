@@ -115,6 +115,8 @@ export default function Metas() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<GoalWithRelations | null>(null);
   const [metaTimeStr, setMetaTimeStr] = useState('');
+  const [metaValorStr, setMetaValorStr] = useState('');
+  const [bonusStr, setBonusStr] = useState('');
 
   // KPIs
   const { data: allMetas = [] } = useMetas({});
