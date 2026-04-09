@@ -74,6 +74,37 @@ export default function Dashboard() {
   });
   const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
+  const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
+
+  // Monthly bonus calculation
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const mesInicio = mesAtual + '-01';
+  const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim, {
+    unidade_id: unidadeFilter || undefined,
+    worker_type: tipoFilter || undefined,
+  });
+
+  const bonusMes = useMemo(() => {
+    const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
+    if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
+
+    let total = 0;
+    for (const d of desempenhoMes) {
+      if (d.status !== 'dentro_meta' && d.status !== 'acima_meta') continue;
+      // Find matching goal
+      const user = usuarios.find(u => u.id === d.user_id);
+      const goal = goalsComBonus.find(g => {
+        if (g.indicator_id !== d.indicator_id) return false;
+        if (g.user_id === d.user_id) return true;
+        if (!g.user_id && g.worker_type === user?.worker_type) return true;
+        if (!g.user_id && !g.worker_type) return true;
+        return false;
+      });
+      if (goal) total += goal.valor_bonificacao;
+    }
+    return total;
+  }, [metasAtivas, desempenhoMes, usuarios]);
 
   // Filter usuarios by unidade
   const filteredUsers = useMemo(() => {
