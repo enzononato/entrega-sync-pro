@@ -296,19 +296,15 @@ export default function RankingAdmin() {
                       </div>
                     </div>
                     {/* Mini indicator breakdown */}
-                    <div className="hidden lg:flex items-center gap-1.5 shrink-0">
-                      {entry.indicators_breakdown.slice(0, 3).map(ind => {
-                        const indAtingiu = ind.avg_pct >= 100;
-                        return (
-                          <div key={ind.indicator_id} className="text-center">
-                            <p className="text-[9px] text-muted-foreground truncate max-w-[70px]">{ind.indicator_codigo}</p>
-                            <p className={cn('text-[10px] font-bold', indAtingiu ? 'text-emerald-600' : 'text-red-600')}>
-                              {indAtingiu ? '✓' : '✗'}
-                            </p>
-                            <p className="text-[9px] text-muted-foreground">{formatIndicatorPair(ind)}</p>
-                          </div>
-                        );
-                      })}
+                    <div className="hidden lg:flex items-center gap-2 shrink-0">
+                      {entry.indicators_breakdown.slice(0, 4).map(ind => (
+                        <div key={ind.indicator_id} className="text-center min-w-[50px]">
+                          <p className="text-[9px] text-muted-foreground">{ind.indicator_codigo}</p>
+                          <p className={cn('text-[11px] font-bold', ind.on_target === ind.count ? 'text-emerald-600' : ind.on_target > 0 ? 'text-amber-600' : 'text-red-600')}>
+                            {ind.on_target}/{ind.count}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                     <div className="text-right shrink-0 ml-2">
                       <p className={cn('text-sm font-bold', getPerformanceColor(entry.avg_atingimento))}>
