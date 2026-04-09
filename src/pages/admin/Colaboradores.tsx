@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
 import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
+import { useDesempenhoDiario } from '@/hooks/useDesempenho';
+import { formatMinutesHHMM } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
