@@ -21,7 +21,7 @@ const PAGES = [
   { title: 'Desempenho', url: '/admin/desempenho', icon: TrendingUp, keywords: 'performance resultado' },
   { title: 'Indicadores', url: '/admin/indicadores', icon: Target, keywords: 'kpi métricas' },
   { title: 'Metas', url: '/admin/metas', icon: Flag, keywords: 'objetivo alvo' },
-  { title: 'Incentivos', url: '/admin/incentivos', icon: Award, keywords: 'bônus prêmio regras' },
+  
   { title: 'Descontos', url: '/admin/descontos', icon: TrendingDown, keywords: 'dedução penalidade' },
   { title: 'Feedbacks', url: '/admin/feedbacks', icon: MessageSquare, keywords: 'reclamação sugestão' },
   { title: 'Planos de Ação', url: '/admin/planos-de-acao', icon: ClipboardCheck, keywords: 'tarefas atividades' },
