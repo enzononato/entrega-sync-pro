@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { validateCpf, formatCpf } from '@/lib/formatters';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
