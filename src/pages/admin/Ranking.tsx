@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRanking, type RankingEntry } from '@/hooks/useRanking';
+import { useRanking, type RankingEntry, type IndicatorBreakdown } from '@/hooks/useRanking';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +18,22 @@ import {
   ChevronRight, BarChart3, Target, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatMinutesHHMM } from '@/lib/formatters';
+
+const TIME_INDICATORS = ['TML', 'TR', 'TI', 'JL'];
+
+function formatIndicatorValue(codigo: string, value: number): string {
+  if (TIME_INDICATORS.includes(codigo.toUpperCase())) {
+    return formatMinutesHHMM(value);
+  }
+  return value.toFixed(1);
+}
+
+function formatIndicatorPair(ind: IndicatorBreakdown): string {
+  const v = formatIndicatorValue(ind.indicator_codigo, ind.avg_valor);
+  const m = formatIndicatorValue(ind.indicator_codigo, ind.avg_meta);
+  return `${v} / ${m}`;
+}
 
 const PERIODOS = [
   { value: 'hoje', label: 'Hoje' },
@@ -235,18 +251,14 @@ export default function RankingAdmin() {
                     {entry.unidade_nome && (
                       <p className="text-[9px] text-muted-foreground mt-1 truncate">📍 {entry.unidade_nome}</p>
                     )}
-                    {/* Best/Worst indicators */}
+                    {/* Indicator values */}
                     <div className="mt-2 space-y-0.5">
-                      {entry.best_indicator && (
-                        <p className="text-[9px] text-success flex items-center justify-center gap-0.5 truncate">
-                          <TrendingUp className="h-2.5 w-2.5 shrink-0" /> {entry.best_indicator}
+                      {entry.indicators_breakdown.slice(0, 3).map(ind => (
+                        <p key={ind.indicator_id} className="text-[9px] text-muted-foreground truncate">
+                          <span className="font-medium">{ind.indicator_nome}:</span>{' '}
+                          <span className={cn('font-bold', getPerformanceColor(ind.avg_pct))}>{formatIndicatorPair(ind)}</span>
                         </p>
-                      )}
-                      {entry.worst_indicator && entry.worst_indicator !== entry.best_indicator && (
-                        <p className="text-[9px] text-destructive flex items-center justify-center gap-0.5 truncate">
-                          <TrendingDown className="h-2.5 w-2.5 shrink-0" /> {entry.worst_indicator}
-                        </p>
-                      )}
+                      ))}
                     </div>
                   </div>
                 );
@@ -285,8 +297,9 @@ export default function RankingAdmin() {
                     <div className="hidden lg:flex items-center gap-1.5 shrink-0">
                       {entry.indicators_breakdown.slice(0, 3).map(ind => (
                         <div key={ind.indicator_id} className="text-center">
-                          <p className="text-[9px] text-muted-foreground truncate max-w-[60px]">{ind.indicator_nome}</p>
+                          <p className="text-[9px] text-muted-foreground truncate max-w-[70px]">{ind.indicator_nome}</p>
                           <p className={cn('text-[10px] font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(0)}%</p>
+                          <p className="text-[9px] text-muted-foreground">{formatIndicatorPair(ind)}</p>
                         </div>
                       ))}
                     </div>
@@ -389,7 +402,10 @@ export default function RankingAdmin() {
                         <div key={ind.indicator_id} className="space-y-1">
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-foreground font-medium truncate">{ind.indicator_nome}</span>
-                            <span className={cn('text-xs font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(1)}%</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground">{formatIndicatorPair(ind)}</span>
+                              <span className={cn('text-xs font-bold', getPerformanceColor(ind.avg_pct))}>{ind.avg_pct.toFixed(1)}%</span>
+                            </div>
                           </div>
                           <ProgressBar value={Math.min(ind.avg_pct, 100)} color={getBarColor(ind.avg_pct)} className="h-1.5" />
                           <p className="text-[10px] text-muted-foreground">{ind.count} registro(s)</p>
