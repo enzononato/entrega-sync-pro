@@ -71,7 +71,7 @@ export default function IndicadoresColaborador() {
       .sort((a, b) => a.data_referencia.localeCompare(b.data_referencia))
       .map(h => ({
         data: format(new Date(h.data_referencia + 'T00:00:00'), 'dd/MM'),
-        valor: h.percentual_atingimento ?? 0,
+        valor: (h.status === 'dentro_meta' || h.status === 'acima_meta') ? 100 : 0,
         status: h.status,
       }));
 
