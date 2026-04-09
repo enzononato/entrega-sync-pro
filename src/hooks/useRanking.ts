@@ -92,15 +92,20 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             avatar_url: u.avatar_url,
             pcts: [],
             onTarget: 0,
+            bonusPotencial: 0,
+            bonusGanho: 0,
             byIndicator: new Map(),
           });
         }
         const entry = map.get(uid)!;
         const pct = row.percentual_atingimento ?? 0;
         entry.pcts.push(pct);
-        if (row.status === 'acima_meta' || row.status === 'dentro_meta') {
-          entry.onTarget++;
-        }
+        const isOnTarget = row.status === 'acima_meta' || row.status === 'dentro_meta';
+        if (isOnTarget) entry.onTarget++;
+
+        const bonus = getBonus(row.indicator_id, uid, u.worker_type);
+        entry.bonusPotencial += bonus;
+        if (isOnTarget) entry.bonusGanho += bonus;
 
         // Track per-indicator
         const indId = row.indicator_id;
@@ -150,6 +155,8 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           best_indicator: bestName,
           worst_indicator: worstName,
           indicators_breakdown: breakdown,
+          bonus_potencial: Math.round(e.bonusPotencial * 100) / 100,
+          bonus_ganho: Math.round(e.bonusGanho * 100) / 100,
         });
       }
 
