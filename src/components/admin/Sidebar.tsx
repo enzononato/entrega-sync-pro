@@ -30,7 +30,7 @@ const sections = [
       { title: 'Desempenho', url: '/admin/desempenho', icon: TrendingUp },
       { title: 'Indicadores', url: '/admin/indicadores', icon: Target },
       { title: 'Metas', url: '/admin/metas', icon: Flag },
-      { title: 'Incentivos', url: '/admin/incentivos', icon: Award },
+      
       { title: 'Descontos', url: '/admin/descontos', icon: TrendingDown },
       { title: 'Histórico Mapas', url: '/admin/historico-mapas', icon: Map },
     ],
