@@ -308,10 +308,10 @@ export default function RankingAdmin() {
                     </div>
                     <div className="text-right shrink-0 ml-2">
                       <p className={cn('text-sm font-bold', getPerformanceColor(entry.avg_atingimento))}>
-                        {entry.avg_atingimento.toFixed(1)}%
+                        {entry.on_target_count}/{entry.total_indicators}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {entry.on_target_count}/{entry.total_indicators}
+                        {entry.avg_atingimento.toFixed(0)}%
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
