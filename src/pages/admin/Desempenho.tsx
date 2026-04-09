@@ -530,13 +530,16 @@ export default function Desempenho() {
             {sForm.valor > 0 && sForm.meta > 0 && (
               <div className={cn(
                 'rounded-lg border p-3 flex items-center justify-between',
-                previewStatus === 'acima_meta' ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20' :
-                previewStatus === 'dentro_meta' ? 'border-blue-200 bg-blue-50 dark:bg-blue-950/20' :
+                previewStatus === 'dentro_meta' ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20' :
                 'border-red-200 bg-red-50 dark:bg-red-950/20'
               )}>
                 <div className="flex items-center gap-2">
-                  <ProgressBar value={previewPct} color={previewStatus === 'acima_meta' ? 'green' : previewStatus === 'dentro_meta' ? 'blue' : 'red'} className="w-20" />
-                  <span className="text-sm font-bold">{previewPct}%</span>
+                  <span className={cn(
+                    'text-sm font-bold px-2.5 py-1 rounded-full',
+                    previewStatus === 'dentro_meta' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                  )}>
+                    {previewStatus === 'dentro_meta' ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                  </span>
                 </div>
                 <StatusBadge status={previewStatus} />
               </div>
