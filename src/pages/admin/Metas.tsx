@@ -52,7 +52,27 @@ const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
   user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
   vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
+  formato_meta: 'tempo' as 'tempo' | 'porcentagem',
 };
+
+function parseHHMM(str: string): number {
+  const parts = str.split(':');
+  if (parts.length !== 2) return 0;
+  const h = parseInt(parts[0] || '0', 10);
+  const m = parseInt(parts[1] || '0', 10);
+  return h * 60 + m;
+}
+
+function minutesToHHMM(minutes: number): string {
+  const h = Math.floor(Math.abs(minutes) / 60);
+  const m = Math.round(Math.abs(minutes) % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function detectFormato(valorMeta: number, indicatorCodigo?: string): 'tempo' | 'porcentagem' {
+  if (['TML', 'TR', 'TI', 'JL'].includes((indicatorCodigo ?? '').toUpperCase())) return 'tempo';
+  return valorMeta > 200 ? 'tempo' : 'porcentagem';
+}
 
 function DatePick({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const date = value ? new Date(value + 'T00:00:00') : undefined;
@@ -115,12 +135,14 @@ export default function Metas() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
+    const fmt = detectFormato(g.valor_meta, g.indicators?.codigo);
     setEditing(g);
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
       worker_type: g.worker_type ?? '', user_id: g.user_id ?? '',
       valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0, periodo_tipo: g.periodo_tipo,
       vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
+      formato_meta: fmt,
     });
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
@@ -276,7 +298,11 @@ export default function Metas() {
                     <div className="flex items-baseline gap-1.5 bg-muted/40 rounded-lg px-3 py-2.5">
                       <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span className="text-2xl font-bold text-foreground">
-                        {['TML','TR','TI','JL'].includes(g.indicators?.codigo?.toUpperCase() ?? '') ? formatMinutesHHMM(g.valor_meta) : g.valor_meta}
+                        {['TML','TR','TI','JL'].includes(g.indicators?.codigo?.toUpperCase() ?? '')
+                          ? formatMinutesHHMM(g.valor_meta)
+                          : g.valor_meta > 200
+                            ? formatMinutesHHMM(g.valor_meta)
+                            : `${g.valor_meta}%`}
                       </span>
                       
                       <span className="ml-auto text-xs text-muted-foreground bg-background rounded-md px-2 py-0.5 border">
@@ -406,20 +432,60 @@ export default function Metas() {
                   </Select>
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Formato da Meta</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { v: 'tempo' as const, l: '⏱ Tempo (HH:MM)' },
+                      { v: 'porcentagem' as const, l: '% Porcentagem' },
+                    ].map(o => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        className={cn(
+                          'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                          form.formato_meta === o.v
+                            ? 'border-2 border-primary bg-primary/10 text-primary shadow-sm'
+                            : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
+                        )}
+                        onClick={() => setForm(f => ({ ...f, formato_meta: o.v, valor_meta: 0 }))}
+                      >
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor da Meta *</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="Ex: 560 (minutos)"
-                      value={form.valor_meta || ''}
-                      onChange={e => {
-                        const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                        setForm(f => ({ ...f, valor_meta: v === '' ? 0 : Number(v) }));
-                      }}
-                      className="h-9"
-                    />
+                    {form.formato_meta === 'tempo' ? (
+                      <Input
+                        type="text"
+                        placeholder="HH:MM (ex: 09:20)"
+                        value={form.valor_meta ? minutesToHHMM(form.valor_meta) : ''}
+                        onChange={e => {
+                          let v = e.target.value.replace(/[^0-9:]/g, '');
+                          if (v.length === 2 && !v.includes(':')) v += ':';
+                          if (v.length > 5) v = v.slice(0, 5);
+                          const mins = parseHHMM(v);
+                          setForm(f => ({ ...f, valor_meta: mins }));
+                        }}
+                        className="h-9"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 95.5"
+                        value={form.valor_meta || ''}
+                        onChange={e => {
+                          const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+                          setForm(f => ({ ...f, valor_meta: v === '' ? 0 : Number(v) }));
+                        }}
+                        className="h-9"
+                      />
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Bonificação (R$)</Label>
