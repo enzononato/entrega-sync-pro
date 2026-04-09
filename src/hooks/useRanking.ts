@@ -123,7 +123,12 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         });
       }
 
-      result.sort((a, b) => b.avg_atingimento - a.avg_atingimento);
+      result.sort((a, b) => {
+        const ratioA = a.total_indicators > 0 ? a.on_target_count / a.total_indicators : 0;
+        const ratioB = b.total_indicators > 0 ? b.on_target_count / b.total_indicators : 0;
+        if (ratioB !== ratioA) return ratioB - ratioA;
+        return b.on_target_count - a.on_target_count;
+      });
       return result;
     },
   });
