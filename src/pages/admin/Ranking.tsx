@@ -109,22 +109,27 @@ export default function RankingAdmin() {
   const rest = top10.slice(3);
 
   // Stats
-  const avgGeral = ranking.length > 0 ? ranking.reduce((s, r) => s + r.avg_atingimento, 0) / ranking.length : 0;
-  const todosAtingiram = ranking.filter(r => r.avg_atingimento >= 100).length;
-  const menosMetade = ranking.filter(r => r.avg_atingimento < 50).length;
+  const totalMetas = ranking.reduce((s, r) => s + r.total_indicators, 0);
+  const totalAtingidas = ranking.reduce((s, r) => s + r.on_target_count, 0);
+  const todosAtingiram = ranking.filter(r => r.on_target_count === r.total_indicators).length;
+  const menosMetade = ranking.filter(r => r.total_indicators > 0 && r.on_target_count / r.total_indicators < 0.5).length;
 
   // Per-unit breakdown
   const unitBreakdown = useMemo(() => {
-    const map = new Map<string, { nome: string; count: number; avg: number; total: number }>();
+    const map = new Map<string, { nome: string; count: number; totalMetas: number; totalAtingidas: number }>();
     ranking.forEach(r => {
       const key = r.unidade_nome ?? 'Sem unidade';
-      if (!map.has(key)) map.set(key, { nome: key, count: 0, avg: 0, total: 0 });
+      if (!map.has(key)) map.set(key, { nome: key, count: 0, totalMetas: 0, totalAtingidas: 0 });
       const u = map.get(key)!;
       u.count++;
-      u.total += r.avg_atingimento;
-      u.avg = u.total / u.count;
+      u.totalMetas += r.total_indicators;
+      u.totalAtingidas += r.on_target_count;
     });
-    return Array.from(map.values()).sort((a, b) => b.avg - a.avg);
+    return Array.from(map.values()).sort((a, b) => {
+      const ratioA = a.totalMetas > 0 ? a.totalAtingidas / a.totalMetas : 0;
+      const ratioB = b.totalMetas > 0 ? b.totalAtingidas / b.totalMetas : 0;
+      return ratioB - ratioA;
+    });
   }, [ranking]);
 
   return (
