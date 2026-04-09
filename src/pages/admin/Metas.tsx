@@ -114,6 +114,7 @@ export default function Metas() {
   const [formTab, setFormTab] = useState('tipo');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<GoalWithRelations | null>(null);
+  const [metaTimeStr, setMetaTimeStr] = useState('');
 
   // KPIs
   const { data: allMetas = [] } = useMetas({});
