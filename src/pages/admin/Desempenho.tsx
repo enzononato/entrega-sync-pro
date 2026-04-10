@@ -1,34 +1,27 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { exportToCsv } from '@/lib/exportCsv';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/shared/ListPagination';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { ProgressBar } from '@/components/shared/ProgressBar';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { useDesempenhoDiario, useCreateLancamento, useUpdateLancamento, useDeleteLancamento, useBatchCreateLancamentos, type DesempenhoRow } from '@/hooks/useDesempenho';
+import { useDesempenhoDiario, type DesempenhoRow } from '@/hooks/useDesempenho';
 import { useIndicadores } from '@/hooks/useIndicadores';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
-import { useUsuarios, type UserWithRelations } from '@/hooks/useUsuarios';
+import { useUsuarios } from '@/hooks/useUsuarios';
 import { useMetas } from '@/hooks/useMetas';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Target, TrendingUp, TrendingDown, AlertTriangle, Pencil, Trash2,
-  Loader2, CalendarIcon, Users, Truck, UserCheck, BarChart3, Layers,
-  ChevronRight, ChevronDown, Download, Upload, MapPin,
+  Target, TrendingUp, TrendingDown, AlertTriangle,
+  Loader2, CalendarIcon, BarChart3,
+  ChevronDown, Download, MapPin, Eye,
 } from 'lucide-react';
-import { ImportDesempenhoDialog } from '@/components/admin/ImportDesempenhoDialog';
 import { formatMinutesHHMM } from '@/lib/formatters';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
