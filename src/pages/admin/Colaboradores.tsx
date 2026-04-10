@@ -265,10 +265,6 @@ export default function Colaboradores() {
                       <span className="font-mono font-medium">{u.matricula}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <Mail className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{u.email}</span>
-                  </div>
                   {unitNames && (
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Building2 className="h-3 w-3 shrink-0" />
