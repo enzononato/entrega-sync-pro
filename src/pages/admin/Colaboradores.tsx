@@ -20,7 +20,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Hash, Shield,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package, KeyRound,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
 import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
