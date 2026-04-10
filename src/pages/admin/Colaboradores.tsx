@@ -5,11 +5,9 @@ import { validateCpf, formatCpf } from '@/lib/formatters';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRotas } from '@/hooks/useRotas';
+
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
-  Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
+  Eye, EyeOff, Building2, MapPin, Hash, Shield,
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
@@ -31,9 +29,9 @@ import { formatMinutesHHMM } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
-  nome: '', email: '', matricula: '', cpf: '', password: '',
+  nome: '', matricula: '', cpf: '', password: '',
   worker_type: 'motorista' as string | null, unidade_id: '' as string | null,
-  rota_id: '' as string | null, ativo: true, unit_ids: [] as string[],
+  ativo: true, unit_ids: [] as string[],
 };
 
 export default function Colaboradores() {
@@ -47,7 +45,7 @@ export default function Colaboradores() {
   const usuarios = paginatedResult?.data ?? [];
   const totalCount = paginatedResult?.count ?? 0;
   const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
-  const { user: currentUser } = useAuth();
+  
   const { allowedUnits } = useAllowedUnits();
 
   const createMut = useCreateUsuario();
@@ -64,9 +62,6 @@ export default function Colaboradores() {
   const [importOpen, setImportOpen] = useState(false);
   const [importMatriculasOpen, setImportMatriculasOpen] = useState(false);
 
-  const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
-  const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
-  const activeRoutes = rotasForUnit.filter(r => r.ativo);
 
   // KPIs from all users (unfiltered)
   const { data: allUsers = [] } = useUsuarios();
@@ -86,9 +81,9 @@ export default function Colaboradores() {
   const openEdit = (u: UserWithRelations) => {
     setEditing(u);
     setForm({
-      nome: u.nome, email: u.email, matricula: u.matricula, cpf: u.cpf || '', password: '',
+      nome: u.nome, matricula: u.matricula, cpf: u.cpf || '', password: '',
       worker_type: u.worker_type, unidade_id: u.unidade_id,
-      rota_id: u.rota_id, ativo: u.ativo,
+      ativo: u.ativo,
       unit_ids: u.user_units?.map(uu => uu.unit_id) ?? (u.unidade_id ? [u.unidade_id] : []),
     });
     setDialogOpen(true);
@@ -98,21 +93,21 @@ export default function Colaboradores() {
     const primaryUnit = form.unit_ids.length > 0 ? form.unit_ids[0] : null;
     if (editing) {
       await updateMut.mutateAsync({
-        id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
-        cpf: form.worker_type === 'motorista' ? form.cpf : null,
+        id: editing.id, nome: form.nome, email: editing.email, matricula: form.matricula.toUpperCase(),
+        cpf: form.cpf || null,
         role: 'colaborador', worker_type: form.worker_type,
-        unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
+        unidade_id: primaryUnit, rota_id: null, ativo: form.ativo,
         unit_ids: form.unit_ids,
       });
     } else {
-      const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
+      const emailToUse = `${form.matricula.toLowerCase()}.${Date.now()}@app.local`;
       await createMut.mutateAsync({
         email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(),
-        cpf: form.worker_type === 'motorista' ? form.cpf : null,
+        cpf: form.cpf || null,
         role: 'colaborador',
         worker_type: form.worker_type,
-        unidade_id: primaryUnit, rota_id: form.rota_id || null,
+        unidade_id: primaryUnit, rota_id: null,
         unit_ids: form.unit_ids,
       });
     }
@@ -125,10 +120,8 @@ export default function Colaboradores() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const isMotorista = form.worker_type === 'motorista';
-  const cpfValid = !isMotorista || validateCpf(form.cpf);
-  const unitValid = !isMotorista || form.unit_ids.length === 1;
-  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6) && cpfValid && unitValid;
+  const cpfValid = !form.cpf || validateCpf(form.cpf);
+  const canSave = form.nome.length >= 3 && form.matricula.length >= 1 && (editing || form.password.length >= 6) && cpfValid && form.unit_ids.length > 0;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   const kpis = [
@@ -272,10 +265,6 @@ export default function Colaboradores() {
                       <span className="font-mono font-medium">{u.matricula}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <Mail className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{u.email}</span>
-                  </div>
                   {unitNames && (
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Building2 className="h-3 w-3 shrink-0" />
@@ -342,17 +331,11 @@ export default function Colaboradores() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">E-mail</Label>
-                    <Input type="email" placeholder="Gerar auto" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Matrícula</Label>
+                    <Label className="text-xs">Matrícula *</Label>
                     <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} className="h-9 font-mono" />
                   </div>
-                </div>
-                {isMotorista && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs">CPF *</Label>
+                    <Label className="text-xs">CPF</Label>
                     <Input
                       placeholder="000.000.000-00"
                       value={form.cpf}
@@ -361,7 +344,7 @@ export default function Colaboradores() {
                     />
                     {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF inválido — verifique os dígitos</p>}
                   </div>
-                )}
+                </div>
                 {!editing && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Senha *</Label>
@@ -400,59 +383,21 @@ export default function Colaboradores() {
                   </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">
-                    {isMotorista ? 'Revenda (apenas 1)' : 'Unidades (Revendas)'}
-                  </Label>
-                  {isMotorista ? (
-                    <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
-                      <SelectContent>
-                        {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
-                      {allowedUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
-                      {allowedUnits.map(u => (
-                        <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
-                          <Checkbox
-                            checked={form.unit_ids.includes(u.id)}
-                            onCheckedChange={(checked) => {
-                              setForm(f => ({
-                                ...f,
-                                unit_ids: checked
-                                  ? [...f.unit_ids, u.id]
-                                  : f.unit_ids.filter(id => id !== u.id),
-                              }));
-                            }}
-                          />
-                          <span className="text-sm">{u.nome}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {!isMotorista && form.unit_ids.length > 0 && (
-                    <p className="text-[10px] text-muted-foreground">{form.unit_ids.length} unidade(s) selecionada(s)</p>
-                  )}
+                  <Label className="text-xs">Revenda *</Label>
+                  <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
+                    <SelectContent>
+                      {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {form.unit_ids.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Rota</Label>
-                    <Select value={form.rota_id ?? ''} onValueChange={v => setForm(f => ({ ...f, rota_id: v === 'none' ? null : v }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhuma</SelectItem>
-                        {activeRoutes.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                {editing && (
+                  <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
+                    <Label className="text-sm">Colaborador Ativo</Label>
+                    <Switch checked={form.ativo} onCheckedChange={v => setForm(f => ({ ...f, ativo: v }))} />
                   </div>
                 )}
-
-                <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
-                  <Label className="text-sm">Colaborador Ativo</Label>
-                  <Switch checked={form.ativo} onCheckedChange={v => setForm(f => ({ ...f, ativo: v }))} />
-                </div>
               </div>
             </div>
           </div>

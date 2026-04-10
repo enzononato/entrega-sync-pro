@@ -6,13 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Eye, EyeOff, Truck, ArrowLeft } from 'lucide-react';
-import { formatCpf, validateCpf } from '@/lib/formatters';
+import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 export default function LoginColaborador() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [cpf, setCpf] = useState('');
+  const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,20 +27,20 @@ export default function LoginColaborador() {
     e.preventDefault();
     setError('');
 
-    const cleanCpf = cpf.replace(/\D/g, '');
-    if (!validateCpf(cleanCpf)) {
-      setError('CPF inválido. Verifique os dígitos.');
+    const cleanMatricula = matricula.trim().toUpperCase();
+    if (!cleanMatricula) {
+      setError('Informe sua matrícula.');
       return;
     }
 
     setLoading(true);
     try {
       const { data, error: fnError } = await supabase.functions.invoke('auth-cpf', {
-        body: { cpf: cleanCpf, password },
+        body: { matricula: cleanMatricula, password },
       });
 
       if (fnError || !data?.session) {
-        setError(data?.error || 'CPF ou senha inválidos');
+        setError(data?.error || 'Matrícula ou senha inválidos');
         return;
       }
 
@@ -95,16 +94,15 @@ export default function LoginColaborador() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
+              <Label htmlFor="matricula" className="text-sm font-medium">Matrícula</Label>
               <Input
-                id="cpf"
+                id="matricula"
                 type="text"
-                inputMode="numeric"
-                placeholder="000.000.000-00"
-                value={cpf}
-                onChange={e => setCpf(formatCpf(e.target.value))}
+                placeholder="Digite sua matrícula"
+                value={matricula}
+                onChange={e => setMatricula(e.target.value.toUpperCase())}
                 required
-                className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card transition-colors"
+                className="h-11 rounded-xl bg-muted/50 border-border/60 focus:bg-card transition-colors font-mono"
               />
             </div>
 
