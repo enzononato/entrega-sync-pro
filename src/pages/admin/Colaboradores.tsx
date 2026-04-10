@@ -5,11 +5,9 @@ import { validateCpf, formatCpf } from '@/lib/formatters';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useUsuarios, useUsuariosPaginated, useCreateUsuario, useUpdateUsuario, useToggleUsuarioAtivo, DEFAULT_PAGE_SIZE, type UserWithRelations } from '@/hooks/useUsuarios';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRotas } from '@/hooks/useRotas';
+
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
-  Eye, EyeOff, Building2, MapPin, Mail, Hash, Shield, Layers,
+  Eye, EyeOff, Building2, MapPin, Hash, Shield,
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
