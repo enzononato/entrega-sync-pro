@@ -77,8 +77,7 @@ export default function Desempenho() {
   const [batchOpen, setBatchOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   
-  const [editingRow, setEditingRow] = useState<DesempenhoRow | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DesempenhoRow | null>(null);
+  const [detailRow, setDetailRow] = useState<DesempenhoRow | null>(null);
 
   const [sForm, setSForm] = useState({ user_id: '', indicator_id: '', data_referencia: today, valor: 0, meta: 0, origem_dado: 'manual' });
   const [selectedUser, setSelectedUser] = useState<UserWithRelations | null>(null);
