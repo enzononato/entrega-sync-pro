@@ -20,10 +20,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle,
   Loader2, CalendarIcon, BarChart3,
-  ChevronDown, Download, MapPin, Eye,
+  ChevronDown, Download, MapPin,
 } from 'lucide-react';
 import { formatMinutesHHMM } from '@/lib/formatters';
-
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -61,24 +60,7 @@ export default function Desempenho() {
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const { data: metas = [] } = useMetas({ vigentes: true });
 
-  const createMut = useCreateLancamento();
-  const updateMut = useUpdateLancamento();
-  const deleteMut = useDeleteLancamento();
-  const batchMut = useBatchCreateLancamentos();
-
-  const [singleOpen, setSingleOpen] = useState(false);
-  const [batchOpen, setBatchOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  
   const [detailRow, setDetailRow] = useState<DesempenhoRow | null>(null);
-
-  const [sForm, setSForm] = useState({ user_id: '', indicator_id: '', data_referencia: today, valor: 0, meta: 0, origem_dado: 'manual' });
-  const [selectedUser, setSelectedUser] = useState<UserWithRelations | null>(null);
-
-  const [batchIndicator, setBatchIndicator] = useState('');
-  const [batchDate, setBatchDate] = useState(today);
-  const [batchRows, setBatchRows] = useState<{ user_id: string; nome: string; valor: number; meta: number }[]>([]);
-
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   const activeUnits = allowedUnits;
@@ -109,7 +91,7 @@ export default function Desempenho() {
 
   const pg = usePagination(groupedByUser);
 
-  // KPIs - binary: count of goals met vs not met
+  // KPIs
   const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
   const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
   const totalMetas = dentroMeta + abaixoMeta;
@@ -132,7 +114,7 @@ export default function Desempenho() {
     return worst.taxaFalha > 0 ? worst : null;
   }, [desempenho]);
 
-  // Chart data - show % of goals met per indicator
+  // Chart data
   const chartData = useMemo(() => {
     const byInd: Record<string, { nome: string; total: number; atingiu: number }> = {};
     desempenho.forEach(d => {
@@ -149,82 +131,6 @@ export default function Desempenho() {
 
   const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const findMeta = (userId: string, indicatorId: string) => {
-    const user = colabs.find(u => u.id === userId);
-    const m = metas.find(g =>
-      g.indicator_id === indicatorId &&
-      (g.user_id === userId || (!g.user_id && (!g.worker_type || g.worker_type === user?.worker_type)))
-    );
-    return m?.valor_meta ?? 0;
-  };
-
-  const openSingle = (row?: DesempenhoRow) => {
-    if (row) {
-      setEditingRow(row);
-      setSForm({ user_id: row.user_id, indicator_id: row.indicator_id, data_referencia: row.data_referencia, valor: row.valor, meta: row.meta ?? 0, origem_dado: row.origem_dado });
-      setSelectedUser(colabs.find(u => u.id === row.user_id) ?? null);
-    } else {
-      setEditingRow(null);
-      setSForm({ user_id: '', indicator_id: '', data_referencia: today, valor: 0, meta: 0, origem_dado: 'manual' });
-      setSelectedUser(null);
-    }
-    setSingleOpen(true);
-  };
-
-  const handleSelectUser = (userId: string) => {
-    const u = colabs.find(c => c.id === userId) ?? null;
-    setSelectedUser(u);
-    setSForm(f => ({ ...f, user_id: userId, indicator_id: '', meta: 0 }));
-  };
-
-  const handleSelectIndicator = (indId: string) => {
-    const metaVal = findMeta(sForm.user_id, indId);
-    setSForm(f => ({ ...f, indicator_id: indId, meta: metaVal }));
-  };
-
-  const saveSingle = async () => {
-    if (editingRow) {
-      await updateMut.mutateAsync({ id: editingRow.id, valor: sForm.valor, meta: sForm.meta });
-    } else {
-      await createMut.mutateAsync(sForm);
-    }
-    setSingleOpen(false);
-  };
-
-  const openBatch = () => { setBatchIndicator(''); setBatchDate(today); setBatchRows([]); setBatchOpen(true); };
-
-  const handleBatchIndicator = (indId: string) => {
-    setBatchIndicator(indId);
-    const ind = indicators.find(i => i.id === indId);
-    const compatible = colabs.filter(u => ind?.applies_to_worker_type === 'ambos' || u.worker_type === ind?.applies_to_worker_type);
-    setBatchRows(compatible.map(u => ({ user_id: u.id, nome: u.nome, valor: 0, meta: findMeta(u.id, indId) })));
-  };
-
-  const saveBatch = async () => {
-    const rows = batchRows.filter(r => r.valor > 0).map(r => ({
-      user_id: r.user_id, indicator_id: batchIndicator, data_referencia: batchDate,
-      valor: r.valor, meta: r.meta, origem_dado: 'manual',
-    }));
-    if (rows.length) await batchMut.mutateAsync(rows);
-    setBatchOpen(false);
-  };
-
-  const confirmDelete = async () => {
-    if (deleteTarget) await deleteMut.mutateAsync(deleteTarget.id);
-    setDeleteTarget(null);
-  };
-
-  const previewWithinTarget = sForm.meta > 0 && sForm.valor <= sForm.meta;
-  const previewPct = previewWithinTarget ? 100 : 0;
-  const previewStatus = previewWithinTarget ? 'dentro_meta' : 'abaixo_meta';
-
-  const userIndicators = useMemo(() => {
-    if (!selectedUser?.worker_type) return indicators;
-    return indicators.filter(i => i.applies_to_worker_type === 'ambos' || i.applies_to_worker_type === selectedUser.worker_type);
-  }, [selectedUser, indicators]);
-
-  const saving = createMut.isPending || updateMut.isPending;
-
   const getBarColor = (media: number) => {
     if (media >= 100) return 'hsl(160, 84%, 39%)';
     if (media >= 90) return 'hsl(217, 91%, 60%)';
@@ -237,6 +143,10 @@ export default function Desempenho() {
     { label: 'Atingiu', value: dentroMeta, icon: BarChart3, iconBg: 'bg-sky-100', iconColor: 'text-sky-600', borderColor: 'border-l-sky-500' },
     { label: 'Não Atingiu', value: abaixoMeta, icon: TrendingDown, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
   ];
+
+  // Detail helpers
+  const isTimeIndicator = (code: string | undefined) => ['TML', 'TR', 'TI', 'JL'].includes(code?.toUpperCase() ?? '');
+  const formatVal = (val: number, code: string | undefined) => isTimeIndicator(code) ? formatMinutesHHMM(val) : String(val);
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -259,7 +169,6 @@ export default function Desempenho() {
           <Download className="h-4 w-4" /> CSV
         </Button>
       </div>
-
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -409,23 +318,26 @@ export default function Desempenho() {
                     <div className="border-t border-border/50">
                       {Array.from(group.mapas.entries()).map(([mapaNum, rows]) => (
                         <div key={mapaNum} className="border-b border-border/30 last:border-b-0">
-                          {/* Map header */}
                           <div className="flex items-center gap-2 px-5 py-2.5 bg-muted/30">
                             <MapPin className="h-3.5 w-3.5 text-primary" />
                             <span className="text-xs font-bold text-foreground">
                               {mapaNum === 'manual' ? 'Lançamento Manual' : `Mapa ${mapaNum}`}
                             </span>
                           </div>
-                          {/* Indicators for this map */}
                           <div className="divide-y divide-border/30">
                             {rows.map(d => {
-                              const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                              const code = d.indicators?.codigo?.toUpperCase();
+                              const isTime = isTimeIndicator(code);
                               const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
 
                               return (
-                                <div key={d.id} className="flex items-center gap-3 px-5 py-2.5 pl-10 group hover:bg-muted/20 transition-colors">
+                                <button
+                                  key={d.id}
+                                  onClick={() => setDetailRow(d)}
+                                  className="w-full flex items-center gap-3 px-5 py-2.5 pl-10 hover:bg-muted/20 transition-colors cursor-pointer text-left"
+                                >
                                   <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono shrink-0">
                                     {d.indicators?.codigo}
                                   </span>
@@ -442,16 +354,8 @@ export default function Desempenho() {
                                     )}>
                                       {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                                     </span>
-                                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openSingle(d); }}>
-                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); }}>
-                                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                      </Button>
-                                    </div>
                                   </div>
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -467,161 +371,86 @@ export default function Desempenho() {
         </>
       )}
 
-      {/* Single modal */}
-      <Dialog open={singleOpen} onOpenChange={setSingleOpen}>
-        <DialogContent className="max-w-md p-0">
-          <div className="px-6 pt-6 pb-4 border-b border-border/50">
-            <DialogHeader>
-              <DialogTitle className="text-lg">{editingRow ? 'Editar Lançamento' : 'Lançar Indicador'}</DialogTitle>
-            </DialogHeader>
-          </div>
-          <div className="px-6 py-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Colaborador *</Label>
-              <Select value={sForm.user_id} onValueChange={handleSelectUser} disabled={!!editingRow}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{colabs.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Indicador *</Label>
-              <Select value={sForm.indicator_id} onValueChange={handleSelectIndicator} disabled={!!editingRow}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{userIndicators.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Data</Label>
-              <DatePick value={sForm.data_referencia} onChange={v => setSForm(f => ({ ...f, data_referencia: v }))} placeholder="Hoje" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Valor *</Label>
-                <Input type="number" className="h-9" value={sForm.valor} onChange={e => setSForm(f => ({ ...f, valor: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Meta</Label>
-                <Input type="number" className="h-9" value={sForm.meta} onChange={e => setSForm(f => ({ ...f, meta: Number(e.target.value) }))} />
-              </div>
-            </div>
+      {/* Detail Dialog */}
+      <Dialog open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }}>
+        <DialogContent className="max-w-sm p-0">
+          {detailRow && (() => {
+            const code = detailRow.indicators?.codigo?.toUpperCase();
+            const isTime = isTimeIndicator(code);
+            const valor = isTime ? formatMinutesHHMM(detailRow.valor) : String(detailRow.valor);
+            const meta = detailRow.meta != null ? (isTime ? formatMinutesHHMM(detailRow.meta) : String(detailRow.meta)) : '—';
+            const atingiu = detailRow.status === 'dentro_meta' || detailRow.status === 'acima_meta';
+            const pct = detailRow.percentual_atingimento;
 
-            {/* Preview */}
-            {sForm.valor > 0 && sForm.meta > 0 && (
-              <div className={cn(
-                'rounded-lg border p-3 flex items-center justify-between',
-                previewStatus === 'dentro_meta' ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20' :
-                'border-red-200 bg-red-50 dark:bg-red-950/20'
-              )}>
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    'text-sm font-bold px-2.5 py-1 rounded-full',
-                    previewStatus === 'dentro_meta' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                  )}>
-                    {previewStatus === 'dentro_meta' ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                  </span>
+            return (
+              <>
+                <div className="px-6 pt-6 pb-4 border-b border-border/50">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">Detalhe do Indicador</DialogTitle>
+                  </DialogHeader>
                 </div>
-                <StatusBadge status={previewStatus} />
-              </div>
-            )}
+                <div className="px-6 py-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary font-mono">
+                      {detailRow.indicators?.codigo}
+                    </span>
+                    <span className="text-sm font-medium text-foreground">{detailRow.indicators?.nome}</span>
+                  </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Origem</Label>
-              <Select value={sForm.origem_dado} onValueChange={v => setSForm(f => ({ ...f, origem_dado: v }))}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="manual">Manual</SelectItem><SelectItem value="sistema">Sistema</SelectItem></SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="px-6 pb-6 flex gap-2 justify-end border-t border-border/50 pt-4">
-            <Button variant="outline" onClick={() => setSingleOpen(false)}>Cancelar</Button>
-            <Button onClick={saveSingle} disabled={saving || !sForm.user_id || !sForm.indicator_id}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
-            </Button>
-          </div>
+                  <div className="text-xs text-muted-foreground">
+                    {detailRow.users?.nome} • {format(new Date(detailRow.data_referencia + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
+                    {detailRow.mapa_numero && ` • Mapa ${detailRow.mapa_numero}`}
+                  </div>
+
+                  {/* Valor vs Meta visual */}
+                  <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Realizado</p>
+                        <p className="text-2xl font-bold text-foreground">{valor}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Meta</p>
+                        <p className="text-2xl font-bold text-foreground">{meta}</p>
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    {detailRow.meta != null && detailRow.meta > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="w-full h-3 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn('h-full rounded-full transition-all', atingiu ? 'bg-emerald-500' : 'bg-red-500')}
+                            style={{ width: `${Math.min(pct ?? 0, 150)}%` }}
+                          />
+                        </div>
+                        {pct != null && (
+                          <p className="text-xs text-center text-muted-foreground">{pct}% de atingimento</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status badge */}
+                  <div className="flex justify-center">
+                    <span className={cn(
+                      'text-sm font-bold px-4 py-1.5 rounded-full',
+                      atingiu
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                    )}>
+                      {atingiu ? '✓ Atingiu a Meta' : '✗ Não Atingiu a Meta'}
+                    </span>
+                  </div>
+                </div>
+                <div className="px-6 pb-6 flex justify-end border-t border-border/50 pt-4">
+                  <Button variant="outline" onClick={() => setDetailRow(null)}>Fechar</Button>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
-
-      {/* Batch modal */}
-      <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0">
-          <div className="px-6 pt-6 pb-4 border-b border-border/50">
-            <DialogHeader>
-              <DialogTitle className="text-lg">Lançamento em Lote</DialogTitle>
-            </DialogHeader>
-          </div>
-          <div className="px-6 py-5 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Indicador *</Label>
-                <Select value={batchIndicator} onValueChange={handleBatchIndicator}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{indicators.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Data</Label>
-                <DatePick value={batchDate} onChange={setBatchDate} placeholder="Hoje" />
-              </div>
-            </div>
-            {batchRows.length > 0 && (
-              <ScrollArea className="max-h-[400px]">
-                <div className="rounded-lg border overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 sticky top-0">
-                      <tr>
-                        <th className="text-left p-3 text-xs font-bold text-muted-foreground">Colaborador</th>
-                        <th className="text-left p-3 w-28 text-xs font-bold text-muted-foreground">Valor</th>
-                        <th className="text-left p-3 w-28 text-xs font-bold text-muted-foreground">Meta</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {batchRows.map((r, i) => (
-                        <tr key={r.user_id} className="border-t border-border/50 hover:bg-muted/20">
-                          <td className="p-3 text-sm font-medium">{r.nome}</td>
-                          <td className="p-3">
-                            <Input type="number" className="h-8 text-xs" value={r.valor} onChange={e => {
-                              const v = Number(e.target.value);
-                              setBatchRows(rows => rows.map((row, j) => j === i ? { ...row, valor: v } : row));
-                            }} />
-                          </td>
-                          <td className="p-3">
-                            <Input type="number" className="h-8 text-xs" value={r.meta} onChange={e => {
-                              const v = Number(e.target.value);
-                              setBatchRows(rows => rows.map((row, j) => j === i ? { ...row, meta: v } : row));
-                            }} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-          <div className="px-6 pb-6 flex gap-2 justify-end border-t border-border/50 pt-4">
-            <Button variant="outline" onClick={() => setBatchOpen(false)}>Cancelar</Button>
-            <Button onClick={saveBatch} disabled={batchMut.isPending || !batchIndicator || !batchRows.some(r => r.valor > 0)}>
-              {batchMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Todos
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog open={!!deleteTarget} title="Excluir lançamento"
-        description="Deseja excluir este lançamento? Esta ação não pode ser desfeita."
-        confirmLabel="Excluir" onConfirm={confirmDelete}
-        onCancel={() => setDeleteTarget(null)} loading={deleteMut.isPending} />
-
-      <ImportDesempenhoDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        usuarios={colabs}
-        indicators={indicators}
-        onImport={async (rows) => { await batchMut.mutateAsync(rows); }}
-      />
-
-
-
     </div>
   );
 }
