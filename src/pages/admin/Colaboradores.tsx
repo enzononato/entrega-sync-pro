@@ -458,6 +458,40 @@ export default function Colaboradores() {
 
       <ImportColaboradoresDialog open={importOpen} onOpenChange={setImportOpen} />
       <ImportMatriculasDialog open={importMatriculasOpen} onOpenChange={setImportMatriculasOpen} />
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPwOpen} onOpenChange={(o) => { if (!o) { setResetPwOpen(false); setResetPwTarget(null); setNewPassword(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Redefinir Senha</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Definir nova senha para <strong>{resetPwTarget?.nome}</strong> ({resetPwTarget?.matricula})
+          </p>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nova senha (mín. 6 caracteres)</Label>
+            <div className="relative">
+              <Input
+                type={showNewPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                className="h-9 pr-9"
+                placeholder="Nova senha"
+              />
+              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNewPassword(v => !v)}>
+                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setResetPwOpen(false)}>Cancelar</Button>
+            <Button size="sm" disabled={newPassword.length < 6 || resetPwLoading} onClick={handleResetPassword}>
+              {resetPwLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Redefinir
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
