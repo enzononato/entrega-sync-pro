@@ -31,9 +31,9 @@ import { formatMinutesHHMM } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
-  nome: '', email: '', matricula: '', cpf: '', password: '',
+  nome: '', matricula: '', cpf: '', password: '',
   worker_type: 'motorista' as string | null, unidade_id: '' as string | null,
-  rota_id: '' as string | null, ativo: true, unit_ids: [] as string[],
+  ativo: true, unit_ids: [] as string[],
 };
 
 export default function Colaboradores() {
@@ -86,9 +86,9 @@ export default function Colaboradores() {
   const openEdit = (u: UserWithRelations) => {
     setEditing(u);
     setForm({
-      nome: u.nome, email: u.email, matricula: u.matricula, cpf: u.cpf || '', password: '',
+      nome: u.nome, matricula: u.matricula, cpf: u.cpf || '', password: '',
       worker_type: u.worker_type, unidade_id: u.unidade_id,
-      rota_id: u.rota_id, ativo: u.ativo,
+      ativo: u.ativo,
       unit_ids: u.user_units?.map(uu => uu.unit_id) ?? (u.unidade_id ? [u.unidade_id] : []),
     });
     setDialogOpen(true);
@@ -98,21 +98,21 @@ export default function Colaboradores() {
     const primaryUnit = form.unit_ids.length > 0 ? form.unit_ids[0] : null;
     if (editing) {
       await updateMut.mutateAsync({
-        id: editing.id, nome: form.nome, email: form.email, matricula: form.matricula.toUpperCase(),
-        cpf: form.worker_type === 'motorista' ? form.cpf : null,
+        id: editing.id, nome: form.nome, email: editing.email, matricula: form.matricula.toUpperCase(),
+        cpf: form.cpf || null,
         role: 'colaborador', worker_type: form.worker_type,
-        unidade_id: primaryUnit, rota_id: form.rota_id || null, ativo: form.ativo,
+        unidade_id: primaryUnit, rota_id: null, ativo: form.ativo,
         unit_ids: form.unit_ids,
       });
     } else {
-      const emailToUse = form.email.trim() || `${form.nome.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@app.local`;
+      const emailToUse = `${form.matricula.toLowerCase()}.${Date.now()}@app.local`;
       await createMut.mutateAsync({
         email: emailToUse, password: form.password, nome: form.nome,
         matricula: form.matricula.toUpperCase(),
-        cpf: form.worker_type === 'motorista' ? form.cpf : null,
+        cpf: form.cpf || null,
         role: 'colaborador',
         worker_type: form.worker_type,
-        unidade_id: primaryUnit, rota_id: form.rota_id || null,
+        unidade_id: primaryUnit, rota_id: null,
         unit_ids: form.unit_ids,
       });
     }
@@ -125,10 +125,8 @@ export default function Colaboradores() {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
-  const isMotorista = form.worker_type === 'motorista';
-  const cpfValid = !isMotorista || validateCpf(form.cpf);
-  const unitValid = !isMotorista || form.unit_ids.length === 1;
-  const canSave = form.nome.length >= 3 && (editing || form.password.length >= 6) && cpfValid && unitValid;
+  const cpfValid = !form.cpf || validateCpf(form.cpf);
+  const canSave = form.nome.length >= 3 && form.matricula.length >= 1 && (editing || form.password.length >= 6) && cpfValid && form.unit_ids.length > 0;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   const kpis = [
