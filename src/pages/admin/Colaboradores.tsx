@@ -45,7 +45,7 @@ export default function Colaboradores() {
   const usuarios = paginatedResult?.data ?? [];
   const totalCount = paginatedResult?.count ?? 0;
   const totalPages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
-  const { user: currentUser } = useAuth();
+  
   const { allowedUnits } = useAllowedUnits();
 
   const createMut = useCreateUsuario();
@@ -62,9 +62,6 @@ export default function Colaboradores() {
   const [importOpen, setImportOpen] = useState(false);
   const [importMatriculasOpen, setImportMatriculasOpen] = useState(false);
 
-  const primaryUnitId = form.unit_ids.length > 0 ? form.unit_ids[0] : undefined;
-  const { data: rotasForUnit = [] } = useRotas(primaryUnitId);
-  const activeRoutes = rotasForUnit.filter(r => r.ativo);
 
   // KPIs from all users (unfiltered)
   const { data: allUsers = [] } = useUsuarios();
