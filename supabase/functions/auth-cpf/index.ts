@@ -12,61 +12,58 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { cpf, password } = await req.json();
+    const body = await req.json();
+    const { matricula, password, cpf } = body;
 
-    if (!cpf || !password) {
+    // Support both matricula and legacy cpf login
+    const loginId = matricula || cpf;
+
+    if (!loginId || !password) {
       return new Response(
-        JSON.stringify({ error: "CPF e senha são obrigatórios" }),
+        JSON.stringify({ error: "Matrícula e senha são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Clean CPF - digits only + validate check digits
-    const cleanCpf = cpf.replace(/\D/g, "");
-    if (cleanCpf.length !== 11 || /^(\d)\1{10}$/.test(cleanCpf)) {
-      return new Response(
-        JSON.stringify({ error: "CPF inválido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const cleanLoginId = String(loginId).trim().toUpperCase();
 
-    // Validate CPF check digits
-    let sum = 0;
-    for (let i = 0; i < 9; i++) sum += parseInt(cleanCpf[i]) * (10 - i);
-    let rem = (sum * 10) % 11;
-    if (rem === 10) rem = 0;
-    if (rem !== parseInt(cleanCpf[9])) {
-      return new Response(
-        JSON.stringify({ error: "CPF inválido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    sum = 0;
-    for (let i = 0; i < 10; i++) sum += parseInt(cleanCpf[i]) * (11 - i);
-    rem = (sum * 10) % 11;
-    if (rem === 10) rem = 0;
-    if (rem !== parseInt(cleanCpf[10])) {
-      return new Response(
-        JSON.stringify({ error: "CPF inválido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Use service role to look up email by CPF
+    // Use service role to look up email by matricula (or cpf as fallback)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: user, error: lookupError } = await supabaseAdmin
-      .from("users")
-      .select("email")
-      .eq("cpf", cleanCpf)
-      .single();
+    // Try matricula first
+    let user = null;
+    let lookupError = null;
+
+    if (matricula) {
+      const result = await supabaseAdmin
+        .from("users")
+        .select("email")
+        .eq("matricula", cleanLoginId)
+        .eq("ativo", true)
+        .single();
+      user = result.data;
+      lookupError = result.error;
+    }
+
+    // Fallback to CPF if matricula not provided
+    if (!user && cpf) {
+      const cleanCpf = cpf.replace(/\D/g, "");
+      const result = await supabaseAdmin
+        .from("users")
+        .select("email")
+        .eq("cpf", cleanCpf)
+        .eq("ativo", true)
+        .single();
+      user = result.data;
+      lookupError = result.error;
+    }
 
     if (lookupError || !user) {
       return new Response(
-        JSON.stringify({ error: "CPF ou senha inválidos" }),
+        JSON.stringify({ error: "Matrícula ou senha inválidos" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -84,7 +81,7 @@ Deno.serve(async (req) => {
 
     if (authError) {
       return new Response(
-        JSON.stringify({ error: "CPF ou senha inválidos" }),
+        JSON.stringify({ error: "Matrícula ou senha inválidos" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
