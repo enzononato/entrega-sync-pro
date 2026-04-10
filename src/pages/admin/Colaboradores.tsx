@@ -310,6 +310,9 @@ export default function Colaboradores() {
                   <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => setPerfDrawer(u)}>
                     <BarChart2 className="h-3.5 w-3.5" /> Desempenho
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Redefinir senha" onClick={() => { setResetPwTarget(u); setNewPassword(''); setShowNewPassword(false); setResetPwOpen(true); }}>
+                    <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(u)}>
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
