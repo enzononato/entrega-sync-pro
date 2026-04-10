@@ -147,6 +147,7 @@ export default function Colaboradores() {
     }
   };
 
+  const saving = createMut.isPending || updateMut.isPending;
   const cpfValid = !form.cpf || validateCpf(form.cpf);
   const canSave = form.nome.length >= 3 && form.matricula.length >= 1 && (editing || form.password.length >= 6) && cpfValid && form.unit_ids.length > 0;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
