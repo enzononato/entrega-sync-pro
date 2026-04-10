@@ -39,7 +39,16 @@ export default function LoginColaborador() {
         body: { matricula: cleanMatricula, password },
       });
 
-      if (fnError || !data?.session) {
+      if (fnError) {
+        // For non-2xx responses, try to parse the error context
+        const errMsg = (fnError as any)?.context?.json?.error
+          || data?.error
+          || 'Matrícula ou senha inválidos';
+        setError(errMsg);
+        return;
+      }
+
+      if (!data?.session) {
         setError(data?.error || 'Matrícula ou senha inválidos');
         return;
       }
