@@ -340,17 +340,11 @@ export default function Colaboradores() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">E-mail</Label>
-                    <Input type="email" placeholder="Gerar auto" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Matrícula</Label>
+                    <Label className="text-xs">Matrícula *</Label>
                     <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} className="h-9 font-mono" />
                   </div>
-                </div>
-                {isMotorista && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs">CPF *</Label>
+                    <Label className="text-xs">CPF</Label>
                     <Input
                       placeholder="000.000.000-00"
                       value={form.cpf}
@@ -359,7 +353,7 @@ export default function Colaboradores() {
                     />
                     {form.cpf && !cpfValid && <p className="text-[10px] text-destructive">CPF inválido — verifique os dígitos</p>}
                   </div>
-                )}
+                </div>
                 {!editing && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Senha *</Label>
@@ -398,59 +392,21 @@ export default function Colaboradores() {
                   </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs">
-                    {isMotorista ? 'Revenda (apenas 1)' : 'Unidades (Revendas)'}
-                  </Label>
-                  {isMotorista ? (
-                    <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
-                      <SelectContent>
-                        {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="rounded-lg border border-border bg-card p-3 max-h-40 overflow-y-auto space-y-2">
-                      {allowedUnits.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade cadastrada</p>}
-                      {allowedUnits.map(u => (
-                        <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
-                          <Checkbox
-                            checked={form.unit_ids.includes(u.id)}
-                            onCheckedChange={(checked) => {
-                              setForm(f => ({
-                                ...f,
-                                unit_ids: checked
-                                  ? [...f.unit_ids, u.id]
-                                  : f.unit_ids.filter(id => id !== u.id),
-                              }));
-                            }}
-                          />
-                          <span className="text-sm">{u.nome}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {!isMotorista && form.unit_ids.length > 0 && (
-                    <p className="text-[10px] text-muted-foreground">{form.unit_ids.length} unidade(s) selecionada(s)</p>
-                  )}
+                  <Label className="text-xs">Revenda *</Label>
+                  <Select value={form.unit_ids[0] ?? ''} onValueChange={v => setForm(f => ({ ...f, unit_ids: v ? [v] : [] }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a revenda" /></SelectTrigger>
+                    <SelectContent>
+                      {allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {form.unit_ids.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Rota</Label>
-                    <Select value={form.rota_id ?? ''} onValueChange={v => setForm(f => ({ ...f, rota_id: v === 'none' ? null : v }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhuma</SelectItem>
-                        {activeRoutes.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                {editing && (
+                  <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
+                    <Label className="text-sm">Colaborador Ativo</Label>
+                    <Switch checked={form.ativo} onCheckedChange={v => setForm(f => ({ ...f, ativo: v }))} />
                   </div>
                 )}
-
-                <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
-                  <Label className="text-sm">Colaborador Ativo</Label>
-                  <Switch checked={form.ativo} onCheckedChange={v => setForm(f => ({ ...f, ativo: v }))} />
-                </div>
               </div>
             </div>
           </div>
