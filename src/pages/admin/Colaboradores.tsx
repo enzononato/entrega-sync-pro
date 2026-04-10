@@ -124,7 +124,27 @@ export default function Colaboradores() {
     setConfirmOpen(false); setToggleTarget(null);
   };
 
-  const saving = createMut.isPending || updateMut.isPending;
+  const { toast } = useToast();
+
+  const handleResetPassword = async () => {
+    if (!resetPwTarget || newPassword.length < 6) return;
+    setResetPwLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-password', {
+        body: { auth_user_id: resetPwTarget.auth_user_id, new_password: newPassword },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: 'Senha redefinida com sucesso' });
+      setResetPwOpen(false);
+      setNewPassword('');
+      setResetPwTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro ao redefinir senha', description: e.message, variant: 'destructive' });
+    } finally {
+      setResetPwLoading(false);
+    }
+  };
+
   const cpfValid = !form.cpf || validateCpf(form.cpf);
   const canSave = form.nome.length >= 3 && form.matricula.length >= 1 && (editing || form.password.length >= 6) && cpfValid && form.unit_ids.length > 0;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
