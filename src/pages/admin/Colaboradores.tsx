@@ -61,6 +61,11 @@ export default function Colaboradores() {
   const [perfDrawer, setPerfDrawer] = useState<UserWithRelations | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importMatriculasOpen, setImportMatriculasOpen] = useState(false);
+  const [resetPwTarget, setResetPwTarget] = useState<UserWithRelations | null>(null);
+  const [resetPwOpen, setResetPwOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetPwLoading, setResetPwLoading] = useState(false);
 
 
   // KPIs from all users (unfiltered)
