@@ -14,9 +14,11 @@ interface DataTableProps<T> {
   data: T[];
   loading?: boolean;
   emptyMessage?: string;
+  onRowClick?: (item: T, index: number) => void;
+  selectedIndex?: number;
 }
 
-export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum dado encontrado' }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum dado encontrado', onRowClick, selectedIndex }: DataTableProps<T>) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -45,7 +47,7 @@ export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum da
           </TableHeader>
           <TableBody>
             {data.map((item, i) => (
-              <TableRow key={i}>
+              <TableRow key={i} onClick={() => onRowClick?.(item, i)} className={onRowClick ? 'cursor-pointer' : '' + (selectedIndex === i ? ' bg-accent' : '')}>
                 {columns.map(col => (
                   <TableCell key={col.key}>
                     {col.render ? col.render(item) : String((item as Record<string, unknown>)[col.key] ?? '')}
@@ -60,7 +62,7 @@ export function DataTable<T>({ columns, data, loading, emptyMessage = 'Nenhum da
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {data.map((item, i) => (
-          <div key={i} className="rounded-xl border bg-card p-4 shadow-sm space-y-2">
+          <div key={i} onClick={() => onRowClick?.(item, i)} className={`rounded-xl border bg-card p-4 shadow-sm space-y-2 ${onRowClick ? 'cursor-pointer' : ''} ${selectedIndex === i ? 'ring-2 ring-primary' : ''}`}>
             {columns.map(col => (
               <div key={col.key} className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground font-medium">{col.label}</span>
