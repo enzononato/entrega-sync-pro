@@ -410,6 +410,8 @@ export type Database = {
       }
       mapa_historico: {
         Row: {
+          aju1_user_id: string | null
+          aju2_user_id: string | null
           capacidade: number | null
           capacidade_veiculo_kg: number | null
           carga_atual: string | null
@@ -440,6 +442,7 @@ export type Database = {
           km_sai: number | null
           mapa: string
           mot_nao_carr: number | null
+          mot_user_id: string | null
           ocupacao: number | null
           peso_carga_kg: number | null
           placa: string | null
@@ -458,6 +461,8 @@ export type Database = {
           vl_pto_mot: number | null
         }
         Insert: {
+          aju1_user_id?: string | null
+          aju2_user_id?: string | null
           capacidade?: number | null
           capacidade_veiculo_kg?: number | null
           carga_atual?: string | null
@@ -488,6 +493,7 @@ export type Database = {
           km_sai?: number | null
           mapa: string
           mot_nao_carr?: number | null
+          mot_user_id?: string | null
           ocupacao?: number | null
           peso_carga_kg?: number | null
           placa?: string | null
@@ -506,6 +512,8 @@ export type Database = {
           vl_pto_mot?: number | null
         }
         Update: {
+          aju1_user_id?: string | null
+          aju2_user_id?: string | null
           capacidade?: number | null
           capacidade_veiculo_kg?: number | null
           carga_atual?: string | null
@@ -536,6 +544,7 @@ export type Database = {
           km_sai?: number | null
           mapa?: string
           mot_nao_carr?: number | null
+          mot_user_id?: string | null
           ocupacao?: number | null
           peso_carga_kg?: number | null
           placa?: string | null

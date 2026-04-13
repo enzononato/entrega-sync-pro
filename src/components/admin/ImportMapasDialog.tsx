@@ -103,13 +103,48 @@ export function ImportMapasDialog({ onSuccess }: Props) {
     if (!rows.length) return;
     setImporting(true);
     try {
+      // Buscar mapa matrícula → user_id
+      const allMatriculas = new Set<string>();
+      rows.forEach(r => {
+        const mot = String(r.cd_mot || '').trim();
+        const a1 = String(r.cd_aju1 || '').trim();
+        const a2 = String(r.cd_aju2 || '').trim();
+        if (mot && mot !== '0') allMatriculas.add(mot);
+        if (a1 && a1 !== '0') allMatriculas.add(a1);
+        if (a2 && a2 !== '0') allMatriculas.add(a2);
+      });
+
+      const matriculaToUserId: Record<string, string> = {};
+      if (allMatriculas.size > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, matricula')
+          .in('matricula', Array.from(allMatriculas));
+        users?.forEach(u => { matriculaToUserId[u.matricula] = u.id; });
+      }
+
+      const enriched = rows.map(r => {
+        const mot = String(r.cd_mot || '').trim();
+        const a1 = String(r.cd_aju1 || '').trim();
+        const a2 = String(r.cd_aju2 || '').trim();
+        return {
+          ...r,
+          mot_user_id: (mot && mot !== '0') ? matriculaToUserId[mot] || null : null,
+          aju1_user_id: (a1 && a1 !== '0') ? matriculaToUserId[a1] || null : null,
+          aju2_user_id: (a2 && a2 !== '0') ? matriculaToUserId[a2] || null : null,
+        };
+      });
+
       const batchSize = 200;
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
+      for (let i = 0; i < enriched.length; i += batchSize) {
+        const batch = enriched.slice(i, i + batchSize);
         const { error } = await supabase.from('mapa_historico').insert(batch as any);
         if (error) throw error;
       }
-      toast.success(`${rows.length} registros importados!`);
+
+      const matched = new Set(Object.keys(matriculaToUserId)).size;
+      const total = allMatriculas.size;
+      toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
       setRows([]);
       setOpen(false);
       onSuccess();
