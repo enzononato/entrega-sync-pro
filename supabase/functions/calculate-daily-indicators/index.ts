@@ -13,13 +13,16 @@ const INDICATOR_IDS: Record<string, string> = {
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
 };
 
-const METAS: Record<string, number> = {
+// Default fallbacks — overridden by goals table values
+const DEFAULT_METAS: Record<string, number> = {
   TML: 30,
   TR: 560,
   TI: 30,
   JL: 620,
-  TX_DEVOLUCAO: 5, // 5% default — adjust as needed
+  TX_DEVOLUCAO: 5,
 };
+
+let METAS: Record<string, number> = { ...DEFAULT_METAS };
 
 /**
  * Parse "HH:MM" or "HH:MM:SS" into total minutes.
@@ -132,6 +135,23 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const { data_referencia } = body;
+
+    // ── Step 0: Load metas from goals table ──
+    const { data: goalsData } = await supabase
+      .from("goals")
+      .select("valor_meta, indicators(codigo)")
+      .eq("ativo", true);
+
+    if (goalsData) {
+      METAS = { ...DEFAULT_METAS };
+      for (const g of goalsData) {
+        const code = (g as any).indicators?.codigo?.toUpperCase();
+        if (code && !METAS[code]) {
+          METAS[code] = g.valor_meta;
+        }
+      }
+      console.log("Loaded metas from DB:", METAS);
+    }
 
     // ── Step 1: Link user_id on mapa_historico rows that have no user_id ──
     const { data: allUsers } = await supabase

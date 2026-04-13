@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { useMapas } from '@/hooks/useMapas';
+import { useMetas } from '@/hooks/useMetas';
 import { ImportMapasDialog } from '@/components/admin/ImportMapasDialog';
 import { Input } from '@/components/ui/input';
 import { Search, Clock, Truck, Timer, Route, PackageX } from 'lucide-react';
@@ -36,13 +37,21 @@ interface IndicatorCalc {
   icon: React.ReactNode;
 }
 
-function calculateMapIndicators(row: any): IndicatorCalc[] {
+type MetasMap = Record<string, number>;
+
+function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
   const hrSai = parseTime(row.hr_sai);
   const hrEntr = parseTime(row.hr_entr);
   const tiVal = parseTime(row.tmpo_interno);
 
   const REF_TIME = 7 * 60 + 50;
   const LIMIT_TIME = 8 * 60 + 20;
+
+  const metaTML = metas['TML'] ?? 30;
+  const metaTR = metas['TR'] ?? 560;
+  const metaTI = metas['TI'] ?? 30;
+  const metaJL = metas['JL'] ?? 620;
+  const metaTXDEV = metas['TX_DEVOLUCAO'] ?? 5;
 
   const results: IndicatorCalc[] = [];
 
@@ -54,8 +63,8 @@ function calculateMapIndicators(row: any): IndicatorCalc[] {
     label: 'Tempo Manhã Logística',
     valor: tmlVal,
     valorFormatted: tmlVal !== null ? formatMinutes(tmlVal) : '—',
-    meta: 30,
-    metaFormatted: '00:30',
+    meta: metaTML,
+    metaFormatted: formatMinutes(metaTML),
     status: tmlOk ? 'dentro_meta' : 'abaixo_meta',
     icon: <Clock className="h-5 w-5" />,
   });
@@ -67,9 +76,9 @@ function calculateMapIndicators(row: any): IndicatorCalc[] {
     label: 'Tempo em Rota',
     valor: trVal,
     valorFormatted: trVal !== null ? formatMinutes(trVal) : '—',
-    meta: 560,
-    metaFormatted: '09:20',
-    status: trVal !== null && trVal <= 560 ? 'dentro_meta' : 'abaixo_meta',
+    meta: metaTR,
+    metaFormatted: formatMinutes(metaTR),
+    status: trVal !== null && trVal <= metaTR ? 'dentro_meta' : 'abaixo_meta',
     icon: <Route className="h-5 w-5" />,
   });
 
@@ -79,9 +88,9 @@ function calculateMapIndicators(row: any): IndicatorCalc[] {
     label: 'Tempo Interno',
     valor: tiVal,
     valorFormatted: tiVal !== null ? formatMinutes(tiVal) : '—',
-    meta: 30,
-    metaFormatted: '00:30',
-    status: tiVal !== null && tiVal <= 30 ? 'dentro_meta' : 'abaixo_meta',
+    meta: metaTI,
+    metaFormatted: formatMinutes(metaTI),
+    status: tiVal !== null && tiVal <= metaTI ? 'dentro_meta' : 'abaixo_meta',
     icon: <Timer className="h-5 w-5" />,
   });
 
@@ -92,9 +101,9 @@ function calculateMapIndicators(row: any): IndicatorCalc[] {
     label: 'Jornada Líquida',
     valor: jlVal,
     valorFormatted: jlVal !== null ? formatMinutes(jlVal) : '—',
-    meta: 620,
-    metaFormatted: '10:20',
-    status: jlVal !== null && jlVal <= 620 ? 'dentro_meta' : 'abaixo_meta',
+    meta: metaJL,
+    metaFormatted: formatMinutes(metaJL),
+    status: jlVal !== null && jlVal <= metaJL ? 'dentro_meta' : 'abaixo_meta',
     icon: <Truck className="h-5 w-5" />,
   });
 
@@ -111,9 +120,9 @@ function calculateMapIndicators(row: any): IndicatorCalc[] {
     label: 'Taxa de Devolução',
     valor: txDevVal,
     valorFormatted: txDevVal !== null ? `${txDevVal.toFixed(2)}%` : '—',
-    meta: 5,
-    metaFormatted: '5%',
-    status: txDevVal !== null && txDevVal <= 5 ? 'dentro_meta' : 'abaixo_meta',
+    meta: metaTXDEV,
+    metaFormatted: `${metaTXDEV}%`,
+    status: txDevVal !== null && txDevVal <= metaTXDEV ? 'dentro_meta' : 'abaixo_meta',
     icon: <PackageX className="h-5 w-5" />,
   });
 
@@ -122,8 +131,18 @@ function calculateMapIndicators(row: any): IndicatorCalc[] {
 
 export default function HistoricoMapas() {
   const { mapas, loading, refetch } = useMapas();
+  const { data: goals = [] } = useMetas({ ativo: 'true' });
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const metasMap = useMemo<MetasMap>(() => {
+    const map: MetasMap = {};
+    for (const g of goals) {
+      const code = g.indicators?.codigo?.toUpperCase();
+      if (code && !map[code]) map[code] = g.valor_meta;
+    }
+    return map;
+  }, [goals]);
 
   const filtered = mapas.filter(m => {
     if (!search) return true;
@@ -138,7 +157,7 @@ export default function HistoricoMapas() {
   });
 
   const selectedMapa = selectedIndex !== null ? filtered[selectedIndex] : null;
-  const indicators = useMemo(() => selectedMapa ? calculateMapIndicators(selectedMapa) : [], [selectedMapa]);
+  const indicators = useMemo(() => selectedMapa ? calculateMapIndicators(selectedMapa, metasMap) : [], [selectedMapa, metasMap]);
 
   const formatDate = (d: string | null) => {
     if (!d) return '';
