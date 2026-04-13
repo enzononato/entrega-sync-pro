@@ -34,8 +34,12 @@ function parseDate(raw: string): string {
     const [d, m, y] = s.split('/');
     return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
   }
-  if (s.length === 8 && !s.includes('-')) {
-    return `${s.slice(4,8)}-${s.slice(2,4)}-${s.slice(0,2)}`;
+  if (!s.includes('-') && /^\d{7,8}$/.test(s)) {
+    const padded = s.padStart(8, '0');
+    const dd = padded.slice(0, 2);
+    const mm = padded.slice(2, 4);
+    const yyyy = padded.slice(4, 8);
+    return `${yyyy}-${mm}-${dd}`;
   }
   return s;
 }
