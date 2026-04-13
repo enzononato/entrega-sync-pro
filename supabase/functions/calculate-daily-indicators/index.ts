@@ -136,6 +136,23 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { data_referencia } = body;
 
+    // ── Step 0: Load metas from goals table ──
+    const { data: goalsData } = await supabase
+      .from("goals")
+      .select("valor_meta, indicators(codigo)")
+      .eq("ativo", true);
+
+    if (goalsData) {
+      METAS = { ...DEFAULT_METAS };
+      for (const g of goalsData) {
+        const code = (g as any).indicators?.codigo?.toUpperCase();
+        if (code && !METAS[code]) {
+          METAS[code] = g.valor_meta;
+        }
+      }
+      console.log("Loaded metas from DB:", METAS);
+    }
+
     // ── Step 1: Link user_id on mapa_historico rows that have no user_id ──
     const { data: allUsers } = await supabase
       .from("users")
