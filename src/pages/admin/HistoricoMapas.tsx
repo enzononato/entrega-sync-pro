@@ -4,10 +4,9 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { useMapas } from '@/hooks/useMapas';
 import { ImportMapasDialog } from '@/components/admin/ImportMapasDialog';
 import { Input } from '@/components/ui/input';
-import { Search, X, Clock, Truck, Timer, Route, PackageX } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Search, Clock, Truck, Timer, Route, PackageX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 function parseTime(hhmm: string | null | undefined): number | null {
   if (!hhmm) return null;
