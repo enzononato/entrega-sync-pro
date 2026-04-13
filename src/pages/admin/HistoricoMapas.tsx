@@ -22,8 +22,14 @@ export default function HistoricoMapas() {
     );
   });
 
+  const formatDate = (d: string | null) => {
+    if (!d) return '';
+    const [y, m, dd] = d.split('-');
+    return `${dd}/${m}/${y}`;
+  };
+
   const columns: Column<typeof mapas[number]>[] = [
-    { key: 'data_operacao', label: 'Data', render: (r) => r.data_operacao },
+    { key: 'data_operacao', label: 'Data', render: (r) => formatDate(r.data_operacao) },
     { key: 'mapa', label: 'Mapa' },
     { key: 'veiculo', label: 'Veículo' },
     { key: 'placa', label: 'Placa' },
