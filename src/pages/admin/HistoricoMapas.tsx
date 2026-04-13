@@ -210,50 +210,42 @@ export default function HistoricoMapas() {
         </div>
       </PageHeader>
 
-      {/* Indicator detail panel */}
-      {selectedMapa && (
-        <Card className="border-primary/30 bg-accent/30">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">
-                  Indicadores — Mapa {selectedMapa.mapa}
-                </CardTitle>
+      <Dialog open={selectedMapa !== null} onOpenChange={(open) => { if (!open) setSelectedIndex(null); }}>
+        <DialogContent className="max-w-2xl">
+          {selectedMapa && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Indicadores — Mapa {selectedMapa.mapa}</DialogTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   {formatDate(selectedMapa.data_operacao)} • Placa: {selectedMapa.placa || '—'} • Motorista: {selectedMapa.cd_mot || '—'}
                   {selectedMapa.hr_sai && ` • Saída: ${selectedMapa.hr_sai}`}
                   {selectedMapa.hr_entr && ` • Entrega: ${selectedMapa.hr_entr}`}
                 </p>
+              </DialogHeader>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                {indicators.map(ind => (
+                  <div key={ind.code} className="rounded-lg border bg-card p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      {ind.icon}
+                      <span className="text-xs font-semibold uppercase">{ind.code}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{ind.label}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold tracking-tight">{ind.valorFormatted}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Meta: {ind.metaFormatted}</span>
+                      <Badge variant={ind.valor !== null ? (ind.status === 'dentro_meta' ? 'default' : 'destructive') : 'secondary'}>
+                        {ind.valor === null ? 'S/ dados' : ind.status === 'dentro_meta' ? 'Atingiu' : 'Não Atingiu'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedIndex(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {indicators.map(ind => (
-                <div key={ind.code} className="rounded-lg border bg-card p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    {ind.icon}
-                    <span className="text-xs font-semibold uppercase">{ind.code}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">{ind.label}</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold tracking-tight">{ind.valorFormatted}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Meta: {ind.metaFormatted}</span>
-                    <Badge variant={ind.valor !== null ? (ind.status === 'dentro_meta' ? 'default' : 'destructive') : 'secondary'}>
-                      {ind.valor === null ? 'S/ dados' : ind.status === 'dentro_meta' ? 'Atingiu' : 'Não Atingiu'}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <DataTable
         columns={columns}
