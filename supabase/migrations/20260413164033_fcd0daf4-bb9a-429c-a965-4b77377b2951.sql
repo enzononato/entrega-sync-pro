@@ -1,0 +1,2 @@
+INSERT INTO public.indicators (codigo, nome, descricao, categoria, unidade_medida, applies_to_worker_type, ativo)
+VALUES ('TX_DEVOLUCAO', 'Taxa de Devolução', 'Percentual de caixas devolvidas: 1 - (cx_entreg / cx_carreg)', 'operacional', '%', 'motorista', true);
