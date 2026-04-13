@@ -60,12 +60,13 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
       const values = line.split(',').map(v => v.trim());
       const obj: Record<string, string> = {};
       headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+      const matricula = obj['matricula'] || '';
       return {
         nome: obj['nome'] || '',
         cpf: obj['cpf'] || '',
-        email: obj['email'] || '',
+        email: obj['email'] || (matricula ? `${matricula}@app.local` : ''),
         password: obj['password'] || 'rev123',
-        matricula: obj['matricula'] || '',
+        matricula,
         role: obj['role'] || 'colaborador',
         worker_type: obj['worker_type'] || '',
         ativo: (obj['ativo'] || 'true').toLowerCase() === 'true',
