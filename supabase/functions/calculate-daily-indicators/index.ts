@@ -13,13 +13,16 @@ const INDICATOR_IDS: Record<string, string> = {
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
 };
 
-const METAS: Record<string, number> = {
+// Default fallbacks — overridden by goals table values
+const DEFAULT_METAS: Record<string, number> = {
   TML: 30,
   TR: 560,
   TI: 30,
   JL: 620,
-  TX_DEVOLUCAO: 5, // 5% default — adjust as needed
+  TX_DEVOLUCAO: 5,
 };
+
+let METAS: Record<string, number> = { ...DEFAULT_METAS };
 
 /**
  * Parse "HH:MM" or "HH:MM:SS" into total minutes.
