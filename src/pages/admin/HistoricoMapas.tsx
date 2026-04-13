@@ -131,8 +131,18 @@ function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
 
 export default function HistoricoMapas() {
   const { mapas, loading, refetch } = useMapas();
+  const { data: goals = [] } = useMetas({ ativo: 'true' });
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const metasMap = useMemo<MetasMap>(() => {
+    const map: MetasMap = {};
+    for (const g of goals) {
+      const code = g.indicators?.codigo?.toUpperCase();
+      if (code && !map[code]) map[code] = g.valor_meta;
+    }
+    return map;
+  }, [goals]);
 
   const filtered = mapas.filter(m => {
     if (!search) return true;
@@ -147,7 +157,7 @@ export default function HistoricoMapas() {
   });
 
   const selectedMapa = selectedIndex !== null ? filtered[selectedIndex] : null;
-  const indicators = useMemo(() => selectedMapa ? calculateMapIndicators(selectedMapa) : [], [selectedMapa]);
+  const indicators = useMemo(() => selectedMapa ? calculateMapIndicators(selectedMapa, metasMap) : [], [selectedMapa, metasMap]);
 
   const formatDate = (d: string | null) => {
     if (!d) return '';
