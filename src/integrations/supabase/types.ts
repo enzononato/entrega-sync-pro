@@ -410,59 +410,150 @@ export type Database = {
       }
       mapa_historico: {
         Row: {
+          capacidade: number | null
+          capacidade_veiculo_kg: number | null
+          carga_atual: string | null
+          cd_aju1: string | null
+          cd_aju2: string | null
+          cd_mot: string | null
+          classificacao_roads: string | null
+          classificacao_roadshow: string | null
           created_at: string
+          custo_spot: number | null
+          cx_as: number | null
+          cx_carr_com: number | null
+          cx_carreg: number | null
+          cx_entreg: number | null
+          cx_rota: number | null
           data_operacao: string
-          fase: string
-          frota_cadastro: string
-          hora_operacao: string
+          entr_vol: string | null
+          entrega: string | null
+          entregas: number | null
+          frota: string | null
+          hr_entr: string | null
+          hr_sai: string | null
           id: string
+          km_desloc: number | null
+          km_entr: number | null
+          km_laco: number | null
+          km_prev: number | null
+          km_sai: number | null
           mapa: string
-          motorista_matricula: string
-          placa: string
-          tipo_mapa: string
-          user_id: string | null
-          usuario: string
-          veiculo: string
+          mot_nao_carr: number | null
+          ocupacao: number | null
+          peso_carga_kg: number | null
+          placa: string | null
+          regiao: string | null
+          rshow: number | null
+          tempo_prev: string | null
+          tmpo_desloc: string | null
+          tmpo_interno: string | null
+          tmpo_laco: string | null
+          transp: number | null
+          veic_bm: number | null
+          veiculo: string | null
+          vl_eq_ajd: number | null
+          vl_eq_mot: number | null
+          vl_pto_ajd: number | null
+          vl_pto_mot: number | null
         }
         Insert: {
+          capacidade?: number | null
+          capacidade_veiculo_kg?: number | null
+          carga_atual?: string | null
+          cd_aju1?: string | null
+          cd_aju2?: string | null
+          cd_mot?: string | null
+          classificacao_roads?: string | null
+          classificacao_roadshow?: string | null
           created_at?: string
+          custo_spot?: number | null
+          cx_as?: number | null
+          cx_carr_com?: number | null
+          cx_carreg?: number | null
+          cx_entreg?: number | null
+          cx_rota?: number | null
           data_operacao?: string
-          fase?: string
-          frota_cadastro?: string
-          hora_operacao?: string
+          entr_vol?: string | null
+          entrega?: string | null
+          entregas?: number | null
+          frota?: string | null
+          hr_entr?: string | null
+          hr_sai?: string | null
           id?: string
+          km_desloc?: number | null
+          km_entr?: number | null
+          km_laco?: number | null
+          km_prev?: number | null
+          km_sai?: number | null
           mapa: string
-          motorista_matricula?: string
-          placa?: string
-          tipo_mapa?: string
-          user_id?: string | null
-          usuario?: string
-          veiculo?: string
+          mot_nao_carr?: number | null
+          ocupacao?: number | null
+          peso_carga_kg?: number | null
+          placa?: string | null
+          regiao?: string | null
+          rshow?: number | null
+          tempo_prev?: string | null
+          tmpo_desloc?: string | null
+          tmpo_interno?: string | null
+          tmpo_laco?: string | null
+          transp?: number | null
+          veic_bm?: number | null
+          veiculo?: string | null
+          vl_eq_ajd?: number | null
+          vl_eq_mot?: number | null
+          vl_pto_ajd?: number | null
+          vl_pto_mot?: number | null
         }
         Update: {
+          capacidade?: number | null
+          capacidade_veiculo_kg?: number | null
+          carga_atual?: string | null
+          cd_aju1?: string | null
+          cd_aju2?: string | null
+          cd_mot?: string | null
+          classificacao_roads?: string | null
+          classificacao_roadshow?: string | null
           created_at?: string
+          custo_spot?: number | null
+          cx_as?: number | null
+          cx_carr_com?: number | null
+          cx_carreg?: number | null
+          cx_entreg?: number | null
+          cx_rota?: number | null
           data_operacao?: string
-          fase?: string
-          frota_cadastro?: string
-          hora_operacao?: string
+          entr_vol?: string | null
+          entrega?: string | null
+          entregas?: number | null
+          frota?: string | null
+          hr_entr?: string | null
+          hr_sai?: string | null
           id?: string
+          km_desloc?: number | null
+          km_entr?: number | null
+          km_laco?: number | null
+          km_prev?: number | null
+          km_sai?: number | null
           mapa?: string
-          motorista_matricula?: string
-          placa?: string
-          tipo_mapa?: string
-          user_id?: string | null
-          usuario?: string
-          veiculo?: string
+          mot_nao_carr?: number | null
+          ocupacao?: number | null
+          peso_carga_kg?: number | null
+          placa?: string | null
+          regiao?: string | null
+          rshow?: number | null
+          tempo_prev?: string | null
+          tmpo_desloc?: string | null
+          tmpo_interno?: string | null
+          tmpo_laco?: string | null
+          transp?: number | null
+          veic_bm?: number | null
+          veiculo?: string | null
+          vl_eq_ajd?: number | null
+          vl_eq_mot?: number | null
+          vl_pto_ajd?: number | null
+          vl_pto_mot?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "mapa_historico_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notifications: {
         Row: {
