@@ -7,9 +7,11 @@ import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
+import { useCausaRaizPorColaborador, type CausaRaizRow } from '@/hooks/useCausaRaiz';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
 import { ReportCausaRaizSheet } from '@/components/colaborador/ReportCausaRaizSheet';
+import { ViewCausaRaizSheet } from '@/components/colaborador/ViewCausaRaizSheet';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -99,6 +101,7 @@ export default function ColaboradorHome() {
   const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
+  const { data: causasRaiz = [] } = useCausaRaizPorColaborador(user?.id);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
 
@@ -106,6 +109,16 @@ export default function ColaboradorHome() {
 
   const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
   const [reportTarget, setReportTarget] = useState<{ indicatorId: string; indicatorNome: string; dataReferencia: string } | null>(null);
+  const [viewCausa, setViewCausa] = useState<CausaRaizRow | null>(null);
+
+  // Build a lookup: "indicatorId|dataReferencia" -> CausaRaizRow
+  const causaLookup = useMemo(() => {
+    const map = new Map<string, CausaRaizRow>();
+    for (const c of causasRaiz) {
+      map.set(`${c.indicator_id}|${c.data_referencia}`, c);
+    }
+    return map;
+  }, [causasRaiz]);
 
 
   const kpis = useMemo(() => desempenho.filter(d => {
@@ -352,22 +365,39 @@ export default function ColaboradorHome() {
                                 )}>
                                   {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                                 </span>
-                                {!atingiu && d.indicator_id && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setReportTarget({
-                                        indicatorId: d.indicator_id,
-                                        indicatorNome: d.indicators?.nome ?? '',
-                                        dataReferencia: d.data_referencia,
-                                      });
-                                    }}
-                                    className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
-                                  >
-                                    <AlertTriangle className="h-3 w-3" />
-                                    Reportar
-                                  </button>
-                                )}
+                                {!atingiu && d.indicator_id && (() => {
+                                  const existingCausa = causaLookup.get(`${d.indicator_id}|${d.data_referencia}`);
+                                  if (existingCausa) {
+                                    return (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setViewCausa(existingCausa);
+                                        }}
+                                        className="h-7 px-2 rounded-lg bg-success/10 text-success text-[10px] font-bold flex items-center gap-1 hover:bg-success/20 transition-colors"
+                                      >
+                                        <CheckCircle className="h-3 w-3" />
+                                        Reportado
+                                      </button>
+                                    );
+                                  }
+                                  return (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setReportTarget({
+                                          indicatorId: d.indicator_id,
+                                          indicatorNome: d.indicators?.nome ?? '',
+                                          dataReferencia: d.data_referencia,
+                                        });
+                                      }}
+                                      className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
+                                    >
+                                      <AlertTriangle className="h-3 w-3" />
+                                      Reportar
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -458,6 +488,15 @@ export default function ColaboradorHome() {
           indicatorId={reportTarget.indicatorId}
           dataReferencia={reportTarget.dataReferencia}
           indicatorNome={reportTarget.indicatorNome}
+        />
+      )}
+
+      {/* ── View Causa Raiz Sheet ─────────────────── */}
+      {viewCausa && (
+        <ViewCausaRaizSheet
+          open={!!viewCausa}
+          onClose={() => setViewCausa(null)}
+          causa={viewCausa}
         />
       )}
     </div>
