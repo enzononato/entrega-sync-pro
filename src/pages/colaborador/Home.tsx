@@ -123,6 +123,10 @@ export default function ColaboradorHome() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
     }
+    // Sort indicators within each mapa
+    for (const [, rows] of map) {
+      rows.sort(compareIndicators(r => r.indicators?.codigo));
+    }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [kpis]);
 

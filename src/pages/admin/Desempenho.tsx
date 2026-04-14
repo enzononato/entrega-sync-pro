@@ -62,6 +62,12 @@ export default function Desempenho() {
       if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
       entry.mapas.get(mapaKey)!.push(d);
     }
+    // Sort indicators within each mapa for every user
+    for (const entry of map.values()) {
+      for (const [, rows] of entry.mapas) {
+        rows.sort(compareIndicators(r => r.indicators?.codigo));
+      }
+    }
     return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
   }, [desempenho]);
 
