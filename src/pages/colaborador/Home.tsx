@@ -364,7 +364,10 @@ export default function ColaboradorHome() {
                                   </button>
                                 )}
                               </div>
+                            </div>
+                          </div>
                         );
+                      })}
                       })}
                     </div>
                   )}
