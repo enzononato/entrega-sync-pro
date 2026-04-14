@@ -104,7 +104,8 @@ export default function ColaboradorHome() {
   const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
 
   const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
-  
+  const [reportTarget, setReportTarget] = useState<{ indicatorId: string; indicatorNome: string; dataReferencia: string } | null>(null);
+
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
