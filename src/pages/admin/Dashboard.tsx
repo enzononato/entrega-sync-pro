@@ -36,7 +36,7 @@ function DatePick({ value, onChange }: { value: string; onChange: (v: string) =>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={date} onSelect={d => onChange(d ? format(d, 'yyyy-MM-dd') : '')} className="p-3 pointer-events-auto" />
+        <Calendar mode="single" selected={date} onSelect={d => { if (d) onChange(format(d, 'yyyy-MM-dd')); }} className="p-3 pointer-events-auto" />
       </PopoverContent>
     </Popover>
   );
