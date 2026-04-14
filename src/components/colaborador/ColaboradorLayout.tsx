@@ -34,7 +34,7 @@ export default function ColaboradorLayout() {
                 <p className="text-xs text-white/90 font-medium leading-tight">{user?.nome?.split(' ')[0]}</p>
                 {user?.worker_type && (
                   <p className="text-[10px] text-white/50">
-                    {user.worker_type === 'motorista' ? '🚛 Motorista' : user.worker_type === 'distribuicao' ? '📋 Distribuição' : '📦 Ajudante'}
+                    {user.worker_type === 'motorista' ? '🚛 Motorista' : '📦 Ajudante'}
                   </p>
                 )}
               </div>
