@@ -340,14 +340,30 @@ export default function ColaboradorHome() {
                                   </p>
                                 </div>
                               </div>
-                              <span className={cn(
-                                'text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0',
-                                atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                              )}>
-                                {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                              </span>
-                            </div>
-                          </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={cn(
+                                  'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                  atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                )}>
+                                  {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                </span>
+                                {!atingiu && d.indicators?.id && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReportTarget({
+                                        indicatorId: d.indicators!.id,
+                                        indicatorNome: d.indicators!.nome ?? '',
+                                        dataReferencia: d.data_referencia,
+                                      });
+                                    }}
+                                    className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
+                                  >
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Reportar
+                                  </button>
+                                )}
+                              </div>
                         );
                       })}
                     </div>
