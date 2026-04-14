@@ -15,17 +15,29 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
   return useQuery({
     queryKey: ['user_indicator_daily', dataInicio, dataFim, filters],
     queryFn: async () => {
-      let q = supabase.from('user_indicator_daily')
-        .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo)')
-        .gte('data_referencia', dataInicio)
-        .lte('data_referencia', dataFim)
-        .order('data_referencia', { ascending: false })
-        .order('created_at', { ascending: false });
-      if (filters?.user_id) q = q.eq('user_id', filters.user_id);
-      if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
-      const { data: rows, error } = await q;
-      if (error) throw error;
-      let result = rows as DesempenhoRow[];
+      const PAGE_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+
+      while (true) {
+        let q = supabase.from('user_indicator_daily')
+          .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo)')
+          .gte('data_referencia', dataInicio)
+          .lte('data_referencia', dataFim)
+          .order('data_referencia', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (filters?.user_id) q = q.eq('user_id', filters.user_id);
+        if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
+        const { data: page, error } = await q;
+        if (error) throw error;
+        if (!page || page.length === 0) break;
+        allRows = allRows.concat(page);
+        if (page.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      let result = allRows as DesempenhoRow[];
       if (filters?.unidade_id) result = result.filter(r => r.users?.unidade_id === filters.unidade_id);
       if (filters?.worker_type) result = result.filter(r => r.users?.worker_type === filters.worker_type);
       return result;
