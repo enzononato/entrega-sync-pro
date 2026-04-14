@@ -25,22 +25,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
-function DatePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const date = value ? new Date(value + 'T00:00:00') : undefined;
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('w-full sm:w-44 justify-start text-left font-normal h-9', !value && 'text-muted-foreground')}>
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(new Date(value + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : 'Data'}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={date} onSelect={d => { if (d) onChange(format(d, 'yyyy-MM-dd')); }} className="p-3 pointer-events-auto" />
-      </PopoverContent>
-    </Popover>
-  );
-}
+// DatePick removed — using DateRangePick from shared components
 
 const PIE_COLORS: Record<string, string> = {
   baixa: '#94a3b8', media: '#fbbf24', alta: '#f97316', critica: '#ef4444',
