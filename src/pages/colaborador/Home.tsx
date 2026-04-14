@@ -101,6 +101,7 @@ export default function ColaboradorHome() {
   const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
+  const { data: causasRaiz = [] } = useCausaRaizPorColaborador(user?.id);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
 
@@ -108,6 +109,16 @@ export default function ColaboradorHome() {
 
   const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
   const [reportTarget, setReportTarget] = useState<{ indicatorId: string; indicatorNome: string; dataReferencia: string } | null>(null);
+  const [viewCausa, setViewCausa] = useState<CausaRaizRow | null>(null);
+
+  // Build a lookup: "indicatorId|dataReferencia" -> CausaRaizRow
+  const causaLookup = useMemo(() => {
+    const map = new Map<string, CausaRaizRow>();
+    for (const c of causasRaiz) {
+      map.set(`${c.indicator_id}|${c.data_referencia}`, c);
+    }
+    return map;
+  }, [causasRaiz]);
 
 
   const kpis = useMemo(() => desempenho.filter(d => {
