@@ -24,9 +24,7 @@ import RankingAdmin from '@/pages/admin/Ranking';
 import UsuariosAdmin from '@/pages/admin/Usuarios';
 import HistoricoMapasAdmin from '@/pages/admin/HistoricoMapas';
 import ColaboradorHome from '@/pages/colaborador/Home';
-import IndicadoresColaborador from '@/pages/colaborador/Indicadores';
 import IncentivoColaborador from '@/pages/colaborador/Incentivo';
-import CausaRaizColaborador from '@/pages/colaborador/CausaRaiz';
 import PlanosDeAcaoColaborador from '@/pages/colaborador/PlanosDeAcao';
 import FeedbacksColaborador from '@/pages/colaborador/Feedbacks';
 import PerfilColaborador from '@/pages/colaborador/Perfil';
@@ -68,9 +66,7 @@ export default function AppRoutes() {
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
         <Route path="home" element={<ColaboradorHome />} />
-        <Route path="indicadores" element={<IndicadoresColaborador />} />
         <Route path="incentivo" element={<IncentivoColaborador />} />
-        <Route path="causa-raiz" element={<CausaRaizColaborador />} />
         <Route path="planos-de-acao" element={<PlanosDeAcaoColaborador />} />
         <Route path="feedbacks" element={<FeedbacksColaborador />} />
         <Route path="perfil" element={<PerfilColaborador />} />

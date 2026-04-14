@@ -1,25 +1,30 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDesempenhoDiario } from '@/hooks/useDesempenho';
+import { useDesempenhoDiario, useDesempenhoPorColaborador } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
 import { MiniRanking } from '@/components/colaborador/MiniRanking';
-import { ProgressBar } from '@/components/shared/ProgressBar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  CheckCircle, AlertCircle, DollarSign, ClipboardList,
-  Trophy, ChevronRight, Zap, Flame, Target, ArrowUpRight, MapPin,
+  CheckCircle, XCircle, DollarSign, ClipboardList,
+  Trophy, ChevronRight, ChevronDown, Zap, Flame, Target, MapPin,
+  CalendarIcon, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
+import type { DesempenhoRow } from '@/hooks/useDesempenho';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 /* ── helpers ─────────────────────────────────────── */
 function greeting() {
@@ -38,19 +43,70 @@ const statusColor: Record<string, string> = {
   abaixo_meta: 'bg-destructive',
 };
 
+const statusConfig: Record<string, { label: string; color: string; bg: string; icon: typeof CheckCircle }> = {
+  acima_meta: { label: 'Acima', color: 'text-success', bg: 'bg-success/10', icon: TrendingUp },
+  dentro_meta: { label: 'Na meta', color: 'text-primary', bg: 'bg-primary/10', icon: CheckCircle },
+  abaixo_meta: { label: 'Abaixo', color: 'text-destructive', bg: 'bg-destructive/10', icon: TrendingDown },
+};
+
+type PeriodType = 'hoje' | 'semana' | 'mes' | 'custom';
+
+function getDateRange(period: PeriodType, customStart?: Date, customEnd?: Date) {
+  const today = new Date();
+  switch (period) {
+    case 'hoje':
+      return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+    case 'semana': {
+      const ws = startOfWeek(today, { weekStartsOn: 1 });
+      return { start: format(ws, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+    }
+    case 'mes': {
+      const ms = startOfMonth(today);
+      return { start: format(ms, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+    }
+    case 'custom':
+      return {
+        start: customStart ? format(customStart, 'yyyy-MM-dd') : format(today, 'yyyy-MM-dd'),
+        end: customEnd ? format(customEnd, 'yyyy-MM-dd') : format(today, 'yyyy-MM-dd'),
+      };
+  }
+}
+
+const periodLabels: Record<PeriodType, string> = {
+  hoje: 'Hoje',
+  semana: 'Semana',
+  mes: 'Mês',
+  custom: 'Período',
+};
+
 /* ── component ───────────────────────────────────── */
 export default function ColaboradorHome() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const { data: desempenho = [], isLoading: loadDes } = useDesempenhoDiario(today, today, { user_id: user?.id });
+  const [period, setPeriod] = useState<PeriodType>('hoje');
+  const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
+
+  const dateRange = useMemo(() =>
+    getDateRange(period, customRange.from, customRange.to),
+    [period, customRange]
+  );
+
+  const { data: desempenho = [], isLoading: loadDes } = useDesempenhoDiario(dateRange.start, dateRange.end, { user_id: user?.id });
   const { data: incentivo } = useIncentivoDiario(user?.id, today);
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
+  // Spark chart historical data (last 7 days from end of range)
+  const sparkStart = format(subDays(new Date(dateRange.end + 'T00:00:00'), 6), 'yyyy-MM-dd');
+  const { data: historico = [] } = useDesempenhoPorColaborador(user?.id, sparkStart, dateRange.end);
+
   const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
+
+  const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
+  const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
@@ -60,18 +116,44 @@ export default function ColaboradorHome() {
     return true;
   }), [desempenho, user?.worker_type]);
 
+  // Group by mapa
+  const groupedByMapa = useMemo(() => {
+    const map = new Map<string, typeof kpis>();
+    for (const d of kpis) {
+      const key = d.mapa_numero ?? 'manual';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [kpis]);
+
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
   const allOnTarget = kpis.length > 0 && badCount === 0;
-  const overallPct = kpis.length > 0
-    ? Math.round((okCount / kpis.length) * 100)
-    : 0;
+  const overallPct = kpis.length > 0 ? Math.round((okCount / kpis.length) * 100) : 0;
   const acoesAbertas = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
   const todayStr = new Date().toISOString().split('T')[0];
   const recentPlanos = planos.slice(0, 3);
 
-  const pctColor = overallPct >= 100 ? 'text-success' : overallPct >= 80 ? 'text-warning' : 'text-destructive';
   const ringColor = overallPct >= 100 ? 'border-success' : overallPct >= 80 ? 'border-warning' : 'border-destructive';
+
+  const toggleMapa = (key: string) => {
+    setExpandedMapas(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const getSparkData = (indicatorId: string) =>
+    historico
+      .filter(h => h.indicator_id === indicatorId)
+      .sort((a, b) => a.data_referencia.localeCompare(b.data_referencia))
+      .map(h => ({
+        data: format(new Date(h.data_referencia + 'T00:00:00'), 'dd/MM'),
+        valor: (h.status === 'dentro_meta' || h.status === 'acima_meta') ? 100 : 0,
+        status: h.status,
+      }));
 
   return (
     <div className="space-y-5 stagger-children pb-2">
@@ -100,11 +182,51 @@ export default function ColaboradorHome() {
         )}
       </div>
 
+      {/* ── Period Filter ─────────────────────────── */}
+      <div className="flex items-center gap-1.5">
+        {(['hoje', 'semana', 'mes'] as PeriodType[]).map(p => (
+          <Button
+            key={p}
+            variant={period === p ? 'default' : 'outline'}
+            size="sm"
+            className={cn('rounded-full h-8 text-xs px-4', period === p && 'shadow-md')}
+            onClick={() => setPeriod(p)}
+          >
+            {periodLabels[p]}
+          </Button>
+        ))}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={period === 'custom' ? 'default' : 'outline'}
+              size="sm"
+              className={cn('rounded-full h-8 text-xs px-3', period === 'custom' && 'shadow-md')}
+            >
+              <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+              {period === 'custom' && customRange.from
+                ? `${format(customRange.from, 'dd/MM')} - ${customRange.to ? format(customRange.to, 'dd/MM') : '...'}`
+                : 'Período'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={{ from: customRange.from, to: customRange.to }}
+              onSelect={(range) => {
+                setCustomRange({ from: range?.from, to: range?.to });
+                if (range?.from) setPeriod('custom');
+              }}
+              className="p-3 pointer-events-auto"
+              disabled={(date) => date > new Date()}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
       {/* ── Hero Score ────────────────────────────── */}
       <div className="rounded-2xl overflow-hidden shadow-lg gradient-hero">
         <div className="p-5 pb-4">
           <div className="flex items-center gap-5">
-            {/* Ring progress */}
             <div className={cn(
               'relative h-[88px] w-[88px] rounded-full border-[6px] flex items-center justify-center shrink-0 transition-colors',
               ringColor
@@ -113,7 +235,7 @@ export default function ColaboradorHome() {
                 <span className="text-3xl font-extrabold text-white leading-none">{overallPct}</span>
                 <span className="text-[10px] text-white/60 block -mt-0.5">%</span>
               </div>
-              {allOnTarget && (
+              {allOnTarget && kpis.length > 0 && (
                 <div className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full bg-success flex items-center justify-center shadow-md">
                   <Flame className="h-3.5 w-3.5 text-white" />
                 </div>
@@ -121,7 +243,7 @@ export default function ColaboradorHome() {
             </div>
 
             <div className="flex-1 min-w-0 text-white">
-              <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Desempenho Geral</p>
+              <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Desempenho {periodLabels[period]}</p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-3xl font-extrabold">{okCount}</span>
                 <span className="text-sm text-white/60 font-medium">de {kpis.length} na meta</span>
@@ -133,28 +255,27 @@ export default function ColaboradorHome() {
           </div>
         </div>
 
-        {/* Quick stats */}
         <div className="grid grid-cols-3 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
-          <button onClick={() => navigate('/colaborador/indicadores')} className="py-3 text-center hover:bg-white/5 transition-colors">
+          <div className="py-3 text-center">
             <CheckCircle className="h-3.5 w-3.5 text-success mx-auto mb-1" />
             <p className="text-lg font-bold text-white">{okCount}</p>
             <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider">Na Meta</p>
-          </button>
-          <button onClick={() => navigate('/colaborador/incentivo')} className="py-3 text-center hover:bg-white/5 transition-colors">
-            <DollarSign className="h-3.5 w-3.5 text-warning mx-auto mb-1" />
-            <p className="text-sm font-bold text-white">{fmtBRL(incentivo?.valor_estimado ?? 0)}</p>
-            <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider">Incentivo</p>
-          </button>
-          <button onClick={() => navigate('/colaborador/planos-de-acao')} className="py-3 text-center hover:bg-white/5 transition-colors">
-            <ClipboardList className="h-3.5 w-3.5 text-secondary mx-auto mb-1" />
-            <p className="text-lg font-bold text-white">{acoesAbertas}</p>
-            <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider">Ações</p>
-          </button>
+          </div>
+          <div className="py-3 text-center">
+            <XCircle className="h-3.5 w-3.5 text-destructive mx-auto mb-1" />
+            <p className="text-lg font-bold text-white">{badCount}</p>
+            <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider">Abaixo</p>
+          </div>
+          <div className="py-3 text-center">
+            <Target className="h-3.5 w-3.5 text-white/40 mx-auto mb-1" />
+            <p className="text-lg font-bold text-white">{groupedByMapa.length}</p>
+            <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider">Mapa{groupedByMapa.length !== 1 ? 's' : ''}</p>
+          </div>
         </div>
       </div>
 
       {/* ── Success Banner ────────────────────────── */}
-      {allOnTarget && (
+      {allOnTarget && kpis.length > 0 && (
         <div className="rounded-2xl bg-success/10 border border-success/20 p-4 flex items-center gap-3 animate-fade-up">
           <div className="h-10 w-10 rounded-full bg-success/20 flex items-center justify-center shrink-0">
             <Trophy className="h-5 w-5 text-success" />
@@ -166,80 +287,139 @@ export default function ColaboradorHome() {
         </div>
       )}
 
-      {/* ── KPIs do Dia ──────────────────────────── */}
+      {/* ── KPIs por Mapa ─────────────────────────── */}
       <section>
-        <SectionHeader icon={<Zap className="h-4 w-4 text-primary" />} title="KPIs do Dia" action={() => navigate('/colaborador/indicadores')} />
+        <SectionHeader icon={<Zap className="h-4 w-4 text-primary" />} title="KPIs por Mapa" />
         {loadDes ? (
-          <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}</div>
+          <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
         ) : kpis.length === 0 ? (
           <div className="card-elevated p-6 text-center">
-            <AlertCircle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Sem indicadores lançados hoje</p>
+            <Target className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Sem indicadores para este período</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {(() => {
-              // Group by mapa_numero
-              const mapaMap = new Map<string, typeof kpis>();
-              kpis.forEach(d => {
-                const key = d.mapa_numero ?? 'manual';
-                if (!mapaMap.has(key)) mapaMap.set(key, []);
-                mapaMap.get(key)!.push(d);
-              });
-              const entries = Array.from(mapaMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+          <div className="space-y-3">
+            {groupedByMapa.map(([mapaKey, rows]) => {
+              const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+              const isMapaExpanded = expandedMapas.has(mapaKey) || groupedByMapa.length === 1;
 
-              return entries.map(([mapaKey, rows]) => {
-                const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
-                return (
-                  <div key={mapaKey} className="card-elevated overflow-hidden">
-                    {/* Mapa header */}
-                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/30 border-b border-border/40">
-                      <MapPin className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-bold text-foreground flex-1">
-                        {mapaKey === 'manual' ? 'Manual' : `Mapa ${mapaKey}`}
-                      </span>
-                      <span className={cn('text-xs font-bold', mapaOk === rows.length ? 'text-emerald-600' : 'text-red-600')}>
-                        {mapaOk}/{rows.length}
+              return (
+                <div key={mapaKey} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => toggleMapa(mapaKey)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
+                  >
+                    <MapPin className="h-4 w-4 text-primary shrink-0" />
+                    <div className="flex-1 text-left">
+                      <span className="text-sm font-bold text-foreground">
+                        {mapaKey === 'manual' ? 'Lançamento Manual' : `Mapa ${mapaKey}`}
                       </span>
                     </div>
-                    {/* Indicators */}
-                    <div className="divide-y divide-border/40">
+                    <span className={cn(
+                      'text-xs font-bold',
+                      mapaOk === rows.length ? 'text-emerald-600' : 'text-red-600'
+                    )}>
+                      {mapaOk}/{rows.length}
+                    </span>
+                    {groupedByMapa.length > 1 && (
+                      <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isMapaExpanded && 'rotate-180')} />
+                    )}
+                  </button>
+
+                  {isMapaExpanded && (
+                    <div className="border-t border-border/50 divide-y divide-border/30">
                       {rows.map(d => {
-                        const status = d.status as IndicatorStatus | undefined;
-                        const isGood = status === 'acima_meta' || status === 'dentro_meta';
-                        const isTime = ['TML','TR','TI','JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
-                        const valStr = isTime ? formatMinutesHHMM(d.valor) : '';
-                        const metaStr = d.meta != null && isTime ? formatMinutesHHMM(d.meta) : '';
+                        const status = (d.status as IndicatorStatus | undefined) ?? 'abaixo_meta';
+                        const cfg = statusConfig[status] ?? statusConfig.abaixo_meta;
+                        const StatusIcon = cfg.icon;
+                        const atingiu = status === 'acima_meta' || status === 'dentro_meta';
+                        const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
+                        const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
+                        const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                        const itemKey = `${mapaKey}-${d.indicator_id}`;
+                        const isItemExpanded = expandedIndicator === itemKey;
+                        const sparkData = isItemExpanded ? getSparkData(d.indicator_id) : [];
+
                         return (
-                          <div
-                            key={d.id}
-                            className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50"
-                            onClick={() => navigate('/colaborador/indicadores')}
-                          >
-                            <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', statusColor[status ?? ''] ?? 'bg-muted')} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-foreground truncate">
-                                  {d.indicators?.nome ?? ''}
-                                  {isTime && <span className="text-[10px] text-muted-foreground ml-1.5">{valStr} / {metaStr}</span>}
-                                </span>
-                                <span className={cn(
-                                  'text-[10px] font-bold ml-2 shrink-0 px-2 py-0.5 rounded-full',
-                                  isGood ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                                )}>
-                                  {isGood ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                                </span>
+                          <div key={d.id}>
+                            <button
+                              onClick={() => setExpandedIndicator(isItemExpanded ? null : itemKey)}
+                              className="w-full text-left px-4 py-3 active:bg-muted/30 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', cfg.bg)}>
+                                    <StatusIcon className={cn('h-4 w-4', cfg.color)} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                      {valStr} / {metaStr}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className={cn(
+                                    'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                    atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                  )}>
+                                    {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                  </span>
+                                  <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isItemExpanded && 'rotate-180')} />
+                                </div>
                               </div>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                            </button>
+
+                            {isItemExpanded && sparkData.length > 1 && (
+                              <div className="px-4 pb-4 pt-1 border-t border-border/50">
+                                <p className="text-[10px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Últimos 7 dias</p>
+                                <ResponsiveContainer width="100%" height={100}>
+                                  <AreaChart data={sparkData}>
+                                    <defs>
+                                      <linearGradient id={`grad-${d.id}`} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                      </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="data" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                                    <YAxis hide domain={[0, 'auto']} />
+                                    <Tooltip
+                                      contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                                      formatter={(v: number) => [v === 100 ? 'Atingiu' : 'Não Atingiu', 'Status']}
+                                    />
+                                    <ReferenceLine y={100} stroke="hsl(var(--destructive)/0.4)" strokeDasharray="3 3" />
+                                    <Area
+                                      type="monotone" dataKey="valor"
+                                      stroke="hsl(var(--primary))" strokeWidth={2}
+                                      fill={`url(#grad-${d.id})`}
+                                      dot={(props: any) => {
+                                        const { cx, cy, payload } = props;
+                                        return (
+                                          <circle
+                                            key={payload.data} cx={cx} cy={cy} r={3.5}
+                                            fill={payload.status === 'abaixo_meta' ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
+                                            stroke="white" strokeWidth={1.5}
+                                          />
+                                        );
+                                      }}
+                                    />
+                                  </AreaChart>
+                                </ResponsiveContainer>
+                              </div>
+                            )}
+                            {isItemExpanded && sparkData.length <= 1 && (
+                              <div className="px-4 pb-3 pt-1 border-t border-border/50">
+                                <p className="text-xs text-muted-foreground text-center py-2">Sem histórico suficiente</p>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                );
-              });
-            })()}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -247,18 +427,14 @@ export default function ColaboradorHome() {
       {/* ── Evolução ─────────────────────────────── */}
       <EvolutionCharts userId={user?.id} />
 
-      {/* ── Rankings ──────────────────────────────── */}
+      {/* ── Mini Ranking ─────────────────────────── */}
       <section>
-        <SectionHeader icon={<Trophy className="h-4 w-4 text-warning" />} title="🚛 Ranking Motoristas" />
-        <MiniRanking workerType="motorista" userId={user?.id} />
+        <SectionHeader
+          icon={<Trophy className="h-4 w-4 text-warning" />}
+          title={`🏆 Ranking ${user?.worker_type === 'ajudante' ? 'Ajudantes' : 'Motoristas'}`}
+        />
+        <MiniRanking workerType={user?.worker_type ?? 'motorista'} userId={user?.id} />
       </section>
-
-      <section>
-        <SectionHeader icon={<Trophy className="h-4 w-4 text-warning" />} title="📦 Ranking Ajudantes" />
-        <MiniRanking workerType="ajudante" userId={user?.id} />
-      </section>
-
-      <div className="h-2" />
 
       {/* ── Planos de Ação ────────────────────────── */}
       {(recentPlanos.length > 0 || loadPlan) && (
@@ -320,6 +496,8 @@ export default function ColaboradorHome() {
           )}
         </section>
       )}
+
+      <div className="h-2" />
     </div>
   );
 }
