@@ -88,16 +88,31 @@ function calculateIndicatorsForRow(row: any): IndicatorResult[] {
     if (txDevVal < 0) txDevVal = 0;
   }
 
+  // DISP_TEMPO: tempo_prev - (hr_entr - hr_sai). Only HH:MM format (2 parts).
+  let dispTempoVal: number | null = null;
+  if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
+    const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
+    const partsTP = cleanTP.split(":");
+    if (partsTP.length === 2) {
+      const hTP = parseInt(partsTP[0], 10);
+      const mTP = parseInt(partsTP[1], 10);
+      if (!isNaN(hTP) && !isNaN(mTP)) {
+        const tempoPrev = hTP * 60 + mTP;
+        const tempoReal = Math.max(0, hrEntr - hrSai);
+        dispTempoVal = tempoPrev - tempoReal;
+      }
+    }
+  }
+
   const addResult = (code: string, valor: number | null) => {
     if (valor === null) return;
     const meta = METAS[code];
-    // TML: within target if hr_sai <= 08:20 (i.e. tmlVal <= 30)
-    // Others: within target if valor <= meta
     let withinTarget: boolean;
     if (code === "TML") {
       withinTarget = hrSai !== null && hrSai <= LIMIT_TIME;
-    } else if (code === "TX_DEVOLUCAO") {
-      withinTarget = valor <= meta;
+    } else if (code === "DISP_TEMPO") {
+      // Higher is better: valor >= meta means within target
+      withinTarget = valor >= meta;
     } else {
       withinTarget = valor <= meta;
     }
@@ -120,6 +135,8 @@ function calculateIndicatorsForRow(row: any): IndicatorResult[] {
   if (tmlVal !== null && trVal !== null && tiVal !== null) {
     addResult("JL", tmlVal + trVal + tiVal);
   }
+
+  addResult("DISP_TEMPO", dispTempoVal);
 
   return results;
 }
