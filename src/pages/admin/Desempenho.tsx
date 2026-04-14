@@ -18,7 +18,7 @@ import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle,
-  Loader2, CalendarIcon, BarChart3,
+  Loader2, BarChart3,
   ChevronDown, Download, MapPin,
 } from 'lucide-react';
 import { formatMinutesHHMM } from '@/lib/formatters';
