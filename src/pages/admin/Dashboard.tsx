@@ -210,7 +210,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <DatePick value={dateFilter} onChange={setDateFilter} />
+          <DateRangePick from={dateFrom} to={dateTo} onChangeFrom={setDateFrom} onChangeTo={setDateTo} className="w-full sm:w-56" />
           <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Todas</SelectItem>{allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
@@ -223,14 +223,14 @@ export default function Dashboard() {
       </div>
 
       {/* Active filters indicator */}
-      {(unidadeFilter || tipoFilter || dateFilter !== today) && (
+      {(unidadeFilter || tipoFilter || dateFrom !== today || dateTo !== today) && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{allowedUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
           {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter === 'distribuicao' ? 'Distribuição' : tipoFilter}</span>}
-          {dateFilter && dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
-          <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+          {(dateFrom !== today || dateTo !== today) && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFrom + 'T00:00:00'), 'dd/MM')} — {format(new Date(dateTo + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
+          <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFrom(today); setDateTo(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
         </div>
       )}
 
