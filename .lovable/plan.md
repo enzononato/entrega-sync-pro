@@ -1,51 +1,47 @@
 
 
-## Plano: Reformular Painel do Colaborador
+## Plano: Fluxo de Causa Raiz e Plano de Acao integrado ao Dashboard
 
-### Visao geral
-Transformar o painel do colaborador em um dashboard unico e intuitivo, com filtro de periodo, eliminando paginas redundantes.
+### O que muda
+Quando um indicador aparece como "Nao Atingiu" no dashboard do colaborador, um botao "Reportar" aparece ao lado do badge. Ao clicar, abre um Sheet (bottom drawer) com um formulario simplificado em 2 etapas:
+1. **Causa Raiz** -- problema, categoria e causa
+2. **Plano de Acao** -- acao corretiva e prazo
 
-### Navegacao: 4 abas no BottomNav
+### Fluxo do usuario
 ```text
-Dashboard | Incentivo | Feedback | Perfil
+Dashboard > Expandir Mapa > Indicador "Nao Atingiu"
+  > Botao "Reportar"
+  > Sheet abre (etapa 1: Causa Raiz)
+    - Descricao do problema (textarea)
+    - Categoria (select: veiculo, rota, sistema, processo, outro)
+    - Causa raiz (textarea)
+  > Botao "Proximo"
+  > Etapa 2: Plano de Acao
+    - Acao corretiva (textarea)
+    - Prazo (date picker)
+  > Botao "Salvar"
+  > Insere root_cause_record + action_plan no Supabase
+  > Toast de sucesso, fecha sheet
 ```
-- **Dashboard** (nova): consolida Home + Indicadores + Causa Raiz
-- **Incentivo**: permanece como esta
-- **Feedback**: permanece como esta
-- **Perfil**: permanece (planos de acao acessiveis via link no perfil ou dashboard)
-- O menu "Mais" e removido. Planos de Acao fica acessivel como link dentro do Dashboard ou Perfil.
-
-### Dashboard: estrutura das secoes
-
-1. **Header** -- saudacao + data atual + unidade
-2. **Filtro de periodo** -- Tabs: Hoje | Semana | Mes | Personalizado (date picker)
-3. **Hero Card** -- % de metas atingidas no periodo, contadores (atingiu/nao atingiu), total de mapas
-4. **Banner de sucesso** (condicional) -- se todas metas atingidas
-5. **KPIs por Mapa** -- cards agrupados por mapa (como ja existe em Indicadores), com expand/collapse e mini spark chart dos ultimos 7 dias
-6. **Grafico de Evolucao** -- AreaChart/BarChart semanal ou mensal (reutiliza EvolutionCharts)
-7. **Mini Ranking** -- Top 3 do worker_type do usuario
-
-### Paginas removidas
-- `/colaborador/indicadores` -- conteudo absorvido pelo Dashboard
-- `/colaborador/causa-raiz` -- removida (admin-only ou futura reintegracao)
-
-### Rotas atualizadas
-- Remover rotas de `/colaborador/indicadores` e `/colaborador/causa-raiz`
-- Atualizar BottomNav para 4 itens
-- Planos de Acao permanece como pagina acessivel via link
 
 ### Arquivos modificados
-- `src/pages/colaborador/Home.tsx` -- reescrever como Dashboard com filtro de periodo e KPIs detalhados
-- `src/components/colaborador/BottomNav.tsx` -- 4 abas (Dashboard, Incentivo, Feedback, Perfil)
-- `src/routes/AppRoutes.tsx` -- remover rotas de Indicadores e CausaRaiz do colaborador
-- `src/components/colaborador/EvolutionCharts.tsx` -- ajustar para aceitar periodo externo como prop
 
-### Arquivos removidos
-- `src/pages/colaborador/Indicadores.tsx`
-- `src/pages/colaborador/CausaRaiz.tsx`
+**`src/pages/colaborador/Home.tsx`**:
+- Adicionar estado para controlar o Sheet e o indicador selecionado
+- No render de cada indicador com status "abaixo_meta", adicionar um botao "Reportar" (icone AlertTriangle)
+- Adicionar componente `ReportSheet` inline ou extraido
+
+**`src/components/colaborador/ReportCausaRaizSheet.tsx`** (novo):
+- Sheet com 2 steps (causa raiz + plano de acao)
+- Usa `useCreateCausaRaiz` e `useCreateActionPlan` do hook existente `useCausaRaiz.ts`
+- Props: `open`, `onClose`, `userId`, `indicatorId`, `dataReferencia`, `indicatorNome`
+- O `responsavel_user_id` do plano de acao e o proprio colaborador
+
+### Sem mudancas no banco
+As tabelas `root_cause_records` e `action_plans` ja possuem RLS que permite INSERT pelo proprio usuario. Nao precisa de migration.
 
 ### Detalhes tecnicos
-- O filtro de periodo sera um state local no Dashboard que controla `dataInicio` e `dataFim` passados ao `useDesempenhoDiario`
-- Mini Ranking continua usando `useRanking` com range do mes
-- O hook `useDesempenhoPorColaborador` sera usado para o spark chart por indicador
+- Reutiliza hooks existentes: `useCreateCausaRaiz()` e `useCreateActionPlan()` de `src/hooks/useCausaRaiz.ts`
+- O campo `impacto` sera preenchido automaticamente como "Indicador abaixo da meta"
+- Apos salvar, invalida queries de `root_cause_records` e `action_plans` para atualizar a secao "Meus Planos" no dashboard
 
