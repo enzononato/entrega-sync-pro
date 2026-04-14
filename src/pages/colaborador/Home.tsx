@@ -490,6 +490,15 @@ export default function ColaboradorHome() {
           indicatorNome={reportTarget.indicatorNome}
         />
       )}
+
+      {/* ── View Causa Raiz Sheet ─────────────────── */}
+      {viewCausa && (
+        <ViewCausaRaizSheet
+          open={!!viewCausa}
+          onClose={() => setViewCausa(null)}
+          causa={viewCausa}
+        />
+      )}
     </div>
   );
 }
