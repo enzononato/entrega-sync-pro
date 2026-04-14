@@ -9,7 +9,7 @@ import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
-import { MiniRanking } from '@/components/colaborador/MiniRanking';
+
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -360,14 +360,6 @@ export default function ColaboradorHome() {
       {/* ── Evolução ─────────────────────────────── */}
       <EvolutionCharts userId={user?.id} />
 
-      {/* ── Mini Ranking ─────────────────────────── */}
-      <section>
-        <SectionHeader
-          icon={<Trophy className="h-4 w-4 text-warning" />}
-          title={`🏆 Ranking ${user?.worker_type === 'ajudante' ? 'Ajudantes' : 'Motoristas'}`}
-        />
-        <MiniRanking workerType={user?.worker_type ?? 'motorista'} userId={user?.id} />
-      </section>
 
       {/* ── Planos de Ação ────────────────────────── */}
       {(recentPlanos.length > 0 || loadPlan) && (
