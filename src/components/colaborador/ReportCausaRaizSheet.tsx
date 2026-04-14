@@ -19,11 +19,10 @@ interface Props {
 }
 
 const CATEGORIAS = [
-  { value: 'Logística', label: 'Logística' },
-  { value: 'Qualidade', label: 'Qualidade' },
-  { value: 'Processo', label: 'Processo' },
-  { value: 'Externo', label: 'Externo' },
-  { value: 'Equipamento', label: 'Equipamento' },
+  { value: 'Veículo', label: 'Veículo' },
+  { value: 'Rota', label: 'Rota' },
+  { value: 'Clima', label: 'Clima' },
+  { value: 'Sistema', label: 'Sistema' },
   { value: 'Pessoal', label: 'Pessoal' },
   { value: 'Outro', label: 'Outro' },
 ];

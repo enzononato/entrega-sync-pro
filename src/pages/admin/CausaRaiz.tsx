@@ -22,21 +22,20 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertTriangle, Search, CalendarIcon, ChevronRight, Clock,
   Plus, Loader2, Target, FileText, Layers, Package, Users,
-  Wrench, HelpCircle, Truck, Gem, GitBranch, ShieldAlert, User,
+  Wrench, HelpCircle, Truck, Gem, GitBranch, ShieldAlert, User, Cloud,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-const CATEGORIAS = ['Logística', 'Qualidade', 'Processo', 'Externo', 'Equipamento', 'Pessoal', 'Outro'];
+const CATEGORIAS = ['Veículo', 'Rota', 'Clima', 'Sistema', 'Pessoal', 'Outro'];
 
 const CAT_CONFIG: Record<string, { icon: typeof Truck; color: string; bg: string }> = {
-  Logística: { icon: Truck, color: 'text-blue-700', bg: 'bg-blue-100' },
-  Qualidade: { icon: Gem, color: 'text-emerald-700', bg: 'bg-emerald-100' },
-  Processo: { icon: GitBranch, color: 'text-amber-700', bg: 'bg-amber-100' },
-  Externo: { icon: Package, color: 'text-violet-700', bg: 'bg-violet-100' },
-  Equipamento: { icon: Wrench, color: 'text-red-700', bg: 'bg-red-100' },
-  Pessoal: { icon: User, color: 'text-pink-700', bg: 'bg-pink-100' },
-  Outro: { icon: HelpCircle, color: 'text-muted-foreground', bg: 'bg-muted' },
+  'Veículo': { icon: Truck, color: 'text-blue-700', bg: 'bg-blue-100' },
+  'Rota': { icon: GitBranch, color: 'text-amber-700', bg: 'bg-amber-100' },
+  'Clima': { icon: Cloud, color: 'text-violet-700', bg: 'bg-violet-100' },
+  'Sistema': { icon: Wrench, color: 'text-red-700', bg: 'bg-red-100' },
+  'Pessoal': { icon: User, color: 'text-pink-700', bg: 'bg-pink-100' },
+  'Outro': { icon: HelpCircle, color: 'text-muted-foreground', bg: 'bg-muted' },
 };
 
 function DatePick({ value, onChange, placeholder, minDate }: { value: string; onChange: (v: string) => void; placeholder: string; minDate?: Date }) {
