@@ -14,8 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle,
@@ -201,12 +200,13 @@ export default function Desempenho() {
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap gap-2">
-          <div className="w-full sm:w-44">
-            <DatePick value={dateStart} onChange={v => { setDateStart(v); if (v > dateEnd) setDateEnd(v); pg.resetPage(); }} placeholder="Data início" />
-          </div>
-          <div className="w-full sm:w-44">
-            <DatePick value={dateEnd} onChange={v => { setDateEnd(v); if (v < dateStart) setDateStart(v); pg.resetPage(); }} placeholder="Data fim" />
-          </div>
+          <DateRangePick
+            from={dateStart}
+            to={dateEnd}
+            onChangeFrom={v => { setDateStart(v); pg.resetPage(); }}
+            onChangeTo={v => { setDateEnd(v); pg.resetPage(); }}
+            className="w-full sm:w-56"
+          />
           <Select value={filters.unidade_id ?? ''} onValueChange={v => { setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v })); pg.resetPage(); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
