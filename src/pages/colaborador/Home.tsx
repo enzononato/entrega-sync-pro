@@ -3,7 +3,7 @@ import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } fro
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDesempenhoDiario, useDesempenhoPorColaborador } from '@/hooks/useDesempenho';
+import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
 import type { DesempenhoRow } from '@/hooks/useDesempenho';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+
 
 /* ── helpers ─────────────────────────────────────── */
 function greeting() {
@@ -99,14 +99,11 @@ export default function ColaboradorHome() {
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
-  // Spark chart historical data (last 7 days from end of range)
-  const sparkStart = format(subDays(new Date(dateRange.end + 'T00:00:00'), 6), 'yyyy-MM-dd');
-  const { data: historico = [] } = useDesempenhoPorColaborador(user?.id, sparkStart, dateRange.end);
 
   const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
 
   const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
-  const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
+  
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
@@ -145,15 +142,6 @@ export default function ColaboradorHome() {
     });
   };
 
-  const getSparkData = (indicatorId: string) =>
-    historico
-      .filter(h => h.indicator_id === indicatorId)
-      .sort((a, b) => a.data_referencia.localeCompare(b.data_referencia))
-      .map(h => ({
-        data: format(new Date(h.data_referencia + 'T00:00:00'), 'dd/MM'),
-        valor: (h.status === 'dentro_meta' || h.status === 'acima_meta') ? 100 : 0,
-        status: h.status,
-      }));
 
   return (
     <div className="space-y-5 stagger-children pb-2">
@@ -336,82 +324,27 @@ export default function ColaboradorHome() {
                         const isTime = ['TML', 'TR', 'TI', 'JL'].includes(d.indicators?.codigo?.toUpperCase() ?? '');
                         const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                         const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
-                        const itemKey = `${mapaKey}-${d.indicator_id}`;
-                        const isItemExpanded = expandedIndicator === itemKey;
-                        const sparkData = isItemExpanded ? getSparkData(d.indicator_id) : [];
-
                         return (
-                          <div key={d.id}>
-                            <button
-                              onClick={() => setExpandedIndicator(isItemExpanded ? null : itemKey)}
-                              className="w-full text-left px-4 py-3 active:bg-muted/30 transition-colors"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', cfg.bg)}>
-                                    <StatusIcon className={cn('h-4 w-4', cfg.color)} />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                                      {valStr} / {metaStr}
-                                    </p>
-                                  </div>
+                          <div key={d.id} className="px-4 py-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', cfg.bg)}>
+                                  <StatusIcon className={cn('h-4 w-4', cfg.color)} />
                                 </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className={cn(
-                                    'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                                    atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                                  )}>
-                                    {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                                  </span>
-                                  <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isItemExpanded && 'rotate-180')} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">{d.indicators?.nome ?? ''}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    {valStr} / {metaStr}
+                                  </p>
                                 </div>
                               </div>
-                            </button>
-
-                            {isItemExpanded && sparkData.length > 1 && (
-                              <div className="px-4 pb-4 pt-1 border-t border-border/50">
-                                <p className="text-[10px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Últimos 7 dias</p>
-                                <ResponsiveContainer width="100%" height={100}>
-                                  <AreaChart data={sparkData}>
-                                    <defs>
-                                      <linearGradient id={`grad-${d.id}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                                      </linearGradient>
-                                    </defs>
-                                    <XAxis dataKey="data" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
-                                    <YAxis hide domain={[0, 'auto']} />
-                                    <Tooltip
-                                      contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
-                                      formatter={(v: number) => [v === 100 ? 'Atingiu' : 'Não Atingiu', 'Status']}
-                                    />
-                                    <ReferenceLine y={100} stroke="hsl(var(--destructive)/0.4)" strokeDasharray="3 3" />
-                                    <Area
-                                      type="monotone" dataKey="valor"
-                                      stroke="hsl(var(--primary))" strokeWidth={2}
-                                      fill={`url(#grad-${d.id})`}
-                                      dot={(props: any) => {
-                                        const { cx, cy, payload } = props;
-                                        return (
-                                          <circle
-                                            key={payload.data} cx={cx} cy={cy} r={3.5}
-                                            fill={payload.status === 'abaixo_meta' ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
-                                            stroke="white" strokeWidth={1.5}
-                                          />
-                                        );
-                                      }}
-                                    />
-                                  </AreaChart>
-                                </ResponsiveContainer>
-                              </div>
-                            )}
-                            {isItemExpanded && sparkData.length <= 1 && (
-                              <div className="px-4 pb-3 pt-1 border-t border-border/50">
-                                <p className="text-xs text-muted-foreground text-center py-2">Sem histórico suficiente</p>
-                              </div>
-                            )}
+                              <span className={cn(
+                                'text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0',
+                                atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                              )}>
+                                {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                              </span>
+                            </div>
                           </div>
                         );
                       })}
