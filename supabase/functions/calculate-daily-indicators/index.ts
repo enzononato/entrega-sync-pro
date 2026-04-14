@@ -11,6 +11,7 @@ const INDICATOR_IDS: Record<string, string> = {
   TI:  "27fff464-bc98-4e5f-864d-b3b2b6aad46e",
   JL:  "e1393945-535e-4506-8ef7-e8c28e4788b6",
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
+  DISP_TEMPO: "488d1de9-9d88-42f2-bf3b-625752c0db02",
 };
 
 // Default fallbacks — overridden by goals table values
@@ -20,6 +21,7 @@ const DEFAULT_METAS: Record<string, number> = {
   TI: 30,
   JL: 620,
   TX_DEVOLUCAO: 5,
+  DISP_TEMPO: 0,
 };
 
 let METAS: Record<string, number> = { ...DEFAULT_METAS };

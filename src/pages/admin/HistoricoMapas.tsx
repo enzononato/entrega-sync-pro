@@ -5,7 +5,7 @@ import { useMapas } from '@/hooks/useMapas';
 import { useMetas } from '@/hooks/useMetas';
 import { ImportMapasDialog } from '@/components/admin/ImportMapasDialog';
 import { Input } from '@/components/ui/input';
-import { Search, Clock, Truck, Timer, Route, PackageX } from 'lucide-react';
+import { Search, Clock, Truck, Timer, Route, PackageX, Gauge } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -124,6 +124,38 @@ function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
     metaFormatted: `${metaTXDEV}%`,
     status: txDevVal !== null && txDevVal <= metaTXDEV ? 'dentro_meta' : 'abaixo_meta',
     icon: <PackageX className="h-5 w-5" />,
+  });
+
+  // DISP_TEMPO: Tempo Prev - (Hr Entrega - Hr Saída)
+  // Only accept tempo_prev in HH:MM format (exactly 2 parts)
+  const metaDISP = metas['DISP_TEMPO'] ?? 0;
+  const tempoPrevRaw = row.tempo_prev;
+  let tempoPrevVal: number | null = null;
+  if (tempoPrevRaw) {
+    const cleanTP = tempoPrevRaw.replace(/[^\d:]/g, '');
+    const partsTP = cleanTP.split(':');
+    if (partsTP.length === 2) {
+      const hTP = parseInt(partsTP[0], 10);
+      const mTP = parseInt(partsTP[1], 10);
+      if (!isNaN(hTP) && !isNaN(mTP)) {
+        tempoPrevVal = hTP * 60 + mTP;
+      }
+    }
+  }
+  let dispVal: number | null = null;
+  if (tempoPrevVal !== null && hrEntr !== null && hrSai !== null) {
+    const tempoReal = Math.max(0, hrEntr - hrSai);
+    dispVal = tempoPrevVal - tempoReal;
+  }
+  results.push({
+    code: 'DISP_TEMPO',
+    label: 'Dispersão de Tempo',
+    valor: dispVal,
+    valorFormatted: dispVal !== null ? formatMinutes(Math.abs(dispVal)) + (dispVal < 0 ? ' (atraso)' : '') : '—',
+    meta: metaDISP,
+    metaFormatted: formatMinutes(metaDISP),
+    status: dispVal !== null && dispVal >= metaDISP ? 'dentro_meta' : 'abaixo_meta',
+    icon: <Gauge className="h-5 w-5" />,
   });
 
   return results;
