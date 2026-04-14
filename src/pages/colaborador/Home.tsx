@@ -7,9 +7,11 @@ import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
+import { useCausaRaizPorColaborador, type CausaRaizRow } from '@/hooks/useCausaRaiz';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
 import { ReportCausaRaizSheet } from '@/components/colaborador/ReportCausaRaizSheet';
+import { ViewCausaRaizSheet } from '@/components/colaborador/ViewCausaRaizSheet';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
