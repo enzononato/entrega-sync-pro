@@ -32,16 +32,29 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
   return useQuery({
     queryKey: ['ranking', filters],
     queryFn: async () => {
-      // Fetch performance data
-      let q = supabase
-        .from('user_indicator_daily')
-        .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
-        .gte('data_referencia', filters.dataInicio)
-        .lte('data_referencia', filters.dataFim);
+      // Fetch ALL performance data with pagination (Supabase default limit is 1000)
+      const PAGE_SIZE = 1000;
+      let allData: any[] = [];
+      let from = 0;
+      let keepFetching = true;
 
-      const { data, error } = await q;
-      if (error) throw error;
-      if (!data || data.length === 0) return [];
+      while (keepFetching) {
+        const { data: page, error } = await supabase
+          .from('user_indicator_daily')
+          .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
+          .gte('data_referencia', filters.dataInicio)
+          .lte('data_referencia', filters.dataFim)
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        if (!page || page.length === 0) break;
+        allData = allData.concat(page);
+        if (page.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      const data = allData;
+      if (data.length === 0) return [];
 
       // Fetch active goals with bonificacao
       const { data: goalsData } = await supabase
