@@ -36,7 +36,7 @@ function DatePick({ value, onChange }: { value: string; onChange: (v: string) =>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={date} onSelect={d => onChange(d ? format(d, 'yyyy-MM-dd') : '')} className="p-3 pointer-events-auto" />
+        <Calendar mode="single" selected={date} onSelect={d => { if (d) onChange(format(d, 'yyyy-MM-dd')); }} className="p-3 pointer-events-auto" />
       </PopoverContent>
     </Popover>
   );
@@ -244,7 +244,7 @@ export default function Dashboard() {
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{allowedUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
           {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter === 'distribuicao' ? 'Distribuição' : tipoFilter}</span>}
-          {dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
+          {dateFilter && dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
           <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
         </div>
       )}
