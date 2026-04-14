@@ -1,31 +1,43 @@
 
 
-## Plano: Novo indicador "Dispersão de Tempo"
+## Plano: Indicadores para Ajudantes + Metas por worker_type
 
-**Formula:** `Tempo Prev - (Hr Entrega - Hr Saída)` (em minutos)
-**Lógica:** Quanto maior, melhor (valor >= meta = "Atingiu"). Meta padrão: 0 min.
-**Formato `tempo_prev`:** Aceitar apenas HH:MM (2 partes); ignorar formatos inválidos.
+### Problema identificado
+A edge function `calculate-daily-indicators` processa indicadores **apenas para motoristas** (`mot_user_id`). Ajudantes (`aju1_user_id`, `aju2_user_id`) nunca recebem dados em `user_indicator_daily`, então não aparecem em Desempenho nem Ranking.
 
----
+Além disso, as metas são carregadas sem diferenciar `worker_type` -- a function pega a primeira meta que encontra, ignorando se é de motorista ou ajudante.
 
-### 1. Atualizar registro do indicador existente (DISP_TEMPO)
-Já existe um indicador `DISP_TEMPO` (id: `488d1de9-...`). Renomear nome para "Dispersão de Tempo", atualizar descrição para a fórmula, e unidade_medida para "minutos".
+### O que será feito
 
-### 2. Atualizar `HistoricoMapas.tsx`
-- Adicionar o 6o indicador `DISP_TEMPO` na função `calculateMapIndicators`
-- Formula: `parseTime(tempo_prev) - (parseTime(hr_entr) - parseTime(hr_sai))`
-- Lógica invertida: `status = valor >= meta ? 'dentro_meta' : 'abaixo_meta'`
-- Ícone: usar `Clock` ou `Timer` (diferenciado)
-- Buscar meta do banco com código `DISP_TEMPO`, fallback = 0
+#### 1. Edge Function: processar ajudantes
+Alterar o loop principal para, além do motorista, processar `aju1_user_id` e `aju2_user_id`. Para ajudantes, calcular apenas os indicadores que se aplicam a eles: **TML, TR, TI, JL** (conforme `applies_to_worker_type` no banco).
 
-### 3. Atualizar Edge Function `calculate-daily-indicators`
-- Adicionar `DISP_TEMPO` ao `INDICATOR_IDS` com o UUID existente
-- Adicionar ao `DEFAULT_METAS`: `DISP_TEMPO: 0`
-- Calcular: `tempoPrev - trVal`
-- Na lógica de `addResult`, tratar DISP_TEMPO como "quanto maior melhor" (`valor >= meta`)
+TX_DEVOLUCAO e DISP_TEMPO continuam apenas para motoristas.
+
+#### 2. Edge Function: metas por worker_type
+Carregar metas do banco diferenciando por `worker_type`. A function buscará `worker_type` de cada usuário e usará a meta correspondente (motorista ou ajudante). Se não encontrar meta específica, usa a meta geral (sem worker_type). Se nenhuma existir, usa o default.
+
+#### 3. Redeploy da edge function
+Após as alterações, a function será redeployada.
+
+### Páginas afetadas automaticamente
+- **Desempenho** e **Ranking** já leem de `user_indicator_daily` -- dados de ajudantes aparecerão automaticamente após recalcular.
+- **Home do colaborador**, **MiniRanking**, etc. -- idem.
 
 ### Arquivos modificados
-- `src/pages/admin/HistoricoMapas.tsx` — adicionar indicador ao popup
-- `supabase/functions/calculate-daily-indicators/index.ts` — adicionar cálculo
-- Tabela `indicators` — atualizar nome/descrição do registro existente
+- `supabase/functions/calculate-daily-indicators/index.ts`
+
+### Detalhes técnicos
+
+```text
+Fluxo atual:
+  mapa_historico → mot_user_id → [TML,TR,TI,JL,TX_DEV,DISP] → user_indicator_daily
+
+Fluxo novo:
+  mapa_historico → mot_user_id  → [TML,TR,TI,JL,TX_DEV,DISP] → user_indicator_daily
+                 → aju1_user_id → [TML,TR,TI,JL]              → user_indicator_daily
+                 → aju2_user_id → [TML,TR,TI,JL]              → user_indicator_daily
+```
+
+Metas: `Map<indicatorCode, Map<workerType|'default', number>>` para suportar valores diferentes por tipo.
 
