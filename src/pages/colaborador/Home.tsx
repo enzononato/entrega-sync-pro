@@ -347,13 +347,13 @@ export default function ColaboradorHome() {
                                 )}>
                                   {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                                 </span>
-                                {!atingiu && d.indicators?.id && (
+                                {!atingiu && d.indicator_id && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setReportTarget({
-                                        indicatorId: d.indicators!.id,
-                                        indicatorNome: d.indicators!.nome ?? '',
+                                        indicatorId: d.indicator_id,
+                                        indicatorNome: d.indicators?.nome ?? '',
                                         dataReferencia: d.data_referencia,
                                       });
                                     }}
