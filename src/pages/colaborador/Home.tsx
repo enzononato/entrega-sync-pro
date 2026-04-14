@@ -9,6 +9,7 @@ import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
+import { ReportCausaRaizSheet } from '@/components/colaborador/ReportCausaRaizSheet';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   CheckCircle, XCircle, DollarSign, ClipboardList,
   Trophy, ChevronRight, ChevronDown, Zap, Flame, Target, MapPin,
-  CalendarIcon, TrendingUp, TrendingDown,
+  CalendarIcon, TrendingUp, TrendingDown, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
@@ -103,7 +104,8 @@ export default function ColaboradorHome() {
   const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
 
   const [expandedMapas, setExpandedMapas] = useState<Set<string>>(new Set());
-  
+  const [reportTarget, setReportTarget] = useState<{ indicatorId: string; indicatorNome: string; dataReferencia: string } | null>(null);
+
 
   const kpis = useMemo(() => desempenho.filter(d => {
     if (!user?.worker_type || !d.indicators) return true;
@@ -338,12 +340,30 @@ export default function ColaboradorHome() {
                                   </p>
                                 </div>
                               </div>
-                              <span className={cn(
-                                'text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0',
-                                atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                              )}>
-                                {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={cn(
+                                  'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                  atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                )}>
+                                  {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                </span>
+                                {!atingiu && d.indicator_id && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReportTarget({
+                                        indicatorId: d.indicator_id,
+                                        indicatorNome: d.indicators?.nome ?? '',
+                                        dataReferencia: d.data_referencia,
+                                      });
+                                    }}
+                                    className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
+                                  >
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Reportar
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -423,6 +443,18 @@ export default function ColaboradorHome() {
       )}
 
       <div className="h-2" />
+
+      {/* ── Report Sheet ─────────────────────────── */}
+      {user?.id && reportTarget && (
+        <ReportCausaRaizSheet
+          open={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          userId={user.id}
+          indicatorId={reportTarget.indicatorId}
+          dataReferencia={reportTarget.dataReferencia}
+          indicatorNome={reportTarget.indicatorNome}
+        />
+      )}
     </div>
   );
 }
