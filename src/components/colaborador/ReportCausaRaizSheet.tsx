@@ -19,11 +19,13 @@ interface Props {
 }
 
 const CATEGORIAS = [
-  { value: 'veiculo', label: 'Veículo' },
-  { value: 'rota', label: 'Rota' },
-  { value: 'sistema', label: 'Sistema' },
-  { value: 'processo', label: 'Processo' },
-  { value: 'outro', label: 'Outro' },
+  { value: 'Logística', label: 'Logística' },
+  { value: 'Qualidade', label: 'Qualidade' },
+  { value: 'Processo', label: 'Processo' },
+  { value: 'Externo', label: 'Externo' },
+  { value: 'Equipamento', label: 'Equipamento' },
+  { value: 'Pessoal', label: 'Pessoal' },
+  { value: 'Outro', label: 'Outro' },
 ];
 
 export function ReportCausaRaizSheet({ open, onClose, userId, indicatorId, dataReferencia, indicatorNome }: Props) {
