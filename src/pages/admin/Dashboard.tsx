@@ -13,10 +13,9 @@ import { useMetas } from '@/hooks/useMetas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
+import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
@@ -45,7 +44,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [dateFilter, setDateFilter] = useState(today);
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
 
@@ -53,11 +53,11 @@ export default function Dashboard() {
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
   const { data: planos = [] } = usePlanosDeAcao();
-  const { data: desempenho = [] } = useDesempenhoDiario(dateFilter, dateFilter, {
+  const { data: desempenho = [] } = useDesempenhoDiario(dateFrom, dateTo, {
     unidade_id: unidadeFilter || undefined,
     worker_type: tipoFilter || undefined,
   });
-  const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
+  const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFrom);
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
   const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
 
