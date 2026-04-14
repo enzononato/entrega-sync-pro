@@ -92,7 +92,7 @@ export default function LoginColaborador() {
               <img src="/logo.png" alt="IncentivosPro" className="h-16 w-16 object-cover" />
             </div>
             <h1 className="text-xl font-bold text-foreground tracking-tight">Área do Colaborador</h1>
-            <p className="text-sm text-muted-foreground mt-1">Motoristas, Ajudantes e Distribuição</p>
+            <p className="text-sm text-muted-foreground mt-1">Motoristas e Ajudantes</p>
           </div>
 
           {error && (
