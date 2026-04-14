@@ -1,43 +1,51 @@
 
 
-## Plano: Indicadores para Ajudantes + Metas por worker_type
+## Plano: Reformular Painel do Colaborador
 
-### Problema identificado
-A edge function `calculate-daily-indicators` processa indicadores **apenas para motoristas** (`mot_user_id`). Ajudantes (`aju1_user_id`, `aju2_user_id`) nunca recebem dados em `user_indicator_daily`, então não aparecem em Desempenho nem Ranking.
+### Visao geral
+Transformar o painel do colaborador em um dashboard unico e intuitivo, com filtro de periodo, eliminando paginas redundantes.
 
-Além disso, as metas são carregadas sem diferenciar `worker_type` -- a function pega a primeira meta que encontra, ignorando se é de motorista ou ajudante.
+### Navegacao: 4 abas no BottomNav
+```text
+Dashboard | Incentivo | Feedback | Perfil
+```
+- **Dashboard** (nova): consolida Home + Indicadores + Causa Raiz
+- **Incentivo**: permanece como esta
+- **Feedback**: permanece como esta
+- **Perfil**: permanece (planos de acao acessiveis via link no perfil ou dashboard)
+- O menu "Mais" e removido. Planos de Acao fica acessivel como link dentro do Dashboard ou Perfil.
 
-### O que será feito
+### Dashboard: estrutura das secoes
 
-#### 1. Edge Function: processar ajudantes
-Alterar o loop principal para, além do motorista, processar `aju1_user_id` e `aju2_user_id`. Para ajudantes, calcular apenas os indicadores que se aplicam a eles: **TML, TR, TI, JL** (conforme `applies_to_worker_type` no banco).
+1. **Header** -- saudacao + data atual + unidade
+2. **Filtro de periodo** -- Tabs: Hoje | Semana | Mes | Personalizado (date picker)
+3. **Hero Card** -- % de metas atingidas no periodo, contadores (atingiu/nao atingiu), total de mapas
+4. **Banner de sucesso** (condicional) -- se todas metas atingidas
+5. **KPIs por Mapa** -- cards agrupados por mapa (como ja existe em Indicadores), com expand/collapse e mini spark chart dos ultimos 7 dias
+6. **Grafico de Evolucao** -- AreaChart/BarChart semanal ou mensal (reutiliza EvolutionCharts)
+7. **Mini Ranking** -- Top 3 do worker_type do usuario
 
-TX_DEVOLUCAO e DISP_TEMPO continuam apenas para motoristas.
+### Paginas removidas
+- `/colaborador/indicadores` -- conteudo absorvido pelo Dashboard
+- `/colaborador/causa-raiz` -- removida (admin-only ou futura reintegracao)
 
-#### 2. Edge Function: metas por worker_type
-Carregar metas do banco diferenciando por `worker_type`. A function buscará `worker_type` de cada usuário e usará a meta correspondente (motorista ou ajudante). Se não encontrar meta específica, usa a meta geral (sem worker_type). Se nenhuma existir, usa o default.
-
-#### 3. Redeploy da edge function
-Após as alterações, a function será redeployada.
-
-### Páginas afetadas automaticamente
-- **Desempenho** e **Ranking** já leem de `user_indicator_daily` -- dados de ajudantes aparecerão automaticamente após recalcular.
-- **Home do colaborador**, **MiniRanking**, etc. -- idem.
+### Rotas atualizadas
+- Remover rotas de `/colaborador/indicadores` e `/colaborador/causa-raiz`
+- Atualizar BottomNav para 4 itens
+- Planos de Acao permanece como pagina acessivel via link
 
 ### Arquivos modificados
-- `supabase/functions/calculate-daily-indicators/index.ts`
+- `src/pages/colaborador/Home.tsx` -- reescrever como Dashboard com filtro de periodo e KPIs detalhados
+- `src/components/colaborador/BottomNav.tsx` -- 4 abas (Dashboard, Incentivo, Feedback, Perfil)
+- `src/routes/AppRoutes.tsx` -- remover rotas de Indicadores e CausaRaiz do colaborador
+- `src/components/colaborador/EvolutionCharts.tsx` -- ajustar para aceitar periodo externo como prop
 
-### Detalhes técnicos
+### Arquivos removidos
+- `src/pages/colaborador/Indicadores.tsx`
+- `src/pages/colaborador/CausaRaiz.tsx`
 
-```text
-Fluxo atual:
-  mapa_historico → mot_user_id → [TML,TR,TI,JL,TX_DEV,DISP] → user_indicator_daily
-
-Fluxo novo:
-  mapa_historico → mot_user_id  → [TML,TR,TI,JL,TX_DEV,DISP] → user_indicator_daily
-                 → aju1_user_id → [TML,TR,TI,JL]              → user_indicator_daily
-                 → aju2_user_id → [TML,TR,TI,JL]              → user_indicator_daily
-```
-
-Metas: `Map<indicatorCode, Map<workerType|'default', number>>` para suportar valores diferentes por tipo.
+### Detalhes tecnicos
+- O filtro de periodo sera um state local no Dashboard que controla `dataInicio` e `dataFim` passados ao `useDesempenhoDiario`
+- Mini Ranking continua usando `useRanking` com range do mes
+- O hook `useDesempenhoPorColaborador` sera usado para o spark chart por indicador
 
