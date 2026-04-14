@@ -11,6 +11,7 @@ const INDICATOR_IDS: Record<string, string> = {
   TI:  "27fff464-bc98-4e5f-864d-b3b2b6aad46e",
   JL:  "e1393945-535e-4506-8ef7-e8c28e4788b6",
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
+  DISP_TEMPO: "488d1de9-9d88-42f2-bf3b-625752c0db02",
 };
 
 // Default fallbacks — overridden by goals table values
@@ -20,6 +21,7 @@ const DEFAULT_METAS: Record<string, number> = {
   TI: 30,
   JL: 620,
   TX_DEVOLUCAO: 5,
+  DISP_TEMPO: 0,
 };
 
 let METAS: Record<string, number> = { ...DEFAULT_METAS };
@@ -86,16 +88,31 @@ function calculateIndicatorsForRow(row: any): IndicatorResult[] {
     if (txDevVal < 0) txDevVal = 0;
   }
 
+  // DISP_TEMPO: tempo_prev - (hr_entr - hr_sai). Only HH:MM format (2 parts).
+  let dispTempoVal: number | null = null;
+  if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
+    const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
+    const partsTP = cleanTP.split(":");
+    if (partsTP.length === 2) {
+      const hTP = parseInt(partsTP[0], 10);
+      const mTP = parseInt(partsTP[1], 10);
+      if (!isNaN(hTP) && !isNaN(mTP)) {
+        const tempoPrev = hTP * 60 + mTP;
+        const tempoReal = Math.max(0, hrEntr - hrSai);
+        dispTempoVal = tempoPrev - tempoReal;
+      }
+    }
+  }
+
   const addResult = (code: string, valor: number | null) => {
     if (valor === null) return;
     const meta = METAS[code];
-    // TML: within target if hr_sai <= 08:20 (i.e. tmlVal <= 30)
-    // Others: within target if valor <= meta
     let withinTarget: boolean;
     if (code === "TML") {
       withinTarget = hrSai !== null && hrSai <= LIMIT_TIME;
-    } else if (code === "TX_DEVOLUCAO") {
-      withinTarget = valor <= meta;
+    } else if (code === "DISP_TEMPO") {
+      // Higher is better: valor >= meta means within target
+      withinTarget = valor >= meta;
     } else {
       withinTarget = valor <= meta;
     }
@@ -118,6 +135,8 @@ function calculateIndicatorsForRow(row: any): IndicatorResult[] {
   if (tmlVal !== null && trVal !== null && tiVal !== null) {
     addResult("JL", tmlVal + trVal + tiVal);
   }
+
+  addResult("DISP_TEMPO", dispTempoVal);
 
   return results;
 }
