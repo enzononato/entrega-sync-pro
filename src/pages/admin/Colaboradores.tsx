@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { compareIndicators } from '@/lib/indicatorOrder';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { validateCpf, formatCpf } from '@/lib/formatters';

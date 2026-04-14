@@ -24,6 +24,7 @@ import {
 import { formatMinutesHHMM } from '@/lib/formatters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
+import { compareIndicators } from '@/lib/indicatorOrder';
 
 // DatePick removed — using DateRangePick from shared components
 

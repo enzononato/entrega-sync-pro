@@ -22,6 +22,7 @@ import {
   CalendarIcon, TrendingUp, TrendingDown, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { compareIndicators } from '@/lib/indicatorOrder';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
 import type { DesempenhoRow } from '@/hooks/useDesempenho';
