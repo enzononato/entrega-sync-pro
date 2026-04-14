@@ -443,6 +443,18 @@ export default function ColaboradorHome() {
       )}
 
       <div className="h-2" />
+
+      {/* ── Report Sheet ─────────────────────────── */}
+      {user?.id && reportTarget && (
+        <ReportCausaRaizSheet
+          open={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          userId={user.id}
+          indicatorId={reportTarget.indicatorId}
+          dataReferencia={reportTarget.dataReferencia}
+          indicatorNome={reportTarget.indicatorNome}
+        />
+      )}
     </div>
   );
 }
