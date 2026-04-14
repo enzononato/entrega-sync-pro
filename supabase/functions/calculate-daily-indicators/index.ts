@@ -14,17 +14,15 @@ const INDICATOR_IDS: Record<string, string> = {
   DISP_TEMPO: "488d1de9-9d88-42f2-bf3b-625752c0db02",
 };
 
-// Default fallbacks — overridden by goals table values
 const DEFAULT_METAS: Record<string, number> = {
-  TML: 30,
-  TR: 560,
-  TI: 30,
-  JL: 620,
-  TX_DEVOLUCAO: 5,
-  DISP_TEMPO: 0,
+  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 0,
 };
 
-let METAS: Record<string, number> = { ...DEFAULT_METAS };
+// Indicators that only apply to motoristas
+const MOTORISTA_ONLY = new Set(["TX_DEVOLUCAO", "DISP_TEMPO"]);
+
+// All indicator codes for ajudantes (excludes motorista-only)
+const AJUDANTE_CODES = Object.keys(INDICATOR_IDS).filter(c => !MOTORISTA_ONLY.has(c));
 
 /**
  * Parse "HH:MM" or "HH:MM:SS" into total minutes.
@@ -46,72 +44,50 @@ interface IndicatorResult {
   meta: number;
   percentual_atingimento: number;
   status: string;
+  code: string;
 }
 
-/**
- * Calculate indicators for a single mapa row using its columns directly.
- *
- * TML: based on hr_sai. Reference = 07:50 (470min). Within target if hr_sai <= 08:20 (500min).
- *      Value = hr_sai - 07:50 (can be 0 if on time).
- * TR:  hr_entr - hr_sai (time on road in minutes).
- * TI:  tmpo_interno column directly (already a duration).
- * JL:  TML + TR + TI.
- * TX_DEVOLUCAO: 1 - (cx_entreg / cx_carreg) as percentage.
- */
-function calculateIndicatorsForRow(row: any): IndicatorResult[] {
+// Metas structure: code -> workerType -> value
+// workerType keys: "motorista", "ajudante", "default"
+type MetasMap = Record<string, Record<string, number>>;
+
+function getMetaForWorker(metas: MetasMap, code: string, workerType: string): number {
+  const byCode = metas[code];
+  if (!byCode) return DEFAULT_METAS[code] ?? 0;
+  return byCode[workerType] ?? byCode["default"] ?? DEFAULT_METAS[code] ?? 0;
+}
+
+function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap): IndicatorResult[] {
   const results: IndicatorResult[] = [];
+  const isAjudante = workerType === "ajudante";
 
   const hrSai = parseTime(row.hr_sai);
   const hrEntr = parseTime(row.hr_entr);
   const tiVal = parseTime(row.tmpo_interno);
 
-  // TML: minutes after 07:50 reference
-  const REF_TIME = 7 * 60 + 50; // 07:50
-  const LIMIT_TIME = 8 * 60 + 20; // 08:20
+  const REF_TIME = 7 * 60 + 50;
+  const LIMIT_TIME = 8 * 60 + 20;
+
   let tmlVal: number | null = null;
   if (hrSai !== null) {
     tmlVal = Math.max(0, hrSai - REF_TIME);
   }
 
-  // TR: hr_entr - hr_sai
   let trVal: number | null = null;
   if (hrEntr !== null && hrSai !== null) {
     trVal = Math.max(0, hrEntr - hrSai);
   }
 
-  // TX_DEVOLUCAO: 1 - (cx_entreg / cx_carreg) * 100
-  let txDevVal: number | null = null;
-  const cxCarreg = Number(row.cx_carreg);
-  const cxEntreg = Number(row.cx_entreg);
-  if (cxCarreg > 0 && !isNaN(cxCarreg) && !isNaN(cxEntreg)) {
-    txDevVal = Math.round(((1 - cxEntreg / cxCarreg) * 100) * 100) / 100;
-    if (txDevVal < 0) txDevVal = 0;
-  }
-
-  // DISP_TEMPO: tempo_prev - (hr_entr - hr_sai). Only HH:MM format (2 parts).
-  let dispTempoVal: number | null = null;
-  if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
-    const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
-    const partsTP = cleanTP.split(":");
-    if (partsTP.length === 2) {
-      const hTP = parseInt(partsTP[0], 10);
-      const mTP = parseInt(partsTP[1], 10);
-      if (!isNaN(hTP) && !isNaN(mTP)) {
-        const tempoPrev = hTP * 60 + mTP;
-        const tempoReal = Math.max(0, hrEntr - hrSai);
-        dispTempoVal = tempoPrev - tempoReal;
-      }
-    }
-  }
-
   const addResult = (code: string, valor: number | null) => {
     if (valor === null) return;
-    const meta = METAS[code];
+    // Skip motorista-only indicators for ajudantes
+    if (isAjudante && MOTORISTA_ONLY.has(code)) return;
+
+    const meta = getMetaForWorker(metas, code, workerType);
     let withinTarget: boolean;
     if (code === "TML") {
       withinTarget = hrSai !== null && hrSai <= LIMIT_TIME;
     } else if (code === "DISP_TEMPO") {
-      // Higher is better: valor >= meta means within target
       withinTarget = valor >= meta;
     } else {
       withinTarget = valor <= meta;
@@ -123,20 +99,48 @@ function calculateIndicatorsForRow(row: any): IndicatorResult[] {
       meta,
       percentual_atingimento: withinTarget ? 100 : 0,
       status: withinTarget ? "dentro_meta" : "abaixo_meta",
+      code,
     });
   };
 
   addResult("TML", tmlVal);
   addResult("TR", trVal);
   addResult("TI", tiVal);
-  addResult("TX_DEVOLUCAO", txDevVal);
 
   // JL: sum of TML + TR + TI
   if (tmlVal !== null && trVal !== null && tiVal !== null) {
     addResult("JL", tmlVal + trVal + tiVal);
   }
 
-  addResult("DISP_TEMPO", dispTempoVal);
+  // Motorista-only indicators
+  if (!isAjudante) {
+    // TX_DEVOLUCAO
+    let txDevVal: number | null = null;
+    const cxCarreg = Number(row.cx_carreg);
+    const cxEntreg = Number(row.cx_entreg);
+    if (cxCarreg > 0 && !isNaN(cxCarreg) && !isNaN(cxEntreg)) {
+      txDevVal = Math.round(((1 - cxEntreg / cxCarreg) * 100) * 100) / 100;
+      if (txDevVal < 0) txDevVal = 0;
+    }
+    addResult("TX_DEVOLUCAO", txDevVal);
+
+    // DISP_TEMPO
+    let dispTempoVal: number | null = null;
+    if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
+      const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
+      const partsTP = cleanTP.split(":");
+      if (partsTP.length === 2) {
+        const hTP = parseInt(partsTP[0], 10);
+        const mTP = parseInt(partsTP[1], 10);
+        if (!isNaN(hTP) && !isNaN(mTP)) {
+          const tempoPrev = hTP * 60 + mTP;
+          const tempoReal = Math.max(0, hrEntr - hrSai);
+          dispTempoVal = tempoPrev - tempoReal;
+        }
+      }
+    }
+    addResult("DISP_TEMPO", dispTempoVal);
+  }
 
   return results;
 }
@@ -155,113 +159,86 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { data_referencia } = body;
 
-    // ── Step 0: Load metas from goals table ──
+    // ── Step 0: Load metas from goals table, keyed by code + worker_type ──
+    const metas: MetasMap = {};
+    // Initialize defaults
+    for (const [code, val] of Object.entries(DEFAULT_METAS)) {
+      metas[code] = { default: val };
+    }
+
     const { data: goalsData } = await supabase
       .from("goals")
-      .select("valor_meta, indicators(codigo)")
+      .select("valor_meta, worker_type, indicators(codigo)")
       .eq("ativo", true);
 
     if (goalsData) {
-      METAS = { ...DEFAULT_METAS };
       for (const g of goalsData) {
         const code = (g as any).indicators?.codigo?.toUpperCase();
-        if (code && !METAS[code]) {
-          METAS[code] = g.valor_meta;
+        if (!code || !INDICATOR_IDS[code]) continue;
+        const wt = g.worker_type || "default";
+        if (!metas[code]) metas[code] = { default: DEFAULT_METAS[code] ?? 0 };
+        // Only set if not already set (first active goal wins)
+        if (metas[code][wt] === undefined || wt !== "default") {
+          metas[code][wt] = g.valor_meta;
         }
       }
-      console.log("Loaded metas from DB:", METAS);
+      console.log("Loaded metas:", JSON.stringify(metas));
     }
 
-    // ── Step 1: Link user_id on mapa_historico rows that have no user_id ──
+    // ── Step 0b: Build user -> worker_type map ──
     const { data: allUsers } = await supabase
       .from("users")
-      .select("id, matricula")
+      .select("id, matricula, worker_type")
       .neq("matricula", "")
       .eq("ativo", true);
 
-    if (allUsers && allUsers.length > 0) {
-      const matriculaMap = new Map<string, string>();
+    const userWorkerType = new Map<string, string>();
+    const matriculaMap = new Map<string, string>();
+    if (allUsers) {
       for (const u of allUsers) {
         if (u.matricula) matriculaMap.set(u.matricula.trim(), u.id);
+        userWorkerType.set(u.id, u.worker_type || "motorista");
       }
-
-      // Fetch unlinked rows (mot)
-      let unlinkedMot: any[] = [];
-      let offset = 0;
-      const PAGE = 1000;
-      while (true) {
-        const { data: chunk } = await supabase
-          .from("mapa_historico")
-          .select("id, cd_mot")
-          .is("mot_user_id", null)
-          .neq("cd_mot", "")
-          .neq("cd_mot", "0")
-          .range(offset, offset + PAGE - 1);
-        if (!chunk || chunk.length === 0) break;
-        unlinkedMot = unlinkedMot.concat(chunk);
-        if (chunk.length < PAGE) break;
-        offset += PAGE;
-      }
-
-      for (const row of unlinkedMot) {
-        const userId = matriculaMap.get(row.cd_mot?.trim());
-        if (userId) {
-          await supabase.from("mapa_historico").update({ mot_user_id: userId }).eq("id", row.id);
-        }
-      }
-
-      // Link aju1
-      let unlinkedAju1: any[] = [];
-      offset = 0;
-      while (true) {
-        const { data: chunk } = await supabase
-          .from("mapa_historico")
-          .select("id, cd_aju1")
-          .is("aju1_user_id", null)
-          .neq("cd_aju1", "")
-          .neq("cd_aju1", "0")
-          .range(offset, offset + PAGE - 1);
-        if (!chunk || chunk.length === 0) break;
-        unlinkedAju1 = unlinkedAju1.concat(chunk);
-        if (chunk.length < PAGE) break;
-        offset += PAGE;
-      }
-
-      for (const row of unlinkedAju1) {
-        const userId = matriculaMap.get(row.cd_aju1?.trim());
-        if (userId) {
-          await supabase.from("mapa_historico").update({ aju1_user_id: userId }).eq("id", row.id);
-        }
-      }
-
-      // Link aju2
-      let unlinkedAju2: any[] = [];
-      offset = 0;
-      while (true) {
-        const { data: chunk } = await supabase
-          .from("mapa_historico")
-          .select("id, cd_aju2")
-          .is("aju2_user_id", null)
-          .neq("cd_aju2", "")
-          .neq("cd_aju2", "0")
-          .range(offset, offset + PAGE - 1);
-        if (!chunk || chunk.length === 0) break;
-        unlinkedAju2 = unlinkedAju2.concat(chunk);
-        if (chunk.length < PAGE) break;
-        offset += PAGE;
-      }
-
-      for (const row of unlinkedAju2) {
-        const userId = matriculaMap.get(row.cd_aju2?.trim());
-        if (userId) {
-          await supabase.from("mapa_historico").update({ aju2_user_id: userId }).eq("id", row.id);
-        }
-      }
-
-      console.log(`Linked: mot=${unlinkedMot.length}, aju1=${unlinkedAju1.length}, aju2=${unlinkedAju2.length}`);
     }
 
-    // ── Step 2: Get all distinct dates to process ──
+    // ── Step 1: Link user_id on mapa_historico rows ──
+    if (allUsers && allUsers.length > 0) {
+      const PAGE = 1000;
+
+      const linkField = async (field: string, userIdField: string) => {
+        let unlinked: any[] = [];
+        let offset = 0;
+        while (true) {
+          const { data: chunk } = await supabase
+            .from("mapa_historico")
+            .select(`id, ${field}`)
+            .is(userIdField, null)
+            .neq(field, "")
+            .neq(field, "0")
+            .range(offset, offset + PAGE - 1);
+          if (!chunk || chunk.length === 0) break;
+          unlinked = unlinked.concat(chunk);
+          if (chunk.length < PAGE) break;
+          offset += PAGE;
+        }
+        for (const row of unlinked) {
+          const userId = matriculaMap.get(row[field]?.trim());
+          if (userId) {
+            await supabase.from("mapa_historico").update({ [userIdField]: userId }).eq("id", row.id);
+          }
+        }
+        return unlinked.length;
+      };
+
+      const [motCount, aju1Count, aju2Count] = await Promise.all([
+        linkField("cd_mot", "mot_user_id"),
+        linkField("cd_aju1", "aju1_user_id"),
+        linkField("cd_aju2", "aju2_user_id"),
+      ]);
+      console.log(`Linked: mot=${motCount}, aju1=${aju1Count}, aju2=${aju2Count}`);
+    }
+
+    // ── Step 2: Get dates to process ──
     let dates: string[] = [];
     if (data_referencia) {
       dates = Array.isArray(data_referencia) ? data_referencia : [data_referencia];
@@ -271,7 +248,6 @@ Deno.serve(async (req) => {
         .select("data_operacao")
         .order("data_operacao", { ascending: false })
         .limit(10000);
-
       if (allDates) {
         dates = [...new Set(allDates.map((d: any) => d.data_operacao))];
       }
@@ -281,7 +257,6 @@ Deno.serve(async (req) => {
     const indicatorIds = Object.values(INDICATOR_IDS);
 
     for (const date of dates) {
-      // Fetch all mapa_historico for this date
       let allMapas: any[] = [];
       let offset = 0;
       const PAGE = 1000;
@@ -304,30 +279,37 @@ Deno.serve(async (req) => {
       const affectedUserIds = new Set<string>();
 
       for (const row of allMapas) {
-        const userId = row.mot_user_id;
-        if (!userId) continue;
+        // Process each worker in this mapa row
+        const workers = [
+          { userId: row.mot_user_id, defaultType: "motorista" },
+          { userId: row.aju1_user_id, defaultType: "ajudante" },
+          { userId: row.aju2_user_id, defaultType: "ajudante" },
+        ];
 
-        affectedUserIds.add(userId);
+        for (const { userId, defaultType } of workers) {
+          if (!userId) continue;
+          affectedUserIds.add(userId);
 
-        const indicators = calculateIndicatorsForRow(row);
+          const workerType = userWorkerType.get(userId) || defaultType;
+          const indicators = calculateIndicatorsForRow(row, workerType, metas);
 
-        for (const ind of indicators) {
-          upserts.push({
-            user_id: userId,
-            indicator_id: ind.indicator_id,
-            data_referencia: date,
-            valor: ind.valor,
-            meta: ind.meta,
-            percentual_atingimento: ind.percentual_atingimento,
-            status: ind.status,
-            origem_dado: "mapa_historico",
-            mapa_numero: row.mapa,
-          });
+          for (const ind of indicators) {
+            upserts.push({
+              user_id: userId,
+              indicator_id: ind.indicator_id,
+              data_referencia: date,
+              valor: ind.valor,
+              meta: ind.meta,
+              percentual_atingimento: ind.percentual_atingimento,
+              status: ind.status,
+              origem_dado: "mapa_historico",
+              mapa_numero: row.mapa,
+            });
+          }
         }
       }
 
       if (upserts.length > 0) {
-        // Delete existing auto-calculated records for affected users on this date
         for (const uid of affectedUserIds) {
           await supabase
             .from("user_indicator_daily")
@@ -338,7 +320,6 @@ Deno.serve(async (req) => {
             .eq("origem_dado", "mapa_historico");
         }
 
-        // Insert in batches of 200
         for (let i = 0; i < upserts.length; i += 200) {
           const batch = upserts.slice(i, i + 200);
           const { error: insertErr } = await supabase
