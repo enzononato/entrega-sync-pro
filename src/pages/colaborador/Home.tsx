@@ -9,6 +9,7 @@ import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
+import { ReportCausaRaizSheet } from '@/components/colaborador/ReportCausaRaizSheet';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   CheckCircle, XCircle, DollarSign, ClipboardList,
   Trophy, ChevronRight, ChevronDown, Zap, Flame, Target, MapPin,
-  CalendarIcon, TrendingUp, TrendingDown,
+  CalendarIcon, TrendingUp, TrendingDown, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMinutesHHMM } from '@/lib/formatters';
