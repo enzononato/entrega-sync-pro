@@ -14,34 +14,18 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle,
-  Loader2, CalendarIcon, BarChart3,
+  Loader2, BarChart3,
   ChevronDown, Download, MapPin,
 } from 'lucide-react';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
-function DatePick({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  const date = value ? new Date(value + 'T00:00:00') : undefined;
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('w-full justify-start text-left font-normal h-9', !value && 'text-muted-foreground')}>
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(new Date(value + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={date} onSelect={d => onChange(d ? format(d, 'yyyy-MM-dd') : '')} className="p-3 pointer-events-auto" />
-      </PopoverContent>
-    </Popover>
-  );
-}
+// DatePick removed — using DateRangePick from shared components
 
 export default function Desempenho() {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -216,12 +200,13 @@ export default function Desempenho() {
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap gap-2">
-          <div className="w-full sm:w-44">
-            <DatePick value={dateStart} onChange={v => { setDateStart(v); if (v > dateEnd) setDateEnd(v); pg.resetPage(); }} placeholder="Data início" />
-          </div>
-          <div className="w-full sm:w-44">
-            <DatePick value={dateEnd} onChange={v => { setDateEnd(v); if (v < dateStart) setDateStart(v); pg.resetPage(); }} placeholder="Data fim" />
-          </div>
+          <DateRangePick
+            from={dateStart}
+            to={dateEnd}
+            onChangeFrom={v => { setDateStart(v); pg.resetPage(); }}
+            onChangeTo={v => { setDateEnd(v); pg.resetPage(); }}
+            className="w-full sm:w-56"
+          />
           <Select value={filters.unidade_id ?? ''} onValueChange={v => { setFilters(f => ({ ...f, unidade_id: v === 'all' ? '' : v })); pg.resetPage(); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Todas</SelectItem>{activeUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>

@@ -13,10 +13,9 @@ import { useMetas } from '@/hooks/useMetas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
+import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Users, MessageSquare, ClipboardList, DollarSign, CalendarIcon, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
@@ -25,22 +24,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
-function DatePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const date = value ? new Date(value + 'T00:00:00') : undefined;
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('w-full sm:w-44 justify-start text-left font-normal h-9', !value && 'text-muted-foreground')}>
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(new Date(value + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : 'Data'}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={date} onSelect={d => { if (d) onChange(format(d, 'yyyy-MM-dd')); }} className="p-3 pointer-events-auto" />
-      </PopoverContent>
-    </Popover>
-  );
-}
+// DatePick removed — using DateRangePick from shared components
 
 const PIE_COLORS: Record<string, string> = {
   baixa: '#94a3b8', media: '#fbbf24', alta: '#f97316', critica: '#ef4444',
@@ -60,7 +44,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [dateFilter, setDateFilter] = useState(today);
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
 
@@ -68,11 +53,11 @@ export default function Dashboard() {
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
   const { data: planos = [] } = usePlanosDeAcao();
-  const { data: desempenho = [] } = useDesempenhoDiario(dateFilter, dateFilter, {
+  const { data: desempenho = [] } = useDesempenhoDiario(dateFrom, dateTo, {
     unidade_id: unidadeFilter || undefined,
     worker_type: tipoFilter || undefined,
   });
-  const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFilter);
+  const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFrom);
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
   const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
 
@@ -225,7 +210,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <DatePick value={dateFilter} onChange={setDateFilter} />
+          <DateRangePick from={dateFrom} to={dateTo} onChangeFrom={setDateFrom} onChangeTo={setDateTo} className="w-full sm:w-56" />
           <Select value={unidadeFilter} onValueChange={v => { setUnidadeFilter(v === 'all' ? '' : v); }}>
             <SelectTrigger className="w-full sm:w-44 h-9 text-xs"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Todas</SelectItem>{allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
@@ -238,14 +223,14 @@ export default function Dashboard() {
       </div>
 
       {/* Active filters indicator */}
-      {(unidadeFilter || tipoFilter || dateFilter !== today) && (
+      {(unidadeFilter || tipoFilter || dateFrom !== today || dateTo !== today) && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Filtros ativos:</span>
           {unidadeFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{allowedUnits.find(u => u.id === unidadeFilter)?.nome}</span>}
           {tipoFilter && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium capitalize">{tipoFilter === 'distribuicao' ? 'Distribuição' : tipoFilter}</span>}
-          {dateFilter && dateFilter !== today && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFilter + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
-          <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFilter(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
+          {(dateFrom !== today || dateTo !== today) && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{format(new Date(dateFrom + 'T00:00:00'), 'dd/MM')} — {format(new Date(dateTo + 'T00:00:00'), 'dd/MM/yyyy')}</span>}
+          <button onClick={() => { setUnidadeFilter(''); setTipoFilter(''); setDateFrom(today); setDateTo(today); }} className="text-destructive hover:underline ml-1">Limpar</button>
         </div>
       )}
 
