@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { compareIndicators } from '@/lib/indicatorOrder';
 
 /**
  * Checks if the collaborator has unaddressed below-target indicators today.
@@ -32,7 +33,9 @@ export function usePendingMandatoryFeedback(userId?: string) {
       const coveredIds = new Set((existingCauses ?? []).map((c: any) => c.indicator_id));
 
       // 3. Return only uncovered indicators
-      return belowTarget.filter(i => !coveredIds.has(i.indicator_id));
+      return belowTarget
+        .filter(i => !coveredIds.has(i.indicator_id))
+        .sort(compareIndicators(i => (i.indicators as any)?.codigo));
     },
     enabled: !!userId,
     refetchOnWindowFocus: true,

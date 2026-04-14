@@ -22,6 +22,7 @@ import {
   CalendarIcon, TrendingUp, TrendingDown, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { compareIndicators } from '@/lib/indicatorOrder';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import type { IndicatorStatus } from '@/types';
 import type { DesempenhoRow } from '@/hooks/useDesempenho';
@@ -122,6 +123,10 @@ export default function ColaboradorHome() {
       const key = d.mapa_numero ?? 'manual';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
+    }
+    // Sort indicators within each mapa
+    for (const [, rows] of map) {
+      rows.sort(compareIndicators(r => r.indicators?.codigo));
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [kpis]);
