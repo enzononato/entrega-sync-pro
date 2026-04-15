@@ -212,7 +212,12 @@ export default function Desempenho() {
 
   // Detail helpers
   const isTimeIndicator = (code: string | undefined) => ['TML', 'TR', 'TI', 'JL'].includes(code?.toUpperCase() ?? '');
-  const formatVal = (val: number, code: string | undefined) => isTimeIndicator(code) ? formatMinutesHHMM(val) : String(val);
+  const isPercentIndicator = (code: string | undefined) => ['DISP_TEMPO'].includes(code?.toUpperCase() ?? '');
+  const formatVal = (val: number, code: string | undefined) => {
+    if (isTimeIndicator(code)) return formatMinutesHHMM(val);
+    if (isPercentIndicator(code)) return `${val}%`;
+    return String(val);
+  };
 
   return (
     <div className="space-y-6 animate-fade-up">
