@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/EmptyState';
+import Import031805 from '@/components/admin/Import031805';
 
 export default function Importacoes() {
   return (
@@ -16,15 +17,7 @@ export default function Importacoes() {
         </TabsList>
 
         <TabsContent value="03.18.05">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Importação 03.18.05</CardTitle>
-              <CardDescription>Importe os dados da tabela 03.18.05</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState titulo="Nenhuma importação realizada" descricao="Em breve você poderá importar dados aqui." icon={<Upload className="h-10 w-10" />} />
-            </CardContent>
-          </Card>
+          <Import031805 />
         </TabsContent>
 
         <TabsContent value="03.11.34.05">
