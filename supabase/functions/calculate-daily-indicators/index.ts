@@ -12,10 +12,11 @@ const INDICATOR_IDS: Record<string, string> = {
   JL:  "e1393945-535e-4506-8ef7-e8c28e4788b6",
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
   DISP_TEMPO: "488d1de9-9d88-42f2-bf3b-625752c0db02",
+  TX_REPOSICAO: "c4c40e3e-f23b-46ce-a576-885c610f2df7",
 };
 
 const DEFAULT_METAS: Record<string, number> = {
-  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 0,
+  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 0, TX_REPOSICAO: 49.8,
 };
 
 // Indicators that only apply to motoristas
@@ -331,6 +332,109 @@ Deno.serve(async (req) => {
         totalInserted += upserts.length;
       }
     }
+
+    // ── Step 4: Calculate TX_REPOSICAO from reposicao_031805 ──
+    const TX_REPOSICAO_ID = INDICATOR_IDS["TX_REPOSICAO"];
+    let metaReposicao = DEFAULT_METAS["TX_REPOSICAO"];
+
+    const { data: goalRow } = await supabase
+      .from("goals")
+      .select("valor_meta")
+      .eq("indicator_id", TX_REPOSICAO_ID)
+      .eq("ativo", true)
+      .eq("periodo_tipo", "mensal")
+      .or("worker_type.eq.motorista,worker_type.is.null")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (goalRow) metaReposicao = goalRow.valor_meta;
+
+    // Link mot_user_id on unlinked reposicao rows
+    {
+      let offset = 0;
+      while (true) {
+        const { data: unlinked } = await supabase
+          .from("reposicao_031805")
+          .select("id, motorista_codigo")
+          .is("mot_user_id", null)
+          .not("motorista_codigo", "is", null)
+          .neq("motorista_codigo", "")
+          .range(offset, offset + PAGE - 1);
+        if (!unlinked || unlinked.length === 0) break;
+        for (const row of unlinked) {
+          const userId = matriculaMap.get(row.motorista_codigo?.trim() ?? "");
+          if (userId) {
+            await supabase.from("reposicao_031805").update({ mot_user_id: userId }).eq("id", row.id);
+          }
+        }
+        if (unlinked.length < PAGE) break;
+        offset += PAGE;
+      }
+    }
+
+    // Fetch and aggregate reposicao data by user + month
+    let repoRows: { mot_user_id: string; data_solicitacao: string; valor: number }[] = [];
+    {
+      let offset = 0;
+      while (true) {
+        const { data: chunk, error: rErr } = await supabase
+          .from("reposicao_031805")
+          .select("mot_user_id, data_solicitacao, valor")
+          .not("mot_user_id", "is", null)
+          .not("data_solicitacao", "is", null)
+          .range(offset, offset + PAGE - 1);
+        if (rErr) throw rErr;
+        if (!chunk || chunk.length === 0) break;
+        for (const r of chunk) {
+          if (r.mot_user_id && r.data_solicitacao && r.valor != null) {
+            repoRows.push({ mot_user_id: r.mot_user_id, data_solicitacao: r.data_solicitacao, valor: Number(r.valor) || 0 });
+          }
+        }
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
+      }
+    }
+
+    const repoAggregated = new Map<string, number>();
+    for (const row of repoRows) {
+      const monthKey = row.data_solicitacao.substring(0, 7);
+      const key = `${row.mot_user_id}|${monthKey}`;
+      repoAggregated.set(key, (repoAggregated.get(key) || 0) + row.valor);
+    }
+
+    const repoUpserts: any[] = [];
+    const repoAffectedKeys = new Set<string>();
+    for (const [key, totalValor] of repoAggregated) {
+      const [userId, monthStr] = key.split("|");
+      const dataRef = `${monthStr}-01`;
+      const rounded = Math.round(totalValor * 100) / 100;
+      const withinTarget = rounded <= metaReposicao;
+      repoAffectedKeys.add(`${userId}|${dataRef}`);
+      repoUpserts.push({
+        user_id: userId,
+        indicator_id: TX_REPOSICAO_ID,
+        data_referencia: dataRef,
+        valor: rounded,
+        meta: metaReposicao,
+        percentual_atingimento: withinTarget ? 100 : 0,
+        status: withinTarget ? "dentro_meta" : "abaixo_meta",
+        origem_dado: "reposicao_031805",
+      });
+    }
+
+    for (const ak of repoAffectedKeys) {
+      const [uid, dataRef] = ak.split("|");
+      await supabase.from("user_indicator_daily").delete()
+        .eq("user_id", uid).eq("indicator_id", TX_REPOSICAO_ID)
+        .eq("data_referencia", dataRef).eq("origem_dado", "reposicao_031805");
+    }
+    for (let i = 0; i < repoUpserts.length; i += 200) {
+      const batch = repoUpserts.slice(i, i + 200);
+      const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
+      if (insertErr) throw insertErr;
+    }
+    totalInserted += repoUpserts.length;
+    console.log(`TX_REPOSICAO: ${repoUpserts.length} records upserted`);
 
     return new Response(
       JSON.stringify({ success: true, total_inserted: totalInserted, dates_processed: dates.length }),
