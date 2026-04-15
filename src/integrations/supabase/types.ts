@@ -602,6 +602,96 @@ export type Database = {
           },
         ]
       }
+      reposicao_031805: {
+        Row: {
+          ajudante_codigo: string | null
+          ajudante_nome: string | null
+          codigo_cliente: string | null
+          created_at: string
+          data_solicitacao: string | null
+          descricao_produto: string | null
+          descricao_unb: string | null
+          hora: string | null
+          id: string
+          imported_by: string | null
+          justificativa: string | null
+          mapa_origem: string | null
+          motorista_codigo: string | null
+          motorista_nome: string | null
+          nf_origem: string | null
+          nome_cliente: string | null
+          observacao: string | null
+          produto: string | null
+          quantidade: number | null
+          sistema_origem: string | null
+          solicitacao_reposicao: string | null
+          status_solicitacao: string | null
+          tipo_solicitacao: string | null
+          unb: string | null
+          unidade_medida: string | null
+          valor: number | null
+          valor_unitario: number | null
+        }
+        Insert: {
+          ajudante_codigo?: string | null
+          ajudante_nome?: string | null
+          codigo_cliente?: string | null
+          created_at?: string
+          data_solicitacao?: string | null
+          descricao_produto?: string | null
+          descricao_unb?: string | null
+          hora?: string | null
+          id?: string
+          imported_by?: string | null
+          justificativa?: string | null
+          mapa_origem?: string | null
+          motorista_codigo?: string | null
+          motorista_nome?: string | null
+          nf_origem?: string | null
+          nome_cliente?: string | null
+          observacao?: string | null
+          produto?: string | null
+          quantidade?: number | null
+          sistema_origem?: string | null
+          solicitacao_reposicao?: string | null
+          status_solicitacao?: string | null
+          tipo_solicitacao?: string | null
+          unb?: string | null
+          unidade_medida?: string | null
+          valor?: number | null
+          valor_unitario?: number | null
+        }
+        Update: {
+          ajudante_codigo?: string | null
+          ajudante_nome?: string | null
+          codigo_cliente?: string | null
+          created_at?: string
+          data_solicitacao?: string | null
+          descricao_produto?: string | null
+          descricao_unb?: string | null
+          hora?: string | null
+          id?: string
+          imported_by?: string | null
+          justificativa?: string | null
+          mapa_origem?: string | null
+          motorista_codigo?: string | null
+          motorista_nome?: string | null
+          nf_origem?: string | null
+          nome_cliente?: string | null
+          observacao?: string | null
+          produto?: string | null
+          quantidade?: number | null
+          sistema_origem?: string | null
+          solicitacao_reposicao?: string | null
+          status_solicitacao?: string | null
+          tipo_solicitacao?: string | null
+          unb?: string | null
+          unidade_medida?: string | null
+          valor?: number | null
+          valor_unitario?: number | null
+        }
+        Relationships: []
+      }
       root_cause_records: {
         Row: {
           categoria_causa: string
