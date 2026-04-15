@@ -113,18 +113,18 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
     addResult("JL", tmlVal + trVal + tiVal);
   }
 
+  // TX_DEVOLUCAO - applies to both motorista and ajudante
+  let txDevVal: number | null = null;
+  const cxCarreg = Number(row.cx_carreg);
+  const cxEntreg = Number(row.cx_entreg);
+  if (cxCarreg > 0 && !isNaN(cxCarreg) && !isNaN(cxEntreg)) {
+    txDevVal = Math.round(((1 - cxEntreg / cxCarreg) * 100) * 100) / 100;
+    if (txDevVal < 0) txDevVal = 0;
+  }
+  addResult("TX_DEVOLUCAO", txDevVal);
+
   // Motorista-only indicators
   if (!isAjudante) {
-    // TX_DEVOLUCAO
-    let txDevVal: number | null = null;
-    const cxCarreg = Number(row.cx_carreg);
-    const cxEntreg = Number(row.cx_entreg);
-    if (cxCarreg > 0 && !isNaN(cxCarreg) && !isNaN(cxEntreg)) {
-      txDevVal = Math.round(((1 - cxEntreg / cxCarreg) * 100) * 100) / 100;
-      if (txDevVal < 0) txDevVal = 0;
-    }
-    addResult("TX_DEVOLUCAO", txDevVal);
-
     // DISP_TEMPO
     let dispTempoVal: number | null = null;
     if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
