@@ -256,11 +256,11 @@ Deno.serve(async (req) => {
 
     let totalInserted = 0;
     const indicatorIds = Object.values(INDICATOR_IDS);
+    const PAGE = 1000;
 
     for (const date of dates) {
       let allMapas: any[] = [];
       let offset = 0;
-      const PAGE = 1000;
       while (true) {
         const { data: chunk, error: fetchErr } = await supabase
           .from("mapa_historico")
