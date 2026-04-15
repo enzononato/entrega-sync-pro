@@ -138,7 +138,8 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
           const tempoPrev = hTP * 60 + mTP;
           const tempoReal = Math.max(0, hrEntr - hrSai);
           if (tempoPrev > 0) {
-            dispTempoVal = Math.round(((tempoReal - tempoPrev) / tempoPrev) * 100 * 100) / 100;
+            const pct = ((tempoReal - tempoPrev) / tempoPrev) * 100;
+            dispTempoVal = Math.round(Math.max(0, pct) * 100) / 100;
           }
         }
       }
