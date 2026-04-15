@@ -52,7 +52,7 @@ const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
   user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
   vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
-  formato_meta: 'tempo' as 'tempo' | 'porcentagem',
+  formato_meta: 'tempo' as 'tempo' | 'porcentagem' | 'dinheiro',
 };
 
 function parseHHMM(str: string): number {
@@ -69,7 +69,8 @@ function minutesToHHMM(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function detectFormato(valorMeta: number, indicatorCodigo?: string): 'tempo' | 'porcentagem' {
+function detectFormato(valorMeta: number, indicatorCodigo?: string, unidadeMedida?: string): 'tempo' | 'porcentagem' | 'dinheiro' {
+  if (unidadeMedida === 'R$') return 'dinheiro';
   if (['TML', 'TR', 'TI', 'JL'].includes((indicatorCodigo ?? '').toUpperCase())) return 'tempo';
   return valorMeta > 200 ? 'tempo' : 'porcentagem';
 }
@@ -138,7 +139,7 @@ export default function Metas() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setMetaValorStr(''); setBonusStr(''); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
-    const fmt = detectFormato(g.valor_meta, g.indicators?.codigo);
+    const fmt = detectFormato(g.valor_meta, g.indicators?.codigo, g.indicators?.unidade_medida);
     setEditing(g);
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
@@ -301,11 +302,14 @@ export default function Metas() {
                     <div className="flex items-baseline gap-1.5 bg-muted/40 rounded-lg px-3 py-2.5">
                       <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span className="text-2xl font-bold text-foreground">
-                        {['TML','TR','TI','JL'].includes(g.indicators?.codigo?.toUpperCase() ?? '')
-                          ? formatMinutesHHMM(g.valor_meta)
-                          : g.valor_meta > 200
-                            ? formatMinutesHHMM(g.valor_meta)
-                            : `${g.valor_meta}%`}
+                        {(() => {
+                          const codigo = (g.indicators?.codigo ?? '').toUpperCase();
+                          if (['TML','TR','TI','JL'].includes(codigo)) return formatMinutesHHMM(g.valor_meta);
+                          if (g.valor_meta > 200) return formatMinutesHHMM(g.valor_meta);
+                          const unidade = g.indicators?.unidade_medida;
+                          if (unidade === 'R$') return `R$ ${g.valor_meta.toFixed(2).replace('.', ',')}`;
+                          return `${g.valor_meta}%`;
+                        })()}
                       </span>
                       
                       <span className="ml-auto text-xs text-muted-foreground bg-background rounded-md px-2 py-0.5 border">

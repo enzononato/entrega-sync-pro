@@ -7,7 +7,7 @@ export interface GoalWithRelations {
   worker_type: string | null; user_id: string | null;
   valor_meta: number; valor_bonificacao: number; periodo_tipo: string; vigencia_inicio: string;
   vigencia_fim: string | null; ativo: boolean; created_at: string;
-  indicators: { nome: string; codigo: string } | null;
+  indicators: { nome: string; codigo: string; unidade_medida?: string } | null;
   units: { nome: string } | null;
   users: { nome: string } | null;
 }
@@ -16,7 +16,7 @@ export function useMetas(filters?: { indicator_id?: string; worker_type?: string
   return useQuery({
     queryKey: ['goals', filters],
     queryFn: async () => {
-      let q = supabase.from('goals').select('*, indicators(nome, codigo), units(nome), users(nome)').order('created_at', { ascending: false });
+      let q = supabase.from('goals').select('*, indicators(nome, codigo, unidade_medida), units(nome), users(nome)').order('created_at', { ascending: false });
       if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
       if (filters?.worker_type) q = q.eq('worker_type', filters.worker_type);
       if (filters?.unidade_id) q = q.eq('unidade_id', filters.unidade_id);
