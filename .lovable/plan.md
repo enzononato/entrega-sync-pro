@@ -1,29 +1,36 @@
 
 
-## Plan: Converter importação 03.18.05 para Dialog (modal) como mapas
+## Plano: Transformar TX_REPOSICAO em indicador de Reposição (R$) com meta mensal
 
-### O que muda
-A importação 03.18.05 passará a funcionar como a importação de mapas: um botão "Importar CSV" na aba abre um Dialog (modal popup) com preview dos dados filtrados e botão de confirmação. A tabela de dados importados continua visível na aba abaixo do botão.
+### Resumo
+Atualizar o indicador existente `TX_REPOSICAO` para refletir o novo propósito: medir o valor monetário (R$) de reposições por motorista/mês, com meta de até R$49,80. O dado virá da tabela `reposicao_031805`.
 
 ### Alterações
 
-**Arquivo: `src/components/admin/Import031805.tsx`**
+**1. Atualizar o indicador no banco de dados**
+- Alterar `nome` de "Taxa de reposição" para "Reposição"
+- Alterar `applies_to_worker_type` de "motorista,ajudante" para "motorista"
+- Alterar `categoria` para "Financeiro"
+- Alterar `unidade_medida` para "R$"
+- Manter o `codigo` como `TX_REPOSICAO` (usado em ordenação canônica e cálculos)
 
-1. Extrair a lógica de upload/parse/preview para dentro de um `Dialog` (usando `@/components/ui/dialog`)
-2. Na aba, exibir:
-   - Botão "Importar CSV" que abre o Dialog
-   - Card "Dados Importados" com a tabela do banco (como já existe)
-3. No Dialog:
-   - Input de arquivo CSV
-   - Info de filtragem (X linhas no arquivo → Y registros filtrados)
-   - Preview table com as primeiras 20 linhas filtradas
-   - Botão "Confirmar Importação" que faz o insert em batch
-   - Ao concluir, fecha o Dialog e atualiza a tabela de dados importados
-4. Manter a vinculação de motorista_codigo/ajudante_codigo com user_ids (lookup na tabela `users` por matrícula), similar ao que a importação de mapas faz com `cd_mot`, `cd_aju1`, `cd_aju2`
+**2. Criar meta mensal na tabela `goals`**
+- `indicator_id`: ID do TX_REPOSICAO
+- `valor_meta`: 49.80
+- `periodo_tipo`: "mensal"
+- `worker_type`: "motorista"
+- `unidade_id`: NULL (vale para todas as unidades)
+- `vigencia_inicio`: hoje
+
+**3. Atualizar memória do projeto**
+- Ajustar `mem://logic/daily-operational-goals` para refletir que TX_REPOSICAO agora é baseado em valor R$ da tabela `reposicao_031805`, não mais em taxa percentual do mapa.
+
+### O que NÃO muda
+- O código `TX_REPOSICAO` permanece (usado em `indicatorOrder.ts` e diversas telas)
+- Nenhuma migração de schema necessária - apenas UPDATE de dados
 
 ### Detalhes técnicos
-- Reutilizar os mesmos componentes de UI: `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogTrigger`
-- Manter toda a lógica de parse CSV, filtragem por justificativa, e batch insert
-- Adicionar lookup de matrículas → user_ids antes do insert (campos `mot_user_id`, `aju1_user_id` na tabela `reposicao_031805` — precisará de migração para adicionar essas colunas se desejado, ou apenas salvar o código do motorista como já faz)
-- O Dialog fecha automaticamente após importação bem-sucedida e chama `fetchDbRows()` para atualizar a listagem
+- UPDATE na tabela `indicators` via insert tool
+- INSERT na tabela `goals` via insert tool
+- Atualizar arquivo de memória
 
