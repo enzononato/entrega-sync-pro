@@ -400,11 +400,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Aggregate by user + date + mapa (sum valor for multiple products in same mapa)
-    const repoAggregated = new Map<string, number>();
+    // Aggregate by user + mapa (sum all values regardless of date, keep earliest date)
+    const repoAggregated = new Map<string, { valor: number; earliestDate: string }>();
     for (const row of allRepoRows) {
-      const key = `${row.mot_user_id}|${row.data_solicitacao}|${row.mapa_origem ?? ""}`;
-      repoAggregated.set(key, (repoAggregated.get(key) || 0) + row.valor);
+      const mapa = row.mapa_origem ?? "";
+      const key = `${row.mot_user_id}|${mapa}`;
+      const existing = repoAggregated.get(key);
+      if (existing) {
+        existing.valor += row.valor;
+        if (row.data_solicitacao < existing.earliestDate) existing.earliestDate = row.data_solicitacao;
+      } else {
+        repoAggregated.set(key, { valor: row.valor, earliestDate: row.data_solicitacao });
+      }
     }
 
     // Monthly totals for status calculation
@@ -418,10 +425,10 @@ Deno.serve(async (req) => {
     const repoUpserts: any[] = [];
     const repoAffectedUsers = new Set<string>();
 
-    for (const [key, totalValor] of repoAggregated) {
-      const [userId, dataSol, mapaStr] = key.split("|");
-      const rounded = Math.round(totalValor * 100) / 100;
-      const monthKey = dataSol.substring(0, 7);
+    for (const [key, agg] of repoAggregated) {
+      const [userId, mapaStr] = key.split("|");
+      const rounded = Math.round(agg.valor * 100) / 100;
+      const monthKey = agg.earliestDate.substring(0, 7);
       const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
       const withinTarget = Math.round(monthTotal * 100) / 100 <= metaReposicao;
 
@@ -430,7 +437,7 @@ Deno.serve(async (req) => {
       repoUpserts.push({
         user_id: userId,
         indicator_id: TX_REPOSICAO_ID,
-        data_referencia: dataSol,
+        data_referencia: agg.earliestDate,
         valor: rounded,
         meta: metaReposicao,
         percentual_atingimento: withinTarget ? 100 : 0,

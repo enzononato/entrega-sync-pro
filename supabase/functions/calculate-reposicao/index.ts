@@ -105,12 +105,18 @@ Deno.serve(async (req) => {
 
     console.log(`Total reposicao rows: ${allRows.length}`);
 
-    // ── Step 4: Aggregate by user + date + mapa (sum valor) ──
-    // This matches how other indicators work: one record per user/date/mapa
-    const aggregated = new Map<string, number>();
+    // ── Step 4: Aggregate by user + mapa (sum all values, keep earliest date) ──
+    const aggregated = new Map<string, { valor: number; earliestDate: string }>();
     for (const row of allRows) {
-      const key = `${row.mot_user_id}|${row.data_solicitacao}|${row.mapa_origem ?? ""}`;
-      aggregated.set(key, (aggregated.get(key) || 0) + row.valor);
+      const mapa = row.mapa_origem ?? "";
+      const key = `${row.mot_user_id}|${mapa}`;
+      const existing = aggregated.get(key);
+      if (existing) {
+        existing.valor += row.valor;
+        if (row.data_solicitacao < existing.earliestDate) existing.earliestDate = row.data_solicitacao;
+      } else {
+        aggregated.set(key, { valor: row.valor, earliestDate: row.data_solicitacao });
+      }
     }
 
     // Monthly totals for status calculation
@@ -125,10 +131,10 @@ Deno.serve(async (req) => {
     const upserts: any[] = [];
     const affectedUsers = new Set<string>();
 
-    for (const [key, totalValor] of aggregated) {
-      const [userId, dataSol, mapaStr] = key.split("|");
-      const rounded = Math.round(totalValor * 100) / 100;
-      const monthKey = dataSol.substring(0, 7);
+    for (const [key, agg] of aggregated) {
+      const [userId, mapaStr] = key.split("|");
+      const rounded = Math.round(agg.valor * 100) / 100;
+      const monthKey = agg.earliestDate.substring(0, 7);
       const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
       const withinTarget = Math.round(monthTotal * 100) / 100 <= meta;
 
@@ -137,7 +143,7 @@ Deno.serve(async (req) => {
       upserts.push({
         user_id: userId,
         indicator_id: TX_REPOSICAO_ID,
-        data_referencia: dataSol,
+        data_referencia: agg.earliestDate,
         valor: rounded,
         meta,
         percentual_atingimento: withinTarget ? 100 : 0,
