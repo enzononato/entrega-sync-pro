@@ -69,7 +69,8 @@ function minutesToHHMM(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function detectFormato(valorMeta: number, indicatorCodigo?: string): 'tempo' | 'porcentagem' {
+function detectFormato(valorMeta: number, indicatorCodigo?: string, unidadeMedida?: string): 'tempo' | 'porcentagem' | 'dinheiro' {
+  if (unidadeMedida === 'R$') return 'dinheiro';
   if (['TML', 'TR', 'TI', 'JL'].includes((indicatorCodigo ?? '').toUpperCase())) return 'tempo';
   return valorMeta > 200 ? 'tempo' : 'porcentagem';
 }
