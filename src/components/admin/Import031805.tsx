@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle } from 'luci
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { Column } from '@/components/shared/DataTable';
 import { toast } from '@/hooks/use-toast';
 import { DataTable } from '@/components/shared/DataTable';
 
