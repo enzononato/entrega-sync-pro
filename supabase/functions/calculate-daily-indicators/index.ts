@@ -20,7 +20,7 @@ const DEFAULT_METAS: Record<string, number> = {
 };
 
 // Indicators that only apply to motoristas
-const MOTORISTA_ONLY = new Set(["TX_DEVOLUCAO", "DISP_TEMPO"]);
+const MOTORISTA_ONLY = new Set(["DISP_TEMPO"]);
 
 // All indicator codes for ajudantes (excludes motorista-only)
 const AJUDANTE_CODES = Object.keys(INDICATOR_IDS).filter(c => !MOTORISTA_ONLY.has(c));
@@ -113,18 +113,18 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
     addResult("JL", tmlVal + trVal + tiVal);
   }
 
+  // TX_DEVOLUCAO - applies to both motorista and ajudante
+  let txDevVal: number | null = null;
+  const cxCarreg = Number(row.cx_carreg);
+  const cxEntreg = Number(row.cx_entreg);
+  if (cxCarreg > 0 && !isNaN(cxCarreg) && !isNaN(cxEntreg)) {
+    txDevVal = Math.round(((1 - cxEntreg / cxCarreg) * 100) * 100) / 100;
+    if (txDevVal < 0) txDevVal = 0;
+  }
+  addResult("TX_DEVOLUCAO", txDevVal);
+
   // Motorista-only indicators
   if (!isAjudante) {
-    // TX_DEVOLUCAO
-    let txDevVal: number | null = null;
-    const cxCarreg = Number(row.cx_carreg);
-    const cxEntreg = Number(row.cx_entreg);
-    if (cxCarreg > 0 && !isNaN(cxCarreg) && !isNaN(cxEntreg)) {
-      txDevVal = Math.round(((1 - cxEntreg / cxCarreg) * 100) * 100) / 100;
-      if (txDevVal < 0) txDevVal = 0;
-    }
-    addResult("TX_DEVOLUCAO", txDevVal);
-
     // DISP_TEMPO
     let dispTempoVal: number | null = null;
     if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
@@ -256,11 +256,11 @@ Deno.serve(async (req) => {
 
     let totalInserted = 0;
     const indicatorIds = Object.values(INDICATOR_IDS);
+    const PAGE = 1000;
 
     for (const date of dates) {
       let allMapas: any[] = [];
       let offset = 0;
-      const PAGE = 1000;
       while (true) {
         const { data: chunk, error: fetchErr } = await supabase
           .from("mapa_historico")
