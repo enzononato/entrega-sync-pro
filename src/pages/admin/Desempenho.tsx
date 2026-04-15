@@ -212,7 +212,12 @@ export default function Desempenho() {
 
   // Detail helpers
   const isTimeIndicator = (code: string | undefined) => ['TML', 'TR', 'TI', 'JL'].includes(code?.toUpperCase() ?? '');
-  const formatVal = (val: number, code: string | undefined) => isTimeIndicator(code) ? formatMinutesHHMM(val) : String(val);
+  const isPercentIndicator = (code: string | undefined) => ['DISP_TEMPO'].includes(code?.toUpperCase() ?? '');
+  const formatVal = (val: number, code: string | undefined) => {
+    if (isTimeIndicator(code)) return formatMinutesHHMM(val);
+    if (isPercentIndicator(code)) return `${val}%`;
+    return String(val);
+  };
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -392,9 +397,10 @@ export default function Desempenho() {
                           <div className="divide-y divide-border/30">
                             {rows.map(d => {
                               const code = d.indicators?.codigo?.toUpperCase();
+                              const isPct = isPercentIndicator(code);
                               const isTime = isTimeIndicator(code);
-                              const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
-                              const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                              const valStr = isPct ? `${d.valor}%` : isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
+                              const metaStr = d.meta != null ? (isPct ? `${d.meta}%` : isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
 
