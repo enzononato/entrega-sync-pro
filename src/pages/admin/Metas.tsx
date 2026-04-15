@@ -305,7 +305,7 @@ export default function Metas() {
                           const codigo = (g.indicators?.codigo ?? '').toUpperCase();
                           if (['TML','TR','TI','JL'].includes(codigo)) return formatMinutesHHMM(g.valor_meta);
                           if (g.valor_meta > 200) return formatMinutesHHMM(g.valor_meta);
-                          const unidade = (g as any).indicators?.unidade_medida;
+                          const unidade = g.indicators?.unidade_medida;
                           if (unidade === 'R$') return `R$ ${g.valor_meta.toFixed(2).replace('.', ',')}`;
                           return `${g.valor_meta}%`;
                         })()}
