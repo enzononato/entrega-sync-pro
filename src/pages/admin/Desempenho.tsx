@@ -99,8 +99,7 @@ export default function Desempenho() {
 
       for (const [mapaKey, rows] of entry.mapas) {
         if (mapaKey === 'manual') continue;
-        // Skip reposicao-only groups
-        if (rows.every(r => r.indicators?.codigo?.toUpperCase() === 'TX_REPOSICAO')) continue;
+        // All maps (including TX_REPOSICAO-only) get placeholders
 
         const presentCodes = new Set(rows.map(r => r.indicators?.codigo?.toUpperCase()));
         for (const code of expectedCodes) {
@@ -129,37 +128,6 @@ export default function Desempenho() {
       }
     }
 
-    // Merge or remove TX_REPOSICAO-only map groups (phantom maps)
-    for (const entry of map.values()) {
-      const orphanKeys: string[] = [];
-      for (const [mapaKey, rows] of entry.mapas) {
-        if (mapaKey === 'manual') continue;
-        if (rows.every(r => r.indicators?.codigo?.toUpperCase() === 'TX_REPOSICAO')) {
-          orphanKeys.push(mapaKey);
-        }
-      }
-      for (const orphanKey of orphanKeys) {
-        const orphanRows = entry.mapas.get(orphanKey)!;
-        // Find the best target: another map (not manual, not orphan) with closest mapa_numero
-        const orphanNum = parseInt(orphanKey, 10);
-        let bestKey: string | null = null;
-        let bestDist = Infinity;
-        for (const [mk] of entry.mapas) {
-          if (mk === 'manual' || orphanKeys.includes(mk)) continue;
-          const dist = Math.abs(parseInt(mk, 10) - orphanNum);
-          if (dist < bestDist) { bestDist = dist; bestKey = mk; }
-        }
-        if (bestKey) {
-          // Merge orphan rows into the target map
-          const target = entry.mapas.get(bestKey)!;
-          for (const r of orphanRows) {
-            r.mapa_numero = bestKey;
-            target.push(r);
-          }
-        }
-        entry.mapas.delete(orphanKey);
-      }
-    }
 
     // Sort indicators within each mapa for every user
     for (const entry of map.values()) {
