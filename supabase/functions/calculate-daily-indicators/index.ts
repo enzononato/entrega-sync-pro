@@ -391,7 +391,7 @@ Deno.serve(async (req) => {
               mot_user_id: r.mot_user_id,
               data_solicitacao: r.data_solicitacao,
               valor: Number(r.valor) || 0,
-              mapa_origem: r.mapa_origem || null,
+              mapa_origem: r.mapa_origem && r.mapa_origem !== "0" ? r.mapa_origem : null,
             });
           }
         }
@@ -400,7 +400,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // First, compute monthly totals per user to determine status
+    // Aggregate by user + date + mapa (sum valor for multiple products in same mapa)
+    const repoAggregated = new Map<string, number>();
+    for (const row of allRepoRows) {
+      const key = `${row.mot_user_id}|${row.data_solicitacao}|${row.mapa_origem ?? ""}`;
+      repoAggregated.set(key, (repoAggregated.get(key) || 0) + row.valor);
+    }
+
+    // Monthly totals for status calculation
     const monthlyTotals = new Map<string, number>();
     for (const row of allRepoRows) {
       const monthKey = row.data_solicitacao.substring(0, 7);
@@ -408,40 +415,36 @@ Deno.serve(async (req) => {
       monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + row.valor);
     }
 
-    // Build per-row upserts (one record per reposição row, with mapa_numero)
     const repoUpserts: any[] = [];
     const repoAffectedUsers = new Set<string>();
-    const repoAffectedDates = new Set<string>();
 
-    for (const row of allRepoRows) {
-      const rounded = Math.round(row.valor * 100) / 100;
-      const monthKey = row.data_solicitacao.substring(0, 7);
-      const totalMonth = monthlyTotals.get(`${row.mot_user_id}|${monthKey}`) || 0;
-      const withinTarget = Math.round(totalMonth * 100) / 100 <= metaReposicao;
+    for (const [key, totalValor] of repoAggregated) {
+      const [userId, dataSol, mapaStr] = key.split("|");
+      const rounded = Math.round(totalValor * 100) / 100;
+      const monthKey = dataSol.substring(0, 7);
+      const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
+      const withinTarget = Math.round(monthTotal * 100) / 100 <= metaReposicao;
 
-      repoAffectedUsers.add(row.mot_user_id);
-      repoAffectedDates.add(row.data_solicitacao);
+      repoAffectedUsers.add(userId);
 
       repoUpserts.push({
-        user_id: row.mot_user_id,
+        user_id: userId,
         indicator_id: TX_REPOSICAO_ID,
-        data_referencia: row.data_solicitacao,
+        data_referencia: dataSol,
         valor: rounded,
         meta: metaReposicao,
         percentual_atingimento: withinTarget ? 100 : 0,
         status: withinTarget ? "dentro_meta" : "abaixo_meta",
         origem_dado: "reposicao_031805",
-        mapa_numero: row.mapa_origem,
+        mapa_numero: mapaStr || null,
       });
     }
 
-    // Delete old reposição records for affected users/dates
+    // Delete all old reposição records for affected users
     for (const uid of repoAffectedUsers) {
-      for (const dateRef of repoAffectedDates) {
-        await supabase.from("user_indicator_daily").delete()
-          .eq("user_id", uid).eq("indicator_id", TX_REPOSICAO_ID)
-          .eq("data_referencia", dateRef).eq("origem_dado", "reposicao_031805");
-      }
+      await supabase.from("user_indicator_daily").delete()
+        .eq("user_id", uid).eq("indicator_id", TX_REPOSICAO_ID)
+        .eq("origem_dado", "reposicao_031805");
     }
     for (let i = 0; i < repoUpserts.length; i += 200) {
       const batch = repoUpserts.slice(i, i + 200);
