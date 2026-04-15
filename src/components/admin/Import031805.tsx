@@ -137,14 +137,14 @@ export default function Import031805() {
     }
   };
 
-  const columns = [
-    { header: 'Data', accessorKey: 'data_solicitacao' as const },
-    { header: 'Justificativa', accessorKey: 'justificativa' as const },
-    { header: 'Cliente', accessorKey: 'nome_cliente' as const },
-    { header: 'Produto', accessorKey: 'descricao_produto' as const },
-    { header: 'Qtd', accessorKey: 'quantidade' as const },
-    { header: 'Valor', accessorKey: 'valor' as const },
-    { header: 'Motorista', accessorKey: 'motorista_nome' as const },
+  const columns: Column<ParsedRow>[] = [
+    { key: 'data_solicitacao', label: 'Data' },
+    { key: 'justificativa', label: 'Justificativa' },
+    { key: 'nome_cliente', label: 'Cliente' },
+    { key: 'descricao_produto', label: 'Produto' },
+    { key: 'quantidade', label: 'Qtd' },
+    { key: 'valor', label: 'Valor' },
+    { key: 'motorista_nome', label: 'Motorista' },
   ];
 
   return (
