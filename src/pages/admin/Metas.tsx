@@ -139,7 +139,7 @@ export default function Metas() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setMetaValorStr(''); setBonusStr(''); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
-    const fmt = detectFormato(g.valor_meta, g.indicators?.codigo);
+    const fmt = detectFormato(g.valor_meta, g.indicators?.codigo, g.indicators?.unidade_medida);
     setEditing(g);
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
