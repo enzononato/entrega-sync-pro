@@ -91,7 +91,7 @@ export default function Import031805() {
       const pageSize = 1000;
       while (true) {
         const { data, error } = await (supabase.from('reposicao_031805') as any)
-          .select('id, data_solicitacao, justificativa, nome_cliente, descricao_produto, quantidade, valor, motorista_nome, mapa_origem, created_at')
+          .select('*')
           .order('data_solicitacao', { ascending: false })
           .range(from, from + pageSize - 1);
         if (error) throw error;
