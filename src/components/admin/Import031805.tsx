@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Database } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Upload, FileUp, Loader2, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Column, DataTable } from '@/components/shared/DataTable';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { formatDate } from '@/lib/formatters';
 
 interface ParsedRow {
@@ -63,11 +64,6 @@ function parseBrNumber(raw: string): number {
 const JUSTIFICATIVAS_PERMITIDAS = ['Produto Avariado', 'Quebra'];
 
 export default function Import031805() {
-  const [rows, setRows] = useState<ParsedRow[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [imported, setImported] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [totalOriginal, setTotalOriginal] = useState(0);
   const [dbRows, setDbRows] = useState<DbRow[]>([]);
   const [loadingDb, setLoadingDb] = useState(true);
 
@@ -97,24 +93,70 @@ export default function Import031805() {
 
   useEffect(() => { fetchDbRows(); }, [fetchDbRows]);
 
-  const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const dbColumns: Column<DbRow>[] = [
+    { key: 'data_solicitacao', label: 'Data', render: (r) => r.data_solicitacao ? formatDate(r.data_solicitacao) : '—' },
+    { key: 'justificativa', label: 'Justificativa' },
+    { key: 'nome_cliente', label: 'Cliente' },
+    { key: 'descricao_produto', label: 'Produto' },
+    { key: 'quantidade', label: 'Qtd' },
+    { key: 'valor', label: 'Valor', render: (r) => r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : '—' },
+    { key: 'motorista_nome', label: 'Motorista' },
+    { key: 'mapa_origem', label: 'Mapa' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Importação 03.18.05</h3>
+          <p className="text-sm text-muted-foreground">
+            Apenas registros com justificativa "Produto Avariado" ou "Quebra"
+          </p>
+        </div>
+        <Import031805Dialog onSuccess={fetchDbRows} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Dados Importados
+          </CardTitle>
+          <CardDescription>
+            {loadingDb ? 'Carregando...' : `${dbRows.length} registros no banco de dados`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataTable columns={dbColumns} data={dbRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [totalOriginal, setTotalOriginal] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFileName(file.name);
-    setImported(false);
 
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length < 2) return;
+      if (lines.length < 2) { toast.error('CSV vazio'); return; }
 
       const header = lines[0].replace(/^\uFEFF/, '');
       const cols = header.split(';').map(c => c.trim());
 
       const jIdx = cols.indexOf('Justificativa');
       if (jIdx === -1) {
-        toast({ title: 'Erro', description: 'Coluna "Justificativa" não encontrada no CSV.', variant: 'destructive' });
+        toast.error('Coluna "Justificativa" não encontrada no CSV.');
         return;
       }
 
@@ -158,122 +200,115 @@ export default function Import031805() {
       setRows(allRows);
     };
     reader.readAsText(file, 'utf-8');
-  }, []);
+  };
 
   const handleImport = async () => {
     if (!rows.length) return;
     setImporting(true);
     try {
+      // Lookup matrículas → user_ids
+      const allMatriculas = new Set<string>();
+      rows.forEach(r => {
+        const mot = r.motorista_codigo?.trim();
+        const aju = r.ajudante_codigo?.trim();
+        if (mot && mot !== '0') allMatriculas.add(mot);
+        if (aju && aju !== '0') allMatriculas.add(aju);
+      });
+
+      const matriculaToUserId: Record<string, string> = {};
+      if (allMatriculas.size > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, matricula')
+          .in('matricula', Array.from(allMatriculas));
+        users?.forEach(u => { matriculaToUserId[u.matricula] = u.id; });
+      }
+
+      const enriched = rows.map(r => {
+        const mot = r.motorista_codigo?.trim();
+        const aju = r.ajudante_codigo?.trim();
+        return {
+          ...r,
+          mot_user_id: (mot && mot !== '0') ? matriculaToUserId[mot] || null : null,
+          aju_user_id: (aju && aju !== '0') ? matriculaToUserId[aju] || null : null,
+        };
+      });
+
       const batchSize = 200;
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
+      for (let i = 0; i < enriched.length; i += batchSize) {
+        const batch = enriched.slice(i, i + batchSize);
         const { error } = await (supabase.from('reposicao_031805') as any).insert(batch);
         if (error) throw error;
       }
-      setImported(true);
-      toast({ title: 'Importação concluída', description: `${rows.length} registros importados com sucesso.` });
-      fetchDbRows();
+
+      const matched = Object.keys(matriculaToUserId).length;
+      const total = allMatriculas.size;
+      toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
+      setRows([]);
+      setOpen(false);
+      onSuccess();
     } catch (err: any) {
-      toast({ title: 'Erro na importação', description: err.message, variant: 'destructive' });
+      toast.error('Erro na importação: ' + err.message);
     } finally {
       setImporting(false);
     }
   };
 
-
-  const csvColumns: Column<ParsedRow>[] = [
-    { key: 'data_solicitacao', label: 'Data' },
-    { key: 'justificativa', label: 'Justificativa' },
-    { key: 'nome_cliente', label: 'Cliente' },
-    { key: 'descricao_produto', label: 'Produto' },
-    { key: 'quantidade', label: 'Qtd' },
-    { key: 'valor', label: 'Valor' },
-    { key: 'motorista_nome', label: 'Motorista' },
-  ];
-
-  const dbColumns: Column<DbRow>[] = [
-    { key: 'data_solicitacao', label: 'Data', render: (r) => r.data_solicitacao ? formatDate(r.data_solicitacao) : '—' },
-    { key: 'justificativa', label: 'Justificativa' },
-    { key: 'nome_cliente', label: 'Cliente' },
-    { key: 'descricao_produto', label: 'Produto' },
-    { key: 'quantidade', label: 'Qtd' },
-    { key: 'valor', label: 'Valor', render: (r) => r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : '—' },
-    { key: 'motorista_nome', label: 'Motorista' },
-    { key: 'mapa_origem', label: 'Mapa' },
-  ];
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Importação 03.18.05</CardTitle>
-          <CardDescription>
-            Importe os dados da tabela 03.18.05 — apenas registros com justificativa "Produto Avariado" ou "Quebra"
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label className="cursor-pointer">
-              <input type="file" accept=".csv" className="hidden" onChange={handleFile} />
-              <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-input bg-background hover:bg-accent text-sm font-medium transition-colors">
-                <FileSpreadsheet className="h-4 w-4" />
-                Selecionar CSV
-              </div>
-            </label>
-            {fileName && (
-              <span className="text-sm text-muted-foreground">{fileName}</span>
-            )}
-          </div>
-
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setRows([]); setTotalOriginal(0); } }}>
+      <DialogTrigger asChild>
+        <Button><Upload className="h-4 w-4 mr-2" /> Importar CSV</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Importar 03.18.05 (CSV)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Selecione um arquivo CSV com separador <code>;</code>. Apenas registros com justificativa
+            "Produto Avariado" ou "Quebra" serão importados.
+          </p>
+          <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleFile} className="block w-full text-sm" />
           {rows.length > 0 && (
-            <>
-              <div className="flex items-center gap-4 text-sm">
-                <span className="text-muted-foreground">
-                  {totalOriginal} linhas no arquivo → <strong className="text-foreground">{rows.length}</strong> registros filtrados
-                </span>
-                {imported ? (
-                  <span className="flex items-center gap-1 text-emerald-600">
-                    <CheckCircle className="h-4 w-4" /> Importado
-                  </span>
-                ) : (
-                  <Button onClick={handleImport} disabled={importing} size="sm">
-                    {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                    Importar {rows.length} registros
-                  </Button>
-                )}
+            <div className="space-y-3">
+              <p className="text-sm font-medium">
+                {totalOriginal} linhas no arquivo → <strong>{rows.length}</strong> registros filtrados
+              </p>
+              <div className="max-h-48 overflow-auto rounded border text-xs">
+                <table className="w-full">
+                  <thead><tr className="bg-muted">
+                    <th className="p-1">Data</th>
+                    <th className="p-1">Justificativa</th>
+                    <th className="p-1">Cliente</th>
+                    <th className="p-1">Motorista</th>
+                    <th className="p-1">Valor</th>
+                  </tr></thead>
+                  <tbody>
+                    {rows.slice(0, 20).map((r, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-1">{r.data_solicitacao ?? '—'}</td>
+                        <td className="p-1">{r.justificativa}</td>
+                        <td className="p-1">{r.nome_cliente}</td>
+                        <td className="p-1">{r.motorista_nome}</td>
+                        <td className="p-1">R$ {r.valor.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {rows.length > 20 && <p className="p-1 text-center text-muted-foreground">... e mais {rows.length - 20}</p>}
               </div>
-
-              <DataTable columns={csvColumns} data={rows} />
-            </>
+              <Button onClick={handleImport} disabled={importing} className="w-full">
+                {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</> : <><FileUp className="h-4 w-4 mr-2" /> Confirmar Importação</>}
+              </Button>
+            </div>
           )}
-
-          {rows.length === 0 && fileName && (
-            <div className="flex items-center gap-2 text-sm text-amber-600">
-              <AlertCircle className="h-4 w-4" />
+          {rows.length === 0 && totalOriginal > 0 && (
+            <p className="text-sm text-amber-600">
               Nenhum registro com justificativa "Produto Avariado" ou "Quebra" encontrado.
-            </div>
+            </p>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Dados Importados
-              </CardTitle>
-              <CardDescription>
-                {loadingDb ? 'Carregando...' : `${dbRows.length} registros no banco de dados`}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <DataTable columns={dbColumns} data={dbRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
