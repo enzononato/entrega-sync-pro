@@ -1,36 +1,18 @@
 
 
-## Plano: Transformar TX_REPOSICAO em indicador de Reposição (R$) com meta mensal
+## Plano: Recalcular indicadores para aplicar meta TX_DEVOLUCAO aos ajudantes
 
-### Resumo
-Atualizar o indicador existente `TX_REPOSICAO` para refletir o novo propósito: medir o valor monetário (R$) de reposições por motorista/mês, com meta de até R$49,80. O dado virá da tabela `reposicao_031805`.
+### O que já está correto
+- A meta de TX_DEVOLUCAO para ajudante (5%, diário) já existe no banco
+- O código da Edge Function já carrega metas por worker_type e calcula TX_DEVOLUCAO para ajudantes
+- A fórmula é: `(1 - cx_entreg / cx_carreg) * 100` — valores ≤ 5% = dentro da meta
 
-### Alterações
-
-**1. Atualizar o indicador no banco de dados**
-- Alterar `nome` de "Taxa de reposição" para "Reposição"
-- Alterar `applies_to_worker_type` de "motorista,ajudante" para "motorista"
-- Alterar `categoria` para "Financeiro"
-- Alterar `unidade_medida` para "R$"
-- Manter o `codigo` como `TX_REPOSICAO` (usado em ordenação canônica e cálculos)
-
-**2. Criar meta mensal na tabela `goals`**
-- `indicator_id`: ID do TX_REPOSICAO
-- `valor_meta`: 49.80
-- `periodo_tipo`: "mensal"
-- `worker_type`: "motorista"
-- `unidade_id`: NULL (vale para todas as unidades)
-- `vigencia_inicio`: hoje
-
-**3. Atualizar memória do projeto**
-- Ajustar `mem://logic/daily-operational-goals` para refletir que TX_REPOSICAO agora é baseado em valor R$ da tabela `reposicao_031805`, não mais em taxa percentual do mapa.
-
-### O que NÃO muda
-- O código `TX_REPOSICAO` permanece (usado em `indicatorOrder.ts` e diversas telas)
-- Nenhuma migração de schema necessária - apenas UPDATE de dados
+### Ação necessária
+1. **Invocar a Edge Function `calculate-daily-indicators`** para recalcular todos os indicadores
+   - Isso vai reprocessar todos os mapas e aplicar a meta de 5% ao status dos ajudantes
+   - Os registros de `user_indicator_daily` serão recriados com o status correto
 
 ### Detalhes técnicos
-- UPDATE na tabela `indicators` via insert tool
-- INSERT na tabela `goals` via insert tool
-- Atualizar arquivo de memória
+- Chamar `calculate-daily-indicators` sem parâmetro `data_referencia` para processar todas as datas disponíveis
+- A função já deleta registros antigos antes de inserir os novos, garantindo dados limpos
 
