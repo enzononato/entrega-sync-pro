@@ -20,7 +20,7 @@ const DEFAULT_METAS: Record<string, number> = {
 };
 
 // Indicators that only apply to motoristas
-const MOTORISTA_ONLY = new Set(["TX_DEVOLUCAO", "DISP_TEMPO"]);
+const MOTORISTA_ONLY = new Set(["DISP_TEMPO"]);
 
 // All indicator codes for ajudantes (excludes motorista-only)
 const AJUDANTE_CODES = Object.keys(INDICATOR_IDS).filter(c => !MOTORISTA_ONLY.has(c));
