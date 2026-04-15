@@ -22,7 +22,7 @@ export default function Importacoes() {
               <CardDescription>Importe os dados da tabela 03.18.05</CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState icon={Upload} title="Nenhuma importação realizada" description="Em breve você poderá importar dados aqui." />
+              <EmptyState titulo="Nenhuma importação realizada" descricao="Em breve você poderá importar dados aqui." icon={<Upload className="h-10 w-10" />} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -34,7 +34,7 @@ export default function Importacoes() {
               <CardDescription>Importe os dados da tabela 03.11.34.05</CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState icon={Upload} title="Nenhuma importação realizada" description="Em breve você poderá importar dados aqui." />
+              <EmptyState titulo="Nenhuma importação realizada" descricao="Em breve você poderá importar dados aqui." icon={<Upload className="h-10 w-10" />} />
             </CardContent>
           </Card>
         </TabsContent>
