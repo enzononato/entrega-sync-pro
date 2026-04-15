@@ -604,6 +604,7 @@ export type Database = {
       }
       reposicao_031805: {
         Row: {
+          aju_user_id: string | null
           ajudante_codigo: string | null
           ajudante_nome: string | null
           codigo_cliente: string | null
@@ -616,6 +617,7 @@ export type Database = {
           imported_by: string | null
           justificativa: string | null
           mapa_origem: string | null
+          mot_user_id: string | null
           motorista_codigo: string | null
           motorista_nome: string | null
           nf_origem: string | null
@@ -633,6 +635,7 @@ export type Database = {
           valor_unitario: number | null
         }
         Insert: {
+          aju_user_id?: string | null
           ajudante_codigo?: string | null
           ajudante_nome?: string | null
           codigo_cliente?: string | null
@@ -645,6 +648,7 @@ export type Database = {
           imported_by?: string | null
           justificativa?: string | null
           mapa_origem?: string | null
+          mot_user_id?: string | null
           motorista_codigo?: string | null
           motorista_nome?: string | null
           nf_origem?: string | null
@@ -662,6 +666,7 @@ export type Database = {
           valor_unitario?: number | null
         }
         Update: {
+          aju_user_id?: string | null
           ajudante_codigo?: string | null
           ajudante_nome?: string | null
           codigo_cliente?: string | null
@@ -674,6 +679,7 @@ export type Database = {
           imported_by?: string | null
           justificativa?: string | null
           mapa_origem?: string | null
+          mot_user_id?: string | null
           motorista_codigo?: string | null
           motorista_nome?: string | null
           nf_origem?: string | null
