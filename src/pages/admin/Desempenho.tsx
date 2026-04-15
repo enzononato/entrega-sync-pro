@@ -82,7 +82,9 @@ export default function Desempenho() {
   // Group desempenho by user, then by mapa_numero — fill missing indicators
   const groupedByUser = useMemo(() => {
     const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
-    for (const d of desempenho) {
+    const uniqueDesempenho = Array.from(new Map(desempenho.map(row => [row.id, row])).values());
+
+    for (const d of uniqueDesempenho) {
       if (!map.has(d.user_id)) {
         map.set(d.user_id, { user: d.users, userId: d.user_id, mapas: new Map() });
       }
@@ -92,49 +94,55 @@ export default function Desempenho() {
       entry.mapas.get(mapaKey)!.push(d);
     }
 
-    // Fill missing indicators for each mapa (not manual/reposicao)
     for (const entry of map.values()) {
       const wt = entry.user?.worker_type ?? 'motorista';
       const expectedCodes = wt === 'ajudante' ? MAPA_INDICATORS_AJU : MAPA_INDICATORS_MOT;
 
       for (const [mapaKey, rows] of entry.mapas) {
-        if (mapaKey === 'manual') continue;
-        // All maps (including TX_REPOSICAO-only) get placeholders
-
-        const presentCodes = new Set(rows.map(r => r.indicators?.codigo?.toUpperCase()));
-        for (const code of expectedCodes) {
-          if (presentCodes.has(code)) continue;
-          const ind = indicatorByCode.get(code);
-          if (!ind) continue;
-          const metaVal = getMetaVal(code, wt);
-          // Create a placeholder row
-          rows.push({
-            id: `placeholder-${entry.userId}-${mapaKey}-${code}`,
-            user_id: entry.userId,
-            indicator_id: ind.id,
-            data_referencia: rows[0]?.data_referencia ?? '',
-            valor: 0,
-            meta: metaVal,
-            percentual_atingimento: metaVal === 0 ? 100 : 0,
-            status: metaVal === 0 ? 'dentro_meta' : 'sem_dados',
-            origem_dado: 'mapa_historico',
-            created_at: '',
-            updated_at: '',
-            mapa_numero: mapaKey,
-            users: entry.user,
-            indicators: { nome: ind.nome, codigo: ind.codigo },
-          } as DesempenhoRow);
+        if (mapaKey !== 'manual') {
+          const presentCodes = new Set(rows.map(r => r.indicators?.codigo?.toUpperCase()));
+          for (const code of expectedCodes) {
+            if (presentCodes.has(code)) continue;
+            const ind = indicatorByCode.get(code);
+            if (!ind) continue;
+            const metaVal = getMetaVal(code, wt);
+            rows.push({
+              id: `placeholder-${entry.userId}-${mapaKey}-${code}`,
+              user_id: entry.userId,
+              indicator_id: ind.id,
+              data_referencia: rows[0]?.data_referencia ?? '',
+              valor: 0,
+              meta: metaVal,
+              percentual_atingimento: metaVal === 0 ? 100 : 0,
+              status: metaVal === 0 ? 'dentro_meta' : 'sem_dados',
+              origem_dado: 'mapa_historico',
+              created_at: '',
+              updated_at: '',
+              mapa_numero: mapaKey,
+              users: entry.user,
+              indicators: { nome: ind.nome, codigo: ind.codigo },
+            } as DesempenhoRow);
+          }
         }
+
+        const dedupedRows = Array.from(
+          rows.reduce((acc, row) => {
+            const dedupeKey = `${row.data_referencia}|${row.mapa_numero ?? 'manual'}|${row.indicators?.codigo?.toUpperCase() ?? row.indicator_id}`;
+            const existing = acc.get(dedupeKey);
+
+            if (!existing || (existing.status === 'sem_dados' && row.status !== 'sem_dados')) {
+              acc.set(dedupeKey, row);
+            }
+
+            return acc;
+          }, new Map<string, DesempenhoRow>()).values()
+        );
+
+        dedupedRows.sort(compareIndicators(r => r.indicators?.codigo));
+        entry.mapas.set(mapaKey, dedupedRows);
       }
     }
 
-
-    // Sort indicators within each mapa for every user
-    for (const entry of map.values()) {
-      for (const [, rows] of entry.mapas) {
-        rows.sort(compareIndicators(r => r.indicators?.codigo));
-      }
-    }
     return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
   }, [desempenho, indicatorByCode, metaLookup]);
 
