@@ -67,10 +67,7 @@ Deno.serve(async (req) => {
       for (const row of unlinked) {
         const userId = matriculaMap.get(row.motorista_codigo?.trim() ?? "");
         if (userId) {
-          await supabase
-            .from("reposicao_031805")
-            .update({ mot_user_id: userId })
-            .eq("id", row.id);
+          await supabase.from("reposicao_031805").update({ mot_user_id: userId }).eq("id", row.id);
           linkedCount++;
         }
       }
@@ -89,7 +86,7 @@ Deno.serve(async (req) => {
         .not("mot_user_id", "is", null)
         .not("data_solicitacao", "is", null)
         .range(offset, offset + PAGE - 1);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!chunk || chunk.length === 0) break;
 
       for (const r of chunk) {
@@ -98,7 +95,7 @@ Deno.serve(async (req) => {
             mot_user_id: r.mot_user_id,
             data_solicitacao: r.data_solicitacao,
             valor: Number(r.valor) || 0,
-            mapa_origem: r.mapa_origem || null,
+            mapa_origem: r.mapa_origem && r.mapa_origem !== "0" ? r.mapa_origem : null,
           });
         }
       }
@@ -106,9 +103,17 @@ Deno.serve(async (req) => {
       offset += PAGE;
     }
 
-    console.log(`Total reposicao rows to process: ${allRows.length}`);
+    console.log(`Total reposicao rows: ${allRows.length}`);
 
-    // ── Step 4: Compute monthly totals per user (for status calculation) ──
+    // ── Step 4: Aggregate by user + date + mapa (sum valor) ──
+    // This matches how other indicators work: one record per user/date/mapa
+    const aggregated = new Map<string, number>();
+    for (const row of allRows) {
+      const key = `${row.mot_user_id}|${row.data_solicitacao}|${row.mapa_origem ?? ""}`;
+      aggregated.set(key, (aggregated.get(key) || 0) + row.valor);
+    }
+
+    // Monthly totals for status calculation
     const monthlyTotals = new Map<string, number>();
     for (const row of allRows) {
       const monthKey = row.data_solicitacao.substring(0, 7);
@@ -116,39 +121,33 @@ Deno.serve(async (req) => {
       monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + row.valor);
     }
 
-    // ── Step 5: Build per-row records (one per reposição, with mapa_numero) ──
+    // ── Step 5: Build upserts ──
     const upserts: any[] = [];
-    const affectedUserDates = new Set<string>();
+    const affectedUsers = new Set<string>();
 
-    for (const row of allRows) {
-      const rounded = Math.round(row.valor * 100) / 100;
-      const monthKey = row.data_solicitacao.substring(0, 7);
-      const totalMonth = monthlyTotals.get(`${row.mot_user_id}|${monthKey}`) || 0;
-      const withinTarget = Math.round(totalMonth * 100) / 100 <= meta;
-      const mapaNum = row.mapa_origem && row.mapa_origem !== "0" ? row.mapa_origem : null;
+    for (const [key, totalValor] of aggregated) {
+      const [userId, dataSol, mapaStr] = key.split("|");
+      const rounded = Math.round(totalValor * 100) / 100;
+      const monthKey = dataSol.substring(0, 7);
+      const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
+      const withinTarget = Math.round(monthTotal * 100) / 100 <= meta;
 
-      affectedUserDates.add(`${row.mot_user_id}|${row.data_solicitacao}`);
+      affectedUsers.add(userId);
 
       upserts.push({
-        user_id: row.mot_user_id,
+        user_id: userId,
         indicator_id: TX_REPOSICAO_ID,
-        data_referencia: row.data_solicitacao,
+        data_referencia: dataSol,
         valor: rounded,
         meta,
         percentual_atingimento: withinTarget ? 100 : 0,
         status: withinTarget ? "dentro_meta" : "abaixo_meta",
         origem_dado: "reposicao_031805",
-        mapa_numero: mapaNum,
+        mapa_numero: mapaStr || null,
       });
     }
 
-    // ── Step 6: Delete old records and insert new ──
-    // Also delete any old monthly-aggregated records (data_referencia ending in -01)
-    const affectedUsers = new Set<string>();
-    for (const key of affectedUserDates) {
-      affectedUsers.add(key.split("|")[0]);
-    }
-
+    // ── Step 6: Delete ALL old reposição records for affected users, then insert ──
     for (const uid of affectedUsers) {
       await supabase
         .from("user_indicator_daily")
@@ -177,6 +176,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         total_rows_processed: allRows.length,
+        total_aggregated: aggregated.size,
         total_inserted: totalInserted,
         meta_used: meta,
       }),
