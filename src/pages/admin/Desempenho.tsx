@@ -156,9 +156,9 @@ export default function Desempenho() {
   const pctAtingidas = totalMetas > 0 ? Math.round((dentroMeta / totalMetas) * 100) : 0;
 
   const piorIndicador = useMemo(() => {
-    if (!desempenho.length) return null;
+    if (!realDesempenho.length) return null;
     const byInd: Record<string, { nome: string; total: number; falhas: number }> = {};
-    desempenho.forEach(d => {
+    realDesempenho.forEach(d => {
       const key = d.indicator_id;
       if (!byInd[key]) byInd[key] = { nome: d.indicators?.nome ?? '', total: 0, falhas: 0 };
       byInd[key].total++;
@@ -170,7 +170,7 @@ export default function Desempenho() {
       if (taxa > worst.taxaFalha) worst = { nome: v.nome, taxaFalha: taxa };
     });
     return worst.taxaFalha > 0 ? worst : null;
-  }, [desempenho]);
+  }, [realDesempenho]);
 
   // Chart data
   const chartData = useMemo(() => {
