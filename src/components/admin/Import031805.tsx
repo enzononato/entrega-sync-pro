@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { toast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { formatDate } from '@/lib/formatters';
 import { formatDate } from '@/lib/formatters';
 
 interface ParsedRow {
@@ -182,20 +181,6 @@ export default function Import031805() {
     }
   };
 
-  const handleClear = async () => {
-    setClearing(true);
-    try {
-      const { error } = await (supabase.from('reposicao_031805') as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (error) throw error;
-      toast({ title: 'Registros removidos', description: 'Todos os dados foram apagados.' });
-      setDbRows([]);
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
-    } finally {
-      setClearing(false);
-      setShowClearConfirm(false);
-    }
-  };
 
   const csvColumns: Column<ParsedRow>[] = [
     { key: 'data_solicitacao', label: 'Data' },
@@ -284,28 +269,14 @@ export default function Import031805() {
                 {loadingDb ? 'Carregando...' : `${dbRows.length} registros no banco de dados`}
               </CardDescription>
             </div>
-            {dbRows.length > 0 && (
-              <Button variant="destructive" size="sm" onClick={() => setShowClearConfirm(true)} disabled={clearing}>
-                {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Limpar tudo
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
           <DataTable columns={dbColumns} data={dbRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
         </CardContent>
       </Card>
-
-      <ConfirmDialog
-        open={showClearConfirm}
-        title="Limpar todos os dados?"
-        description={`Isso removerá permanentemente ${dbRows.length} registros importados. Esta ação não pode ser desfeita.`}
-        onConfirm={handleClear}
-        onCancel={() => setShowClearConfirm(false)}
-        confirmLabel="Sim, limpar tudo"
-        loading={clearing}
-      />
+    </div>
+  );
     </div>
   );
 }
