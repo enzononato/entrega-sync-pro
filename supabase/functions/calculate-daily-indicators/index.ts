@@ -16,7 +16,7 @@ const INDICATOR_IDS: Record<string, string> = {
 };
 
 const DEFAULT_METAS: Record<string, number> = {
-  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 0, TX_REPOSICAO: 49.8,
+  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 15, TX_REPOSICAO: 49.8,
 };
 
 // Indicators that only apply to motoristas
@@ -89,7 +89,7 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
     if (code === "TML") {
       withinTarget = hrSai !== null && hrSai <= LIMIT_TIME;
     } else if (code === "DISP_TEMPO") {
-      withinTarget = valor >= meta;
+      withinTarget = valor <= meta;
     } else {
       withinTarget = valor <= meta;
     }
@@ -125,7 +125,8 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
 
   // Motorista-only indicators
   if (!isAjudante) {
-    // DISP_TEMPO
+    // DISP_TEMPO: percentual de dispersão = ((tempoReal - tempoPrev) / tempoPrev) * 100
+    // Meta: não pode ultrapassar 15% do tempo previsto
     let dispTempoVal: number | null = null;
     if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
       const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
@@ -136,7 +137,9 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
         if (!isNaN(hTP) && !isNaN(mTP)) {
           const tempoPrev = hTP * 60 + mTP;
           const tempoReal = Math.max(0, hrEntr - hrSai);
-          dispTempoVal = tempoPrev - tempoReal;
+          if (tempoPrev > 0) {
+            dispTempoVal = Math.round(((tempoReal - tempoPrev) / tempoPrev) * 100 * 100) / 100;
+          }
         }
       }
     }
