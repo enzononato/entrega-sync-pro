@@ -332,8 +332,9 @@ export default function Desempenho() {
             {pg.paginatedItems.map(group => {
               const isMot = group.user?.worker_type === 'motorista';
               const allRows = Array.from(group.mapas.values()).flat();
-              const metasAtingidas = allRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
-              const totalMetasUser = allRows.length;
+              const realRows = allRows.filter(r => r.status !== 'sem_dados');
+              const metasAtingidas = realRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+              const totalMetasUser = realRows.length;
               const isExpanded = expandedUsers.has(group.userId);
 
               return (
