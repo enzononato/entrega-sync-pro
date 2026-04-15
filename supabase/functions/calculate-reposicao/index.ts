@@ -164,7 +164,10 @@ Deno.serve(async (req) => {
       const { error: insertErr } = await supabase
         .from("user_indicator_daily")
         .insert(batch);
-      if (insertErr) throw insertErr;
+      if (insertErr) {
+        console.error("Insert error:", JSON.stringify(insertErr));
+        throw new Error(insertErr.message || JSON.stringify(insertErr));
+      }
       totalInserted += batch.length;
     }
 
