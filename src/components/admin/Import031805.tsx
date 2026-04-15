@@ -277,13 +277,13 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       const total = allMatriculas.size;
       toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
 
-      // Auto-calculate reposicao indicator
+      // Auto-calculate all indicators (includes reposição)
       try {
-        const { error: calcErr } = await supabase.functions.invoke('calculate-reposicao', { body: {} });
-        if (calcErr) console.error('Erro ao calcular reposição:', calcErr);
-        else toast.success('Indicador de Reposição calculado automaticamente!');
+        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: {} });
+        if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
+        else toast.success('Indicadores recalculados automaticamente!');
       } catch (e) {
-        console.error('Erro ao chamar calculate-reposicao:', e);
+        console.error('Erro ao chamar calculate-daily-indicators:', e);
       }
 
       setRows([]);
