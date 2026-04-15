@@ -148,9 +148,10 @@ export default function Desempenho() {
 
   const pg = usePagination(groupedByUser);
 
-  // KPIs
-  const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
-  const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
+  // KPIs (exclude placeholder rows)
+  const realDesempenho = desempenho.filter(d => d.status !== 'sem_dados');
+  const dentroMeta = realDesempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
+  const abaixoMeta = realDesempenho.filter(d => d.status === 'abaixo_meta').length;
   const totalMetas = dentroMeta + abaixoMeta;
   const pctAtingidas = totalMetas > 0 ? Math.round((dentroMeta / totalMetas) * 100) : 0;
 
