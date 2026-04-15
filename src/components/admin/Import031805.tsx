@@ -38,13 +38,29 @@ interface ParsedRow {
 interface DbRow {
   id: string;
   data_solicitacao: string | null;
-  justificativa: string | null;
+  unb: string | null;
+  descricao_unb: string | null;
+  codigo_cliente: string | null;
   nome_cliente: string | null;
+  solicitacao_reposicao: string | null;
+  tipo_solicitacao: string | null;
+  hora: string | null;
+  status_solicitacao: string | null;
+  justificativa: string | null;
+  mapa_origem: string | null;
+  nf_origem: string | null;
+  produto: string | null;
   descricao_produto: string | null;
   quantidade: number | null;
+  unidade_medida: string | null;
+  valor_unitario: number | null;
   valor: number | null;
+  motorista_codigo: string | null;
   motorista_nome: string | null;
-  mapa_origem: string | null;
+  ajudante_codigo: string | null;
+  ajudante_nome: string | null;
+  sistema_origem: string | null;
+  observacao: string | null;
   created_at: string;
 }
 
@@ -75,7 +91,7 @@ export default function Import031805() {
       const pageSize = 1000;
       while (true) {
         const { data, error } = await (supabase.from('reposicao_031805') as any)
-          .select('id, data_solicitacao, justificativa, nome_cliente, descricao_produto, quantidade, valor, motorista_nome, mapa_origem, created_at')
+          .select('*')
           .order('data_solicitacao', { ascending: false })
           .range(from, from + pageSize - 1);
         if (error) throw error;
@@ -95,13 +111,29 @@ export default function Import031805() {
 
   const dbColumns: Column<DbRow>[] = [
     { key: 'data_solicitacao', label: 'Data', render: (r) => r.data_solicitacao ? formatDate(r.data_solicitacao) : '—' },
-    { key: 'justificativa', label: 'Justificativa' },
+    { key: 'unb', label: 'UNB' },
+    { key: 'descricao_unb', label: 'Desc. UNB' },
+    { key: 'codigo_cliente', label: 'Cód. Cliente' },
     { key: 'nome_cliente', label: 'Cliente' },
-    { key: 'descricao_produto', label: 'Produto' },
-    { key: 'quantidade', label: 'Qtd' },
-    { key: 'valor', label: 'Valor', render: (r) => r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : '—' },
-    { key: 'motorista_nome', label: 'Motorista' },
+    { key: 'solicitacao_reposicao', label: 'Solicitação' },
+    { key: 'tipo_solicitacao', label: 'Tipo' },
+    { key: 'hora', label: 'Hora' },
+    { key: 'status_solicitacao', label: 'Status' },
+    { key: 'justificativa', label: 'Justificativa' },
     { key: 'mapa_origem', label: 'Mapa' },
+    { key: 'nf_origem', label: 'NF Origem' },
+    { key: 'produto', label: 'Produto' },
+    { key: 'descricao_produto', label: 'Desc. Produto' },
+    { key: 'quantidade', label: 'Qtd' },
+    { key: 'unidade_medida', label: 'UM' },
+    { key: 'valor_unitario', label: 'Vlr Unit.', render: (r) => r.valor_unitario != null ? `R$ ${Number(r.valor_unitario).toFixed(2)}` : '—' },
+    { key: 'valor', label: 'Valor', render: (r) => r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : '—' },
+    { key: 'motorista_codigo', label: 'Cód. Mot.' },
+    { key: 'motorista_nome', label: 'Motorista' },
+    { key: 'ajudante_codigo', label: 'Cód. Ajud.' },
+    { key: 'ajudante_nome', label: 'Ajudante' },
+    { key: 'sistema_origem', label: 'Sistema' },
+    { key: 'observacao', label: 'Observação' },
   ];
 
   return (
