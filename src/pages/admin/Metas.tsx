@@ -52,7 +52,7 @@ const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
   user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
   vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
-  formato_meta: 'tempo' as 'tempo' | 'porcentagem',
+  formato_meta: 'tempo' as 'tempo' | 'porcentagem' | 'dinheiro',
 };
 
 function parseHHMM(str: string): number {
