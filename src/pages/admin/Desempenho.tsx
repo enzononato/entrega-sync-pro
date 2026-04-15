@@ -51,7 +51,35 @@ export default function Desempenho() {
   const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
-  // Group desempenho by user, then by mapa_numero
+  // Expected indicators per mapa (by worker type)
+  const MAPA_INDICATORS_MOT = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO', 'DISP_TEMPO'];
+  const MAPA_INDICATORS_AJU = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO'];
+
+  // Build indicator lookup by code
+  const indicatorByCode = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; codigo: string }>();
+    for (const ind of indicators) m.set(ind.codigo.toUpperCase(), { id: ind.id, nome: ind.nome, codigo: ind.codigo });
+    return m;
+  }, [indicators]);
+
+  // Build meta lookup by indicator code + worker_type
+  const metaLookup = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of metas) {
+      const code = (g as any).indicators?.codigo?.toUpperCase();
+      if (!code) continue;
+      const wt = g.worker_type || 'default';
+      m.set(`${code}|${wt}`, g.valor_meta);
+      if (!m.has(`${code}|default`)) m.set(`${code}|default`, g.valor_meta);
+    }
+    return m;
+  }, [metas]);
+
+  const getMetaVal = (code: string, wt: string) => {
+    return metaLookup.get(`${code}|${wt}`) ?? metaLookup.get(`${code}|default`) ?? 0;
+  };
+
+  // Group desempenho by user, then by mapa_numero — fill missing indicators
   const groupedByUser = useMemo(() => {
     const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
     for (const d of desempenho) {
@@ -63,6 +91,44 @@ export default function Desempenho() {
       if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
       entry.mapas.get(mapaKey)!.push(d);
     }
+
+    // Fill missing indicators for each mapa (not manual/reposicao)
+    for (const entry of map.values()) {
+      const wt = entry.user?.worker_type ?? 'motorista';
+      const expectedCodes = wt === 'ajudante' ? MAPA_INDICATORS_AJU : MAPA_INDICATORS_MOT;
+
+      for (const [mapaKey, rows] of entry.mapas) {
+        if (mapaKey === 'manual') continue;
+        // Skip reposicao-only groups
+        if (rows.every(r => r.indicators?.codigo?.toUpperCase() === 'TX_REPOSICAO')) continue;
+
+        const presentCodes = new Set(rows.map(r => r.indicators?.codigo?.toUpperCase()));
+        for (const code of expectedCodes) {
+          if (presentCodes.has(code)) continue;
+          const ind = indicatorByCode.get(code);
+          if (!ind) continue;
+          const metaVal = getMetaVal(code, wt);
+          // Create a placeholder row
+          rows.push({
+            id: `placeholder-${entry.userId}-${mapaKey}-${code}`,
+            user_id: entry.userId,
+            indicator_id: ind.id,
+            data_referencia: rows[0]?.data_referencia ?? '',
+            valor: 0,
+            meta: metaVal,
+            percentual_atingimento: metaVal === 0 ? 100 : 0,
+            status: metaVal === 0 ? 'dentro_meta' : 'sem_dados',
+            origem_dado: 'mapa_historico',
+            created_at: '',
+            updated_at: '',
+            mapa_numero: mapaKey,
+            users: entry.user,
+            indicators: { nome: ind.nome, codigo: ind.codigo },
+          } as DesempenhoRow);
+        }
+      }
+    }
+
     // Sort indicators within each mapa for every user
     for (const entry of map.values()) {
       for (const [, rows] of entry.mapas) {
@@ -70,7 +136,7 @@ export default function Desempenho() {
       }
     }
     return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
-  }, [desempenho]);
+  }, [desempenho, indicatorByCode, metaLookup]);
 
   const toggleUser = (uid: string) => {
     setExpandedUsers(prev => {
