@@ -1,0 +1,2 @@
+INSERT INTO public.goals (indicator_id, worker_type, valor_meta, valor_bonificacao, periodo_tipo, vigencia_inicio, ativo)
+VALUES ('c4fdd7a6-27f3-4d46-a378-1242bdb556aa', 'ajudante', 5, 0, 'diario', '2026-04-01', true);
