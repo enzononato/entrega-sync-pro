@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Database, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Column } from '@/components/shared/DataTable';
+import { Column, DataTable } from '@/components/shared/DataTable';
 import { toast } from '@/hooks/use-toast';
-import { DataTable } from '@/components/shared/DataTable';
+import { Separator } from '@/components/ui/separator';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { formatDate } from '@/lib/formatters';
 
 interface ParsedRow {
   unb: string;
@@ -34,6 +36,19 @@ interface ParsedRow {
   observacao: string;
 }
 
+interface DbRow {
+  id: string;
+  data_solicitacao: string | null;
+  justificativa: string | null;
+  nome_cliente: string | null;
+  descricao_produto: string | null;
+  quantidade: number | null;
+  valor: number | null;
+  motorista_nome: string | null;
+  mapa_origem: string | null;
+  created_at: string;
+}
+
 function parseBrDate(raw: string): string | null {
   const t = raw?.trim();
   if (!t) return null;
@@ -55,6 +70,36 @@ export default function Import031805() {
   const [imported, setImported] = useState(false);
   const [fileName, setFileName] = useState('');
   const [totalOriginal, setTotalOriginal] = useState(0);
+  const [dbRows, setDbRows] = useState<DbRow[]>([]);
+  const [loadingDb, setLoadingDb] = useState(true);
+  const [clearing, setClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const fetchDbRows = useCallback(async () => {
+    setLoadingDb(true);
+    try {
+      const allRows: DbRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await (supabase.from('reposicao_031805') as any)
+          .select('id, data_solicitacao, justificativa, nome_cliente, descricao_produto, quantidade, valor, motorista_nome, mapa_origem, created_at')
+          .order('data_solicitacao', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (data) allRows.push(...data);
+        if (!data || data.length < pageSize) break;
+        from += pageSize;
+      }
+      setDbRows(allRows);
+    } catch {
+      // silent
+    } finally {
+      setLoadingDb(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchDbRows(); }, [fetchDbRows]);
 
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,6 +176,7 @@ export default function Import031805() {
       }
       setImported(true);
       toast({ title: 'Importação concluída', description: `${rows.length} registros importados com sucesso.` });
+      fetchDbRows();
     } catch (err: any) {
       toast({ title: 'Erro na importação', description: err.message, variant: 'destructive' });
     } finally {
@@ -138,7 +184,22 @@ export default function Import031805() {
     }
   };
 
-  const columns: Column<ParsedRow>[] = [
+  const handleClear = async () => {
+    setClearing(true);
+    try {
+      const { error } = await (supabase.from('reposicao_031805') as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+      toast({ title: 'Registros removidos', description: 'Todos os dados foram apagados.' });
+      setDbRows([]);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setClearing(false);
+      setShowClearConfirm(false);
+    }
+  };
+
+  const csvColumns: Column<ParsedRow>[] = [
     { key: 'data_solicitacao', label: 'Data' },
     { key: 'justificativa', label: 'Justificativa' },
     { key: 'nome_cliente', label: 'Cliente' },
@@ -148,57 +209,105 @@ export default function Import031805() {
     { key: 'motorista_nome', label: 'Motorista' },
   ];
 
+  const dbColumns: Column<DbRow>[] = [
+    { key: 'data_solicitacao', label: 'Data', render: (r) => r.data_solicitacao ? formatDate(r.data_solicitacao) : '—' },
+    { key: 'justificativa', label: 'Justificativa' },
+    { key: 'nome_cliente', label: 'Cliente' },
+    { key: 'descricao_produto', label: 'Produto' },
+    { key: 'quantidade', label: 'Qtd' },
+    { key: 'valor', label: 'Valor', render: (r) => r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : '—' },
+    { key: 'motorista_nome', label: 'Motorista' },
+    { key: 'mapa_origem', label: 'Mapa' },
+  ];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Importação 03.18.05</CardTitle>
-        <CardDescription>
-          Importe os dados da tabela 03.18.05 — apenas registros com justificativa "Produto Avariado" ou "Quebra"
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-4">
-          <label className="cursor-pointer">
-            <input type="file" accept=".csv" className="hidden" onChange={handleFile} />
-            <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-input bg-background hover:bg-accent text-sm font-medium transition-colors">
-              <FileSpreadsheet className="h-4 w-4" />
-              Selecionar CSV
-            </div>
-          </label>
-          {fileName && (
-            <span className="text-sm text-muted-foreground">{fileName}</span>
-          )}
-        </div>
-
-        {rows.length > 0 && (
-          <>
-            <div className="flex items-center gap-4 text-sm">
-              <span className="text-muted-foreground">
-                {totalOriginal} linhas no arquivo → <strong className="text-foreground">{rows.length}</strong> registros filtrados
-              </span>
-              {imported ? (
-                <span className="flex items-center gap-1 text-emerald-600">
-                  <CheckCircle className="h-4 w-4" /> Importado
-                </span>
-              ) : (
-                <Button onClick={handleImport} disabled={importing} size="sm">
-                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Importar {rows.length} registros
-                </Button>
-              )}
-            </div>
-
-            <DataTable columns={columns} data={rows} />
-          </>
-        )}
-
-        {rows.length === 0 && fileName && (
-          <div className="flex items-center gap-2 text-sm text-amber-600">
-            <AlertCircle className="h-4 w-4" />
-            Nenhum registro com justificativa "Produto Avariado" ou "Quebra" encontrado.
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Importação 03.18.05</CardTitle>
+          <CardDescription>
+            Importe os dados da tabela 03.18.05 — apenas registros com justificativa "Produto Avariado" ou "Quebra"
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <label className="cursor-pointer">
+              <input type="file" accept=".csv" className="hidden" onChange={handleFile} />
+              <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-input bg-background hover:bg-accent text-sm font-medium transition-colors">
+                <FileSpreadsheet className="h-4 w-4" />
+                Selecionar CSV
+              </div>
+            </label>
+            {fileName && (
+              <span className="text-sm text-muted-foreground">{fileName}</span>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {rows.length > 0 && (
+            <>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-muted-foreground">
+                  {totalOriginal} linhas no arquivo → <strong className="text-foreground">{rows.length}</strong> registros filtrados
+                </span>
+                {imported ? (
+                  <span className="flex items-center gap-1 text-emerald-600">
+                    <CheckCircle className="h-4 w-4" /> Importado
+                  </span>
+                ) : (
+                  <Button onClick={handleImport} disabled={importing} size="sm">
+                    {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    Importar {rows.length} registros
+                  </Button>
+                )}
+              </div>
+
+              <DataTable columns={csvColumns} data={rows} />
+            </>
+          )}
+
+          {rows.length === 0 && fileName && (
+            <div className="flex items-center gap-2 text-sm text-amber-600">
+              <AlertCircle className="h-4 w-4" />
+              Nenhum registro com justificativa "Produto Avariado" ou "Quebra" encontrado.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Dados Importados
+              </CardTitle>
+              <CardDescription>
+                {loadingDb ? 'Carregando...' : `${dbRows.length} registros no banco de dados`}
+              </CardDescription>
+            </div>
+            {dbRows.length > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => setShowClearConfirm(true)} disabled={clearing}>
+                {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Limpar tudo
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <DataTable columns={dbColumns} data={dbRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={showClearConfirm}
+        title="Limpar todos os dados?"
+        description={`Isso removerá permanentemente ${dbRows.length} registros importados. Esta ação não pode ser desfeita.`}
+        onConfirm={handleClear}
+        onCancel={() => setShowClearConfirm(false)}
+        confirmLabel="Sim, limpar tudo"
+        loading={clearing}
+      />
+    </div>
   );
 }
