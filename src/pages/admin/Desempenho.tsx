@@ -51,7 +51,35 @@ export default function Desempenho() {
   const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
-  // Group desempenho by user, then by mapa_numero
+  // Expected indicators per mapa (by worker type)
+  const MAPA_INDICATORS_MOT = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO', 'DISP_TEMPO'];
+  const MAPA_INDICATORS_AJU = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO'];
+
+  // Build indicator lookup by code
+  const indicatorByCode = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; codigo: string }>();
+    for (const ind of indicators) m.set(ind.codigo.toUpperCase(), { id: ind.id, nome: ind.nome, codigo: ind.codigo });
+    return m;
+  }, [indicators]);
+
+  // Build meta lookup by indicator code + worker_type
+  const metaLookup = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of metas) {
+      const code = (g as any).indicators?.codigo?.toUpperCase();
+      if (!code) continue;
+      const wt = g.worker_type || 'default';
+      m.set(`${code}|${wt}`, g.valor_meta);
+      if (!m.has(`${code}|default`)) m.set(`${code}|default`, g.valor_meta);
+    }
+    return m;
+  }, [metas]);
+
+  const getMetaVal = (code: string, wt: string) => {
+    return metaLookup.get(`${code}|${wt}`) ?? metaLookup.get(`${code}|default`) ?? 0;
+  };
+
+  // Group desempenho by user, then by mapa_numero — fill missing indicators
   const groupedByUser = useMemo(() => {
     const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
     for (const d of desempenho) {
@@ -63,6 +91,44 @@ export default function Desempenho() {
       if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
       entry.mapas.get(mapaKey)!.push(d);
     }
+
+    // Fill missing indicators for each mapa (not manual/reposicao)
+    for (const entry of map.values()) {
+      const wt = entry.user?.worker_type ?? 'motorista';
+      const expectedCodes = wt === 'ajudante' ? MAPA_INDICATORS_AJU : MAPA_INDICATORS_MOT;
+
+      for (const [mapaKey, rows] of entry.mapas) {
+        if (mapaKey === 'manual') continue;
+        // Skip reposicao-only groups
+        if (rows.every(r => r.indicators?.codigo?.toUpperCase() === 'TX_REPOSICAO')) continue;
+
+        const presentCodes = new Set(rows.map(r => r.indicators?.codigo?.toUpperCase()));
+        for (const code of expectedCodes) {
+          if (presentCodes.has(code)) continue;
+          const ind = indicatorByCode.get(code);
+          if (!ind) continue;
+          const metaVal = getMetaVal(code, wt);
+          // Create a placeholder row
+          rows.push({
+            id: `placeholder-${entry.userId}-${mapaKey}-${code}`,
+            user_id: entry.userId,
+            indicator_id: ind.id,
+            data_referencia: rows[0]?.data_referencia ?? '',
+            valor: 0,
+            meta: metaVal,
+            percentual_atingimento: metaVal === 0 ? 100 : 0,
+            status: metaVal === 0 ? 'dentro_meta' : 'sem_dados',
+            origem_dado: 'mapa_historico',
+            created_at: '',
+            updated_at: '',
+            mapa_numero: mapaKey,
+            users: entry.user,
+            indicators: { nome: ind.nome, codigo: ind.codigo },
+          } as DesempenhoRow);
+        }
+      }
+    }
+
     // Sort indicators within each mapa for every user
     for (const entry of map.values()) {
       for (const [, rows] of entry.mapas) {
@@ -70,7 +136,7 @@ export default function Desempenho() {
       }
     }
     return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
-  }, [desempenho]);
+  }, [desempenho, indicatorByCode, metaLookup]);
 
   const toggleUser = (uid: string) => {
     setExpandedUsers(prev => {
@@ -82,16 +148,17 @@ export default function Desempenho() {
 
   const pg = usePagination(groupedByUser);
 
-  // KPIs
-  const dentroMeta = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
-  const abaixoMeta = desempenho.filter(d => d.status === 'abaixo_meta').length;
+  // KPIs (exclude placeholder rows)
+  const realDesempenho = desempenho.filter(d => d.status !== 'sem_dados');
+  const dentroMeta = realDesempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
+  const abaixoMeta = realDesempenho.filter(d => d.status === 'abaixo_meta').length;
   const totalMetas = dentroMeta + abaixoMeta;
   const pctAtingidas = totalMetas > 0 ? Math.round((dentroMeta / totalMetas) * 100) : 0;
 
   const piorIndicador = useMemo(() => {
-    if (!desempenho.length) return null;
+    if (!realDesempenho.length) return null;
     const byInd: Record<string, { nome: string; total: number; falhas: number }> = {};
-    desempenho.forEach(d => {
+    realDesempenho.forEach(d => {
       const key = d.indicator_id;
       if (!byInd[key]) byInd[key] = { nome: d.indicators?.nome ?? '', total: 0, falhas: 0 };
       byInd[key].total++;
@@ -103,12 +170,12 @@ export default function Desempenho() {
       if (taxa > worst.taxaFalha) worst = { nome: v.nome, taxaFalha: taxa };
     });
     return worst.taxaFalha > 0 ? worst : null;
-  }, [desempenho]);
+  }, [realDesempenho]);
 
   // Chart data
   const chartData = useMemo(() => {
     const byInd: Record<string, { nome: string; total: number; atingiu: number }> = {};
-    desempenho.forEach(d => {
+    realDesempenho.forEach(d => {
       const key = d.indicator_id;
       if (!byInd[key]) byInd[key] = { nome: d.indicators?.codigo ?? '', total: 0, atingiu: 0 };
       byInd[key].total++;
@@ -118,7 +185,7 @@ export default function Desempenho() {
       const media = v.total > 0 ? Math.round((v.atingiu / v.total) * 100) : 0;
       return { indicador: v.nome, media };
     }).sort((a, b) => a.media - b.media);
-  }, [desempenho]);
+  }, [realDesempenho]);
 
   const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -265,8 +332,9 @@ export default function Desempenho() {
             {pg.paginatedItems.map(group => {
               const isMot = group.user?.worker_type === 'motorista';
               const allRows = Array.from(group.mapas.values()).flat();
-              const metasAtingidas = allRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
-              const totalMetasUser = allRows.length;
+              const realRows = allRows.filter(r => r.status !== 'sem_dados');
+              const metasAtingidas = realRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
+              const totalMetasUser = realRows.length;
               const isExpanded = expandedUsers.has(group.userId);
 
               return (
@@ -319,13 +387,17 @@ export default function Desempenho() {
                               const isTime = isTimeIndicator(code);
                               const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                              const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
 
                               return (
                                 <button
                                   key={d.id}
-                                  onClick={() => setDetailRow(d)}
-                                  className="w-full flex items-center gap-3 px-5 py-2.5 pl-10 hover:bg-muted/20 transition-colors cursor-pointer text-left"
+                                  onClick={() => !isSemDados && setDetailRow(d)}
+                                  className={cn(
+                                    "w-full flex items-center gap-3 px-5 py-2.5 pl-10 transition-colors text-left",
+                                    isSemDados ? 'opacity-50 cursor-default' : 'hover:bg-muted/20 cursor-pointer'
+                                  )}
                                 >
                                   <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono shrink-0">
                                     {d.indicators?.codigo}
@@ -337,12 +409,18 @@ export default function Desempenho() {
                                     <span className="text-xs text-muted-foreground">
                                       <strong className="text-foreground">{valStr}</strong> / {metaStr}
                                     </span>
-                                    <span className={cn(
-                                      'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                                      atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                                    )}>
-                                      {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                                    </span>
+                                    {isSemDados ? (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                        Sem dados
+                                      </span>
+                                    ) : (
+                                      <span className={cn(
+                                        'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                        atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                      )}>
+                                        {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                      </span>
+                                    )}
                                   </div>
                                 </button>
                               );
