@@ -333,7 +333,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Step 4: Calculate TX_REPOSICAO from reposicao_031805 ──
+    // ── Step 4: Calculate TX_REPOSICAO from reposicao_031805 (per-map, like other indicators) ──
     const TX_REPOSICAO_ID = INDICATOR_IDS["TX_REPOSICAO"];
     let metaReposicao = DEFAULT_METAS["TX_REPOSICAO"];
 
@@ -372,14 +372,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch and aggregate reposicao data by user + month
-    let repoRows: { mot_user_id: string; data_solicitacao: string; valor: number }[] = [];
+    // Fetch all reposição rows with linked user
+    let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null }[] = [];
     {
       let offset = 0;
       while (true) {
         const { data: chunk, error: rErr } = await supabase
           .from("reposicao_031805")
-          .select("mot_user_id, data_solicitacao, valor")
+          .select("mot_user_id, data_solicitacao, valor, mapa_origem")
           .not("mot_user_id", "is", null)
           .not("data_solicitacao", "is", null)
           .range(offset, offset + PAGE - 1);
@@ -387,7 +387,12 @@ Deno.serve(async (req) => {
         if (!chunk || chunk.length === 0) break;
         for (const r of chunk) {
           if (r.mot_user_id && r.data_solicitacao && r.valor != null) {
-            repoRows.push({ mot_user_id: r.mot_user_id, data_solicitacao: r.data_solicitacao, valor: Number(r.valor) || 0 });
+            allRepoRows.push({
+              mot_user_id: r.mot_user_id,
+              data_solicitacao: r.data_solicitacao,
+              valor: Number(r.valor) || 0,
+              mapa_origem: r.mapa_origem || null,
+            });
           }
         }
         if (chunk.length < PAGE) break;
@@ -395,38 +400,48 @@ Deno.serve(async (req) => {
       }
     }
 
-    const repoAggregated = new Map<string, number>();
-    for (const row of repoRows) {
+    // First, compute monthly totals per user to determine status
+    const monthlyTotals = new Map<string, number>();
+    for (const row of allRepoRows) {
       const monthKey = row.data_solicitacao.substring(0, 7);
       const key = `${row.mot_user_id}|${monthKey}`;
-      repoAggregated.set(key, (repoAggregated.get(key) || 0) + row.valor);
+      monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + row.valor);
     }
 
+    // Build per-row upserts (one record per reposição row, with mapa_numero)
     const repoUpserts: any[] = [];
-    const repoAffectedKeys = new Set<string>();
-    for (const [key, totalValor] of repoAggregated) {
-      const [userId, monthStr] = key.split("|");
-      const dataRef = `${monthStr}-01`;
-      const rounded = Math.round(totalValor * 100) / 100;
-      const withinTarget = rounded <= metaReposicao;
-      repoAffectedKeys.add(`${userId}|${dataRef}`);
+    const repoAffectedUsers = new Set<string>();
+    const repoAffectedDates = new Set<string>();
+
+    for (const row of allRepoRows) {
+      const rounded = Math.round(row.valor * 100) / 100;
+      const monthKey = row.data_solicitacao.substring(0, 7);
+      const totalMonth = monthlyTotals.get(`${row.mot_user_id}|${monthKey}`) || 0;
+      const withinTarget = Math.round(totalMonth * 100) / 100 <= metaReposicao;
+
+      repoAffectedUsers.add(row.mot_user_id);
+      repoAffectedDates.add(row.data_solicitacao);
+
       repoUpserts.push({
-        user_id: userId,
+        user_id: row.mot_user_id,
         indicator_id: TX_REPOSICAO_ID,
-        data_referencia: dataRef,
+        data_referencia: row.data_solicitacao,
         valor: rounded,
         meta: metaReposicao,
         percentual_atingimento: withinTarget ? 100 : 0,
         status: withinTarget ? "dentro_meta" : "abaixo_meta",
         origem_dado: "reposicao_031805",
+        mapa_numero: row.mapa_origem,
       });
     }
 
-    for (const ak of repoAffectedKeys) {
-      const [uid, dataRef] = ak.split("|");
-      await supabase.from("user_indicator_daily").delete()
-        .eq("user_id", uid).eq("indicator_id", TX_REPOSICAO_ID)
-        .eq("data_referencia", dataRef).eq("origem_dado", "reposicao_031805");
+    // Delete old reposição records for affected users/dates
+    for (const uid of repoAffectedUsers) {
+      for (const dateRef of repoAffectedDates) {
+        await supabase.from("user_indicator_daily").delete()
+          .eq("user_id", uid).eq("indicator_id", TX_REPOSICAO_ID)
+          .eq("data_referencia", dateRef).eq("origem_dado", "reposicao_031805");
+      }
     }
     for (let i = 0; i < repoUpserts.length; i += 200) {
       const batch = repoUpserts.slice(i, i + 200);
@@ -434,7 +449,7 @@ Deno.serve(async (req) => {
       if (insertErr) throw insertErr;
     }
     totalInserted += repoUpserts.length;
-    console.log(`TX_REPOSICAO: ${repoUpserts.length} records upserted`);
+    console.log(`TX_REPOSICAO: ${repoUpserts.length} records upserted (per-map)`);
 
     return new Response(
       JSON.stringify({ success: true, total_inserted: totalInserted, dates_processed: dates.length }),
