@@ -145,7 +145,8 @@ function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
   let dispVal: number | null = null;
   if (tempoPrevVal !== null && tempoPrevVal > 0 && hrEntr !== null && hrSai !== null) {
     const tempoReal = Math.max(0, hrEntr - hrSai);
-    dispVal = Math.round(((tempoReal - tempoPrevVal) / tempoPrevVal) * 100 * 100) / 100;
+    const pct = ((tempoReal - tempoPrevVal) / tempoPrevVal) * 100;
+    dispVal = Math.round(Math.max(0, pct) * 100) / 100;
   }
   results.push({
     code: 'DISP_TEMPO',
