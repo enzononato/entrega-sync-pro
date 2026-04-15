@@ -41,7 +41,8 @@ Deno.serve(async (req) => {
       .from("users")
       .select("id, matricula")
       .neq("matricula", "")
-      .eq("ativo", true);
+      .eq("ativo", true)
+      .eq("worker_type", "motorista");
 
     const matriculaMap = new Map<string, string>();
     if (allUsers) {
