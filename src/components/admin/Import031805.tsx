@@ -38,13 +38,29 @@ interface ParsedRow {
 interface DbRow {
   id: string;
   data_solicitacao: string | null;
-  justificativa: string | null;
+  unb: string | null;
+  descricao_unb: string | null;
+  codigo_cliente: string | null;
   nome_cliente: string | null;
+  solicitacao_reposicao: string | null;
+  tipo_solicitacao: string | null;
+  hora: string | null;
+  status_solicitacao: string | null;
+  justificativa: string | null;
+  mapa_origem: string | null;
+  nf_origem: string | null;
+  produto: string | null;
   descricao_produto: string | null;
   quantidade: number | null;
+  unidade_medida: string | null;
+  valor_unitario: number | null;
   valor: number | null;
+  motorista_codigo: string | null;
   motorista_nome: string | null;
-  mapa_origem: string | null;
+  ajudante_codigo: string | null;
+  ajudante_nome: string | null;
+  sistema_origem: string | null;
+  observacao: string | null;
   created_at: string;
 }
 
