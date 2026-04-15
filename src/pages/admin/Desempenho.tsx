@@ -175,7 +175,7 @@ export default function Desempenho() {
   // Chart data
   const chartData = useMemo(() => {
     const byInd: Record<string, { nome: string; total: number; atingiu: number }> = {};
-    desempenho.forEach(d => {
+    realDesempenho.forEach(d => {
       const key = d.indicator_id;
       if (!byInd[key]) byInd[key] = { nome: d.indicators?.codigo ?? '', total: 0, atingiu: 0 };
       byInd[key].total++;
@@ -185,7 +185,7 @@ export default function Desempenho() {
       const media = v.total > 0 ? Math.round((v.atingiu / v.total) * 100) : 0;
       return { indicador: v.nome, media };
     }).sort((a, b) => a.media - b.media);
-  }, [desempenho]);
+  }, [realDesempenho]);
 
   const getInitials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
