@@ -301,12 +301,12 @@ export default function Import031805() {
 
       <ConfirmDialog
         open={showClearConfirm}
-        onOpenChange={setShowClearConfirm}
         title="Limpar todos os dados?"
         description={`Isso removerá permanentemente ${dbRows.length} registros importados. Esta ação não pode ser desfeita.`}
         onConfirm={handleClear}
-        confirmText="Sim, limpar tudo"
-        variant="destructive"
+        onCancel={() => setShowClearConfirm(false)}
+        confirmLabel="Sim, limpar tudo"
+        loading={clearing}
       />
     </div>
   );
