@@ -72,8 +72,6 @@ export default function Import031805() {
   const [totalOriginal, setTotalOriginal] = useState(0);
   const [dbRows, setDbRows] = useState<DbRow[]>([]);
   const [loadingDb, setLoadingDb] = useState(true);
-  const [clearing, setClearing] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const fetchDbRows = useCallback(async () => {
     setLoadingDb(true);
