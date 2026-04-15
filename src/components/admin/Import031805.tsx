@@ -277,6 +277,4 @@ export default function Import031805() {
       </Card>
     </div>
   );
-    </div>
-  );
 }
