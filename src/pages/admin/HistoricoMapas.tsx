@@ -126,9 +126,9 @@ function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
     icon: <PackageX className="h-5 w-5" />,
   });
 
-  // DISP_TEMPO: Tempo Prev - (Hr Entrega - Hr Saída)
-  // Only accept tempo_prev in HH:MM format (exactly 2 parts)
-  const metaDISP = metas['DISP_TEMPO'] ?? 0;
+  // DISP_TEMPO: percentual de dispersão = ((tempoReal - tempoPrev) / tempoPrev) * 100
+  // Meta: não pode ultrapassar 15% do tempo previsto
+  const metaDISP = metas['DISP_TEMPO'] ?? 15;
   const tempoPrevRaw = row.tempo_prev;
   let tempoPrevVal: number | null = null;
   if (tempoPrevRaw) {
@@ -143,18 +143,18 @@ function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
     }
   }
   let dispVal: number | null = null;
-  if (tempoPrevVal !== null && hrEntr !== null && hrSai !== null) {
+  if (tempoPrevVal !== null && tempoPrevVal > 0 && hrEntr !== null && hrSai !== null) {
     const tempoReal = Math.max(0, hrEntr - hrSai);
-    dispVal = tempoPrevVal - tempoReal;
+    dispVal = Math.round(((tempoReal - tempoPrevVal) / tempoPrevVal) * 100 * 100) / 100;
   }
   results.push({
     code: 'DISP_TEMPO',
     label: 'Dispersão de Tempo',
     valor: dispVal,
-    valorFormatted: dispVal !== null ? formatMinutes(Math.abs(dispVal)) + (dispVal < 0 ? ' (atraso)' : '') : '—',
+    valorFormatted: dispVal !== null ? `${dispVal}%` : '—',
     meta: metaDISP,
-    metaFormatted: formatMinutes(metaDISP),
-    status: dispVal !== null && dispVal >= metaDISP ? 'dentro_meta' : 'abaixo_meta',
+    metaFormatted: `${metaDISP}%`,
+    status: dispVal !== null && dispVal <= metaDISP ? 'dentro_meta' : 'abaixo_meta',
     icon: <Gauge className="h-5 w-5" />,
   });
 
