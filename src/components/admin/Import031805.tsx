@@ -276,6 +276,16 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       const matched = Object.keys(matriculaToUserId).length;
       const total = allMatriculas.size;
       toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
+
+      // Auto-calculate reposicao indicator
+      try {
+        const { error: calcErr } = await supabase.functions.invoke('calculate-reposicao', { body: {} });
+        if (calcErr) console.error('Erro ao calcular reposição:', calcErr);
+        else toast.success('Indicador de Reposição calculado automaticamente!');
+      } catch (e) {
+        console.error('Erro ao chamar calculate-reposicao:', e);
+      }
+
       setRows([]);
       setOpen(false);
       onSuccess();
