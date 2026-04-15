@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { toast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/formatters';
-import { formatDate } from '@/lib/formatters';
 
 interface ParsedRow {
   unb: string;
