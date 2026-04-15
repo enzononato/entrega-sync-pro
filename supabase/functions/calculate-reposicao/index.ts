@@ -20,10 +20,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const body = await req.json().catch(() => ({}));
-    // Optional: restrict to a specific month "YYYY-MM"
-    const { mes } = body as { mes?: string };
-
     // ── Step 1: Load meta from goals ──
     let meta = DEFAULT_META;
     const { data: goalRow } = await supabase
@@ -40,7 +36,7 @@ Deno.serve(async (req) => {
     if (goalRow) meta = goalRow.valor_meta;
     console.log("Meta TX_REPOSICAO:", meta);
 
-    // ── Step 2: Link mot_user_id on reposicao rows that are unlinked ──
+    // ── Step 2: Link mot_user_id on unlinked reposicao rows ──
     const { data: allUsers } = await supabase
       .from("users")
       .select("id, matricula")
@@ -54,7 +50,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Link motorista
     const PAGE = 1000;
     let offset = 0;
     let linkedCount = 0;
@@ -72,10 +67,7 @@ Deno.serve(async (req) => {
       for (const row of unlinked) {
         const userId = matriculaMap.get(row.motorista_codigo?.trim() ?? "");
         if (userId) {
-          await supabase
-            .from("reposicao_031805")
-            .update({ mot_user_id: userId })
-            .eq("id", row.id);
+          await supabase.from("reposicao_031805").update({ mot_user_id: userId }).eq("id", row.id);
           linkedCount++;
         }
       }
@@ -84,31 +76,17 @@ Deno.serve(async (req) => {
     }
     if (linkedCount > 0) console.log(`Linked ${linkedCount} reposicao rows`);
 
-    // ── Step 3: Fetch reposicao data grouped by user + month ──
-    // We'll fetch all rows with mot_user_id set, then aggregate in memory
-    let allRows: { mot_user_id: string; data_solicitacao: string; valor: number }[] = [];
+    // ── Step 3: Fetch all reposição rows with user linked ──
+    let allRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null }[] = [];
     offset = 0;
     while (true) {
-      let q = supabase
+      const { data: chunk, error } = await supabase
         .from("reposicao_031805")
-        .select("mot_user_id, data_solicitacao, valor")
+        .select("mot_user_id, data_solicitacao, valor, mapa_origem")
         .not("mot_user_id", "is", null)
-        .not("data_solicitacao", "is", null);
-
-      if (mes) {
-        // Filter to specific month: "YYYY-MM"
-        const [year, month] = mes.split("-");
-        const startDate = `${year}-${month}-01`;
-        const endMonth = parseInt(month, 10);
-        const endYear = parseInt(year, 10);
-        const nextMonth = endMonth === 12 ? 1 : endMonth + 1;
-        const nextYear = endMonth === 12 ? endYear + 1 : endYear;
-        const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
-        q = q.gte("data_solicitacao", startDate).lt("data_solicitacao", endDate);
-      }
-
-      const { data: chunk, error } = await q.range(offset, offset + PAGE - 1);
-      if (error) throw error;
+        .not("data_solicitacao", "is", null)
+        .range(offset, offset + PAGE - 1);
+      if (error) throw new Error(error.message);
       if (!chunk || chunk.length === 0) break;
 
       for (const r of chunk) {
@@ -117,6 +95,7 @@ Deno.serve(async (req) => {
             mot_user_id: r.mot_user_id,
             data_solicitacao: r.data_solicitacao,
             valor: Number(r.valor) || 0,
+            mapa_origem: r.mapa_origem && r.mapa_origem !== "0" ? r.mapa_origem : null,
           });
         }
       }
@@ -124,75 +103,74 @@ Deno.serve(async (req) => {
       offset += PAGE;
     }
 
-    console.log(`Total reposicao rows to process: ${allRows.length}`);
+    console.log(`Total reposicao rows: ${allRows.length}`);
 
-    // ── Step 4: Aggregate by user + month ──
-    // Key: "userId|YYYY-MM", Value: sum of valor
+    // ── Step 4: Aggregate by user + date + mapa (sum valor) ──
+    // This matches how other indicators work: one record per user/date/mapa
     const aggregated = new Map<string, number>();
     for (const row of allRows) {
-      const monthKey = row.data_solicitacao.substring(0, 7); // "YYYY-MM"
-      const key = `${row.mot_user_id}|${monthKey}`;
+      const key = `${row.mot_user_id}|${row.data_solicitacao}|${row.mapa_origem ?? ""}`;
       aggregated.set(key, (aggregated.get(key) || 0) + row.valor);
     }
 
-    // ── Step 5: Write to user_indicator_daily ──
-    // For monthly indicators, we use the first day of the month as data_referencia
-    const upserts: {
-      user_id: string;
-      indicator_id: string;
-      data_referencia: string;
-      valor: number;
-      meta: number;
-      percentual_atingimento: number;
-      status: string;
-      origem_dado: string;
-    }[] = [];
+    // Monthly totals for status calculation
+    const monthlyTotals = new Map<string, number>();
+    for (const row of allRows) {
+      const monthKey = row.data_solicitacao.substring(0, 7);
+      const key = `${row.mot_user_id}|${monthKey}`;
+      monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + row.valor);
+    }
+
+    // ── Step 5: Build upserts ──
+    const upserts: any[] = [];
+    const affectedUsers = new Set<string>();
 
     for (const [key, totalValor] of aggregated) {
-      const [userId, monthStr] = key.split("|");
-      const dataRef = `${monthStr}-01`;
+      const [userId, dataSol, mapaStr] = key.split("|");
       const rounded = Math.round(totalValor * 100) / 100;
-      const withinTarget = rounded <= meta;
+      const monthKey = dataSol.substring(0, 7);
+      const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
+      const withinTarget = Math.round(monthTotal * 100) / 100 <= meta;
+
+      affectedUsers.add(userId);
 
       upserts.push({
         user_id: userId,
         indicator_id: TX_REPOSICAO_ID,
-        data_referencia: dataRef,
+        data_referencia: dataSol,
         valor: rounded,
         meta,
         percentual_atingimento: withinTarget ? 100 : 0,
         status: withinTarget ? "dentro_meta" : "abaixo_meta",
         origem_dado: "reposicao_031805",
+        mapa_numero: mapaStr || null,
       });
     }
 
-    // Delete existing records for affected users+months, then insert
-    const affectedKeys = new Set<string>();
-    for (const u of upserts) {
-      affectedKeys.add(`${u.user_id}|${u.data_referencia}`);
-    }
-
-    for (const ak of affectedKeys) {
-      const [uid, dataRef] = ak.split("|");
+    // ── Step 6: Delete ALL old reposição records for affected users, then insert ──
+    for (const uid of affectedUsers) {
       await supabase
         .from("user_indicator_daily")
         .delete()
         .eq("user_id", uid)
         .eq("indicator_id", TX_REPOSICAO_ID)
-        .eq("data_referencia", dataRef)
         .eq("origem_dado", "reposicao_031805");
     }
 
-    // Insert in batches
     let totalInserted = 0;
     for (let i = 0; i < upserts.length; i += 200) {
       const batch = upserts.slice(i, i + 200);
       const { error: insertErr } = await supabase
         .from("user_indicator_daily")
         .insert(batch);
-      if (insertErr) throw insertErr;
+      if (insertErr) {
+        console.error("Insert error:", JSON.stringify(insertErr));
+        throw new Error(insertErr.message || JSON.stringify(insertErr));
+      }
       totalInserted += batch.length;
     }
+
+    console.log(`TX_REPOSICAO: ${totalInserted} records inserted (per-map)`);
 
     return new Response(
       JSON.stringify({
