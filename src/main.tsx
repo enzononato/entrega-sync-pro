@@ -2,6 +2,36 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+const isPreviewOrIframe = (() => {
+  if (typeof window === "undefined") return false;
+
+  const hostname = window.location.hostname;
+  const isPreviewHost =
+    hostname.includes("id-preview--") ||
+    hostname.includes("lovable.app") ||
+    hostname.includes("lovableproject.com");
+
+  try {
+    return isPreviewHost || window.self !== window.top;
+  } catch {
+    return true;
+  }
+})();
+
+if (isPreviewOrIframe && "serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      void registration.unregister();
+    });
+  });
+
+  void caches.keys().then((cacheNames) => {
+    cacheNames.forEach((cacheName) => {
+      void caches.delete(cacheName);
+    });
+  });
+}
+
 // Capacitor plugins initialization
 const initCapacitor = async () => {
   try {
