@@ -385,13 +385,17 @@ export default function Desempenho() {
                               const isTime = isTimeIndicator(code);
                               const valStr = isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                              const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
 
                               return (
                                 <button
                                   key={d.id}
-                                  onClick={() => setDetailRow(d)}
-                                  className="w-full flex items-center gap-3 px-5 py-2.5 pl-10 hover:bg-muted/20 transition-colors cursor-pointer text-left"
+                                  onClick={() => !isSemDados && setDetailRow(d)}
+                                  className={cn(
+                                    "w-full flex items-center gap-3 px-5 py-2.5 pl-10 transition-colors text-left",
+                                    isSemDados ? 'opacity-50 cursor-default' : 'hover:bg-muted/20 cursor-pointer'
+                                  )}
                                 >
                                   <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono shrink-0">
                                     {d.indicators?.codigo}
@@ -403,12 +407,18 @@ export default function Desempenho() {
                                     <span className="text-xs text-muted-foreground">
                                       <strong className="text-foreground">{valStr}</strong> / {metaStr}
                                     </span>
-                                    <span className={cn(
-                                      'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                                      atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                                    )}>
-                                      {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                                    </span>
+                                    {isSemDados ? (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                        Sem dados
+                                      </span>
+                                    ) : (
+                                      <span className={cn(
+                                        'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                        atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                      )}>
+                                        {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                      </span>
+                                    )}
                                   </div>
                                 </button>
                               );
