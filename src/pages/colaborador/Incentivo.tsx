@@ -12,9 +12,11 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   DollarSign, Loader2, TrendingUp, TrendingDown, Target,
   AlertTriangle, Info, ChevronDown, ChevronUp, Sparkles,
-  CheckCircle2, XCircle, Minus,
+  CheckCircle2, XCircle, Minus, Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -30,6 +32,38 @@ export default function IncentivoColaborador() {
   const { data: metas = [] } = useMetas({ vigentes: true });
   const { data: desempenho = [] } = useDesempenhoDiario(today, today, { user_id: user?.id });
   const { data: descontos = [] } = useDescontosColaborador(user?.id, 60);
+
+  // Monthly bonus record (stored on first day of month)
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const firstDayOfMonth = `${mesAtual}-01`;
+  const { data: bonusMensal } = useQuery({
+    queryKey: ['bonus_mensal', user?.id, mesAtual],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('user_incentives_daily' as any) as any)
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('data_referencia', firstDayOfMonth)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const detalhes = data.detalhes_json as any;
+      if (detalhes?.tipo !== 'bonus_mensal') return null;
+      return data as { valor_estimado: number; detalhes_json: { tipo: string; mes: string; indicadores: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number }[] } };
+    },
+    enabled: !!user?.id,
+  });
+
+  // Monthly goals with bonificacao > 0 for this user's worker_type
+  const metasMensais = useMemo(() => {
+    return metas.filter(m => {
+      if (m.periodo_tipo !== 'mensal' || m.valor_bonificacao <= 0) return false;
+      if (!m.user_id && m.worker_type === user?.worker_type) return true;
+      if (!m.user_id && !m.worker_type) return true;
+      if (m.user_id === user?.id) return true;
+      return false;
+    });
+  }, [metas, user]);
 
   // Filter goals relevant to this user's worker_type and with bonus > 0
   const metasRelevantes = useMemo(() => {
@@ -236,6 +270,74 @@ export default function IncentivoColaborador() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Bônus Mensal ──────────────────────── */}
+      {metasMensais.length > 0 && (
+        <div className="card-elevated rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 flex items-center gap-2">
+            <Award className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold text-foreground">Bônus Mensal</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+            </span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {metasMensais.map((m, i) => {
+              const bonusDetail = bonusMensal?.detalhes_json?.indicadores?.find(
+                (ind: any) => ind.indicator_id === m.indicator_id
+              );
+              const atingiu = bonusDetail?.atingiu ?? false;
+              const valorAgregado = bonusDetail?.valor_agregado;
+              const bonusValor = bonusDetail?.bonus ?? 0;
+              const StatusIcon = bonusDetail ? (atingiu ? CheckCircle2 : XCircle) : Minus;
+              const statusClr = bonusDetail ? (atingiu ? 'text-success' : 'text-destructive') : 'text-muted-foreground';
+
+              return (
+                <div key={i} className="px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <StatusIcon className={cn('h-4 w-4 shrink-0', statusClr)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {m.indicators?.nome ?? m.indicators?.codigo ?? ''}
+                        </span>
+                        <span className="text-sm font-bold text-primary ml-2 shrink-0">
+                          {fmtBRL(bonusValor)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-[10px] text-muted-foreground">
+                          Meta: ≤ {m.valor_meta}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                        </span>
+                        {valorAgregado != null && (
+                          <span className={cn(
+                            'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                            atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                          )}>
+                            Resultado: {valorAgregado}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                          </span>
+                        )}
+                        {!bonusDetail && (
+                          <span className="text-[10px] text-muted-foreground italic">Aguardando cálculo</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Bonificação: {fmtBRL(m.valor_bonificacao)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {bonusMensal && (
+              <div className="flex items-center justify-between px-4 py-3 bg-primary/5">
+                <span className="text-sm font-bold text-foreground">Total bônus mensal</span>
+                <span className="text-lg font-extrabold text-primary">{fmtBRL(bonusMensal.valor_estimado)}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

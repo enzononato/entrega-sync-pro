@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { exportToCsv } from '@/lib/exportCsv';
+import { supabase } from '@/integrations/supabase/client';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/shared/ListPagination';
 import { format } from 'date-fns';
@@ -19,8 +20,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle,
   Loader2, BarChart3,
-  ChevronDown, Download, MapPin,
+  ChevronDown, Download, MapPin, Calculator,
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { formatMinutesHHMM } from '@/lib/formatters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -47,6 +49,24 @@ export default function Desempenho() {
 
   const [detailRow, setDetailRow] = useState<DesempenhoRow | null>(null);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [calcLoading, setCalcLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleCalcMonthlyBonus = async () => {
+    setCalcLoading(true);
+    try {
+      const month = format(new Date(), 'yyyy-MM');
+      const { data, error } = await supabase.functions.invoke('calculate-monthly-bonus', {
+        body: { month },
+      });
+      if (error) throw error;
+      toast({ title: 'Bônus mensal calculado!', description: `${data?.total_users ?? 0} colaboradores processados` });
+    } catch (e: any) {
+      toast({ title: 'Erro ao calcular bônus', description: e.message, variant: 'destructive' });
+    } finally {
+      setCalcLoading(false);
+    }
+  };
 
   const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
@@ -229,6 +249,11 @@ export default function Desempenho() {
             : `Período: ${format(new Date(dateStart + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })} — ${format(new Date(dateEnd + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}`
           }
         />
+        <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={handleCalcMonthlyBonus} disabled={calcLoading}>
+          {calcLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+          Calcular Bônus Mensal
+        </Button>
         <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
           const rows = desempenho.map(d => [
             d.users?.nome ?? '', d.indicators?.codigo ?? '', d.indicators?.nome ?? '',
@@ -239,6 +264,7 @@ export default function Desempenho() {
         }}>
           <Download className="h-4 w-4" /> CSV
         </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
