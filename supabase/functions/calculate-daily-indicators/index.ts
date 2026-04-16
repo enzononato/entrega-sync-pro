@@ -19,7 +19,8 @@ const DEFAULT_METAS: Record<string, number> = {
   TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 15, TX_REPOSICAO: 49.8,
 };
 
-const MOTORISTA_ONLY = new Set(["DISP_TEMPO"]);
+// FIX Problema 2: TX_DEVOLUCAO added to MOTORISTA_ONLY
+const MOTORISTA_ONLY = new Set(["DISP_TEMPO", "TX_DEVOLUCAO"]);
 
 function parseTime(hhmm: string | null): number | null {
   if (!hhmm) return null;
@@ -175,7 +176,6 @@ Deno.serve(async (req) => {
     if (data_referencia) {
       dates = Array.isArray(data_referencia) ? data_referencia : [data_referencia];
     } else {
-      // Fallback: only last 7 days to avoid timeout
       const now = new Date();
       for (let i = 0; i < 7; i++) {
         const d = new Date(now);
@@ -191,7 +191,6 @@ Deno.serve(async (req) => {
     let totalInserted = 0;
 
     for (const date of dates) {
-      // Fetch mapas for this date
       let allMapas: any[] = [];
       let offset = 0;
       while (true) {
@@ -206,7 +205,6 @@ Deno.serve(async (req) => {
       }
       if (allMapas.length === 0) continue;
 
-      // Link unlinked user_ids in batch
       const updates: { id: string; field: string; userId: string }[] = [];
       for (const row of allMapas) {
         const tryLink = (code: string, field: string) => {
@@ -219,7 +217,6 @@ Deno.serve(async (req) => {
         tryLink(row.cd_aju1, "aju1_user_id");
         tryLink(row.cd_aju2, "aju2_user_id");
       }
-      // Batch link updates (group by field to minimize calls)
       for (const field of ["mot_user_id", "aju1_user_id", "aju2_user_id"]) {
         const fieldUpdates = updates.filter(u => u.field === field);
         for (const u of fieldUpdates) {
@@ -227,7 +224,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Calculate indicators
       const upserts: any[] = [];
       const affectedUserIds = new Set<string>();
 
@@ -255,7 +251,6 @@ Deno.serve(async (req) => {
       }
 
       if (upserts.length > 0) {
-        // Delete old records for affected users on this date
         const userArr = Array.from(affectedUserIds);
         for (let i = 0; i < userArr.length; i += 50) {
           const batch = userArr.slice(i, i + 50);
@@ -263,7 +258,6 @@ Deno.serve(async (req) => {
             .in("user_id", batch).eq("data_referencia", date)
             .in("indicator_id", indicatorIds).eq("origem_dado", "mapa_historico");
         }
-        // Insert new
         for (let i = 0; i < upserts.length; i += 500) {
           const batch = upserts.slice(i, i + 500);
           const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
@@ -277,22 +271,8 @@ Deno.serve(async (req) => {
     const TX_REPOSICAO_ID = INDICATOR_IDS["TX_REPOSICAO"];
     const repoMeta = getMetaForWorker(metas, "TX_REPOSICAO", "motorista");
 
-    // Build mapa -> data_operacao lookup from mapa_historico (for date alignment)
-    const mapaDateLookup = new Map<string, string>();
-    {
-      let offset = 0;
-      while (true) {
-        const { data: chunk } = await supabase
-          .from("mapa_historico").select("mapa, data_operacao")
-          .range(offset, offset + PAGE - 1);
-        if (!chunk || chunk.length === 0) break;
-        for (const r of chunk) mapaDateLookup.set(r.mapa, r.data_operacao);
-        if (chunk.length < PAGE) break;
-        offset += PAGE;
-      }
-    }
-
-    // Fetch reposição rows
+    // FIX Problema 4: Only fetch mapa_historico rows for mapas present in reposição data
+    // First, fetch all reposição rows
     let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null; motorista_codigo: string | null }[] = [];
     {
       let offset = 0;
@@ -323,16 +303,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // FIX Problema 4: Build mapa lookup only for relevant mapas
+    const mapaDateLookup = new Map<string, string>();
+    {
+      const relevantMapas = [...new Set(allRepoRows.map(r => r.mapa_origem).filter(Boolean))] as string[];
+      if (relevantMapas.length > 0) {
+        for (let i = 0; i < relevantMapas.length; i += 200) {
+          const batch = relevantMapas.slice(i, i + 200);
+          const { data: chunk } = await supabase
+            .from("mapa_historico").select("mapa, data_operacao")
+            .in("mapa", batch);
+          if (chunk) {
+            for (const r of chunk) mapaDateLookup.set(r.mapa, r.data_operacao);
+          }
+        }
+      }
+    }
+
     // Filter by dates if specific dates were requested
     if (dates.length > 0) {
       const dateSet = new Set(dates);
       allRepoRows = allRepoRows.filter(r => {
-        // Check if the mapa's data_operacao falls in the requested dates
         if (r.mapa_origem) {
           const mapaDate = mapaDateLookup.get(r.mapa_origem);
           if (mapaDate && dateSet.has(mapaDate)) return true;
         }
-        // Fallback: check data_solicitacao
         return dateSet.has(r.data_solicitacao);
       });
     }
@@ -342,7 +337,6 @@ Deno.serve(async (req) => {
     for (const row of allRepoRows) {
       const mapa = row.mapa_origem ?? "";
       const key = `${row.mot_user_id}|${mapa}`;
-      // Use mapa's data_operacao as the reference date (aligns with other indicators)
       const mapaDate = mapa ? mapaDateLookup.get(mapa) : null;
       const dateForRecord = mapaDate ?? row.data_solicitacao;
 
@@ -365,6 +359,8 @@ Deno.serve(async (req) => {
 
     const repoUpserts: any[] = [];
     const repoAffectedUsers = new Set<string>();
+    // FIX Problema 1: Collect affected dates for date-filtered delete
+    const repoAffectedDates = new Set<string>();
 
     for (const [key, agg] of repoAggregated) {
       const [userId, mapaStr] = key.split("|");
@@ -373,6 +369,7 @@ Deno.serve(async (req) => {
       const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
       const withinTarget = Math.round(monthTotal * 100) / 100 <= repoMeta.meta;
       repoAffectedUsers.add(userId);
+      repoAffectedDates.add(agg.dataRef);
       repoUpserts.push({
         user_id: userId, indicator_id: TX_REPOSICAO_ID, data_referencia: agg.dataRef,
         valor: rounded, meta: repoMeta.meta,
@@ -384,13 +381,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Delete + insert reposição
+    // FIX Problema 1: Delete only for affected users AND affected dates (not all history)
     const repoUserArr = Array.from(repoAffectedUsers);
+    const repoDatesArr = Array.from(repoAffectedDates);
     for (let i = 0; i < repoUserArr.length; i += 50) {
       const batch = repoUserArr.slice(i, i + 50);
       await supabase.from("user_indicator_daily").delete()
         .in("user_id", batch).eq("indicator_id", TX_REPOSICAO_ID)
-        .eq("origem_dado", "reposicao_031805");
+        .eq("origem_dado", "reposicao_031805")
+        .in("data_referencia", repoDatesArr);
     }
     for (let i = 0; i < repoUpserts.length; i += 500) {
       const batch = repoUpserts.slice(i, i + 500);

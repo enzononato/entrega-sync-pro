@@ -117,7 +117,7 @@ export function useBatchCreateLancamentos() {
         const { percentual_atingimento, status } = calcStatus(r.valor, r.meta);
         return { ...r, percentual_atingimento, status, updated_at: new Date().toISOString() };
       });
-      const { error } = await supabase.from('user_indicator_daily').upsert(prepared, { onConflict: 'user_id,indicator_id,data_referencia' });
+      const { error } = await supabase.from('user_indicator_daily').upsert(prepared, { onConflict: 'user_id,indicator_id,data_referencia,mapa_numero' });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['user_indicator_daily'] }); toast({ title: 'Lançamento em lote salvo!' }); },
