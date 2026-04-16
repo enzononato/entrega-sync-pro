@@ -66,6 +66,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,8 +140,11 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         };
       });
 
-      const batchSize = 200;
+      const batchSize = 500;
+      const totalBatches = Math.ceil(enriched.length / batchSize);
       for (let i = 0; i < enriched.length; i += batchSize) {
+        const batchNum = Math.floor(i / batchSize) + 1;
+        setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length} registros)`);
         const batch = enriched.slice(i, i + batchSize);
         const { error } = await supabase.from('mapa_historico').upsert(batch as any, { onConflict: 'mapa,data_operacao' });
         if (error) throw error;
@@ -156,6 +160,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       toast.error('Erro na importação: ' + err.message);
     } finally {
       setImporting(false);
+      setProgress('');
     }
   };
 
@@ -195,6 +200,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
                 </table>
                 {rows.length > 20 && <p className="p-1 text-center text-muted-foreground">... e mais {rows.length - 20}</p>}
               </div>
+              {importing && progress && <p className="text-xs text-muted-foreground text-center">{progress}</p>}
               <Button onClick={handleImport} disabled={importing} className="w-full">
                 {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</> : <><FileUp className="h-4 w-4 mr-2" /> Confirmar Importação</>}
               </Button>
