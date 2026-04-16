@@ -514,12 +514,15 @@ export default function Desempenho() {
             const isTime = isTimeIndicator(code);
             const valor = isTime ? formatMinutesHHMM(detailRow.valor) : String(detailRow.valor);
             const meta = detailRow.meta != null ? (isTime ? formatMinutesHHMM(detailRow.meta) : String(detailRow.meta)) : '—';
-            const desafioAtivo = Number(detailRow.desafio ?? 0) > 0;
+            const detailWt = detailRow.users?.worker_type ?? 'motorista';
+            const goalDesafioDetail = code ? getMetaConfig(code, detailWt).desafio : 0;
+            const desafioValDetail = Number(detailRow.desafio ?? 0) > 0 ? Number(detailRow.desafio) : goalDesafioDetail;
+            const desafioAtivo = desafioValDetail > 0;
             const desafio = desafioAtivo
-              ? (isTime ? formatMinutesHHMM(Number(detailRow.desafio)) : String(detailRow.desafio))
+              ? (isTime ? formatMinutesHHMM(desafioValDetail) : String(desafioValDetail))
               : '—';
             const atingiu = detailRow.status === 'dentro_meta' || detailRow.status === 'acima_meta';
-            const atingiuDesafio = detailRow.status_desafio === 'atingiu';
+            const atingiuDesafio = detailRow.status_desafio === 'atingiu' || (desafioAtivo && detailRow.valor <= desafioValDetail);
             const pct = detailRow.percentual_atingimento;
 
             return (
