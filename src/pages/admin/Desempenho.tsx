@@ -438,7 +438,7 @@ export default function Desempenho() {
                               const atingiuDesafioFromGoal = desafioAtivo && d.valor <= desafioVal;
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
-                              const atingiuDesafio = d.status_desafio === 'atingiu';
+                              const atingiuDesafio = d.status_desafio === 'atingiu' || atingiuDesafioFromGoal;
 
                               return (
                                 <button
