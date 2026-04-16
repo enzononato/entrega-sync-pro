@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     // ── 1. Load monthly goals with bonificacao ──
     const { data: goals, error: goalsErr } = await supabase
       .from("goals")
-      .select("indicator_id, worker_type, valor_meta, valor_bonificacao")
+      .select("indicator_id, worker_type, valor_meta, valor_bonificacao, valor_desafio, valor_bonificacao_desafio")
       .in("indicator_id", MONTHLY_INDICATORS)
       .eq("periodo_tipo", "mensal")
       .eq("ativo", true);
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
       user_name: string;
       worker_type: string;
       total_bonus: number;
-      details: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number }[];
+      details: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number; desafio: number; atingiu_desafio: boolean; bonus_desafio: number }[];
     }[] = [];
 
     for (const user of users) {
@@ -166,15 +166,24 @@ Deno.serve(async (req) => {
         const atingiu = valorAgregado <= goal.valor_meta;
         const bonus = atingiu ? Number(goal.valor_bonificacao) : 0;
 
+        // Challenge check
+        const desafioVal = Number(goal.valor_desafio) || 0;
+        const desafioBonusVal = Number(goal.valor_bonificacao_desafio) || 0;
+        const atingiuDesafio = desafioVal > 0 && atingiu && valorAgregado <= desafioVal;
+        const bonusDesafio = atingiuDesafio ? desafioBonusVal : 0;
+
         userDetails.push({
           indicator_id: indId,
           valor_agregado: valorAgregado,
           meta: goal.valor_meta,
           atingiu,
           bonus,
+          desafio: desafioVal,
+          atingiu_desafio: atingiuDesafio,
+          bonus_desafio: bonusDesafio,
         });
 
-        totalBonus += bonus;
+        totalBonus += bonus + bonusDesafio;
       }
 
       if (userDetails.length > 0) {
