@@ -186,7 +186,7 @@ export default function ColaboradorHome() {
   // Challenge stats
   const desafioStats = useMemo(() => {
     const withDesafio = kpis.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu_desafio');
+    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu');
     return { total: withDesafio.length, atingidos: atingidos.length };
   }, [kpis]);
   const allOnTarget = kpis.length > 0 && badCount === 0;
@@ -450,11 +450,11 @@ export default function ColaboradorHome() {
                                 {d.desafio != null && Number(d.desafio) > 0 && (
                                   <span className={cn(
                                     'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
-                                    d.status_desafio === 'atingiu_desafio'
+                                    d.status_desafio === 'atingiu'
                                       ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
                                       : 'bg-muted text-muted-foreground'
                                   )}>
-                                    🎯 {d.status_desafio === 'atingiu_desafio' ? 'Desafio ✓' : 'Desafio ✗'}
+                                    🎯 {d.status_desafio === 'atingiu' ? 'Desafio ✓' : 'Desafio ✗'}
                                   </span>
                                 )}
                                 {!atingiu && d.indicator_id && (() => {
