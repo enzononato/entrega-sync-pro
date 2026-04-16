@@ -98,23 +98,31 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             unidade_id: u.unidade_id,
             unidade_nome: u.units?.nome ?? null,
             avatar_url: u.avatar_url,
+            pcts: [],
+            onTarget: 0,
             byIndicator: new Map(),
           });
         }
         const entry = map.get(uid)!;
+        const pct = row.percentual_atingimento ?? 0;
+        entry.pcts.push(pct);
+        const isOnTarget = row.status === 'acima_meta' || row.status === 'dentro_meta';
+        if (isOnTarget) entry.onTarget++;
+
         const indId = row.indicator_id;
         const indNome = row.indicators?.nome ?? '—';
         const indCodigo = row.indicators?.codigo ?? '';
 
         if (!entry.byIndicator.has(indId)) {
-          entry.byIndicator.set(indId, { nome: indNome, codigo: indCodigo, sum: 0, count: 0, valores: [], metas: [], pcts: [] });
+          entry.byIndicator.set(indId, { nome: indNome, codigo: indCodigo, sum: 0, count: 0, valores: [], metas: [], pcts: [], onTarget: 0 });
         }
         const ind = entry.byIndicator.get(indId)!;
         ind.sum += (row.valor ?? 0);
         ind.count++;
         ind.valores.push(row.valor ?? 0);
         ind.metas.push(row.meta ?? 0);
-        ind.pcts.push(row.percentual_atingimento ?? 0);
+        ind.pcts.push(pct);
+        if (isOnTarget) ind.onTarget++;
       }
 
       // Second pass: compute bonus and onTarget from aggregated data
