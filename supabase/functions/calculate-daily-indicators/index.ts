@@ -311,8 +311,10 @@ Deno.serve(async (req) => {
               data_referencia: date,
               valor: ind.valor,
               meta: ind.meta,
+              desafio: ind.desafio || null,
               percentual_atingimento: ind.percentual_atingimento,
               status: ind.status,
+              status_desafio: ind.status_desafio !== "sem_desafio" ? ind.status_desafio : null,
               origem_dado: "mapa_historico",
               mapa_numero: row.mapa,
             });
