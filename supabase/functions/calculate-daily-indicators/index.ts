@@ -277,21 +277,33 @@ Deno.serve(async (req) => {
     const TX_REPOSICAO_ID = INDICATOR_IDS["TX_REPOSICAO"];
     const repoMeta = getMetaForWorker(metas, "TX_REPOSICAO", "motorista");
 
-    // Only process reposição for the requested dates (or last 7 days)
+    // Build mapa -> data_operacao lookup from mapa_historico (for date alignment)
+    const mapaDateLookup = new Map<string, string>();
+    {
+      let offset = 0;
+      while (true) {
+        const { data: chunk } = await supabase
+          .from("mapa_historico").select("mapa, data_operacao")
+          .range(offset, offset + PAGE - 1);
+        if (!chunk || chunk.length === 0) break;
+        for (const r of chunk) mapaDateLookup.set(r.mapa, r.data_operacao);
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
+      }
+    }
+
+    // Fetch reposição rows
     let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null; motorista_codigo: string | null }[] = [];
     {
       let offset = 0;
       while (true) {
-        let q = supabase.from("reposicao_031805")
+        const { data: chunk, error: rErr } = await supabase.from("reposicao_031805")
           .select("mot_user_id, data_solicitacao, valor, mapa_origem, motorista_codigo")
           .not("data_solicitacao", "is", null)
           .range(offset, offset + PAGE - 1);
-        if (dates.length > 0) q = q.in("data_solicitacao", dates);
-        const { data: chunk, error: rErr } = await q;
         if (rErr) throw rErr;
         if (!chunk || chunk.length === 0) break;
         for (const r of chunk) {
-          // Link user if needed
           let userId = r.mot_user_id;
           if (!userId && r.motorista_codigo) {
             userId = matriculaMap.get(r.motorista_codigo.trim()) ?? null;
@@ -311,21 +323,39 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Filter by dates if specific dates were requested
+    if (dates.length > 0) {
+      const dateSet = new Set(dates);
+      allRepoRows = allRepoRows.filter(r => {
+        // Check if the mapa's data_operacao falls in the requested dates
+        if (r.mapa_origem) {
+          const mapaDate = mapaDateLookup.get(r.mapa_origem);
+          if (mapaDate && dateSet.has(mapaDate)) return true;
+        }
+        // Fallback: check data_solicitacao
+        return dateSet.has(r.data_solicitacao);
+      });
+    }
+
     // Aggregate by user + mapa
-    const repoAggregated = new Map<string, { valor: number; earliestDate: string }>();
+    const repoAggregated = new Map<string, { valor: number; dataRef: string }>();
     for (const row of allRepoRows) {
       const mapa = row.mapa_origem ?? "";
       const key = `${row.mot_user_id}|${mapa}`;
+      // Use mapa's data_operacao as the reference date (aligns with other indicators)
+      const mapaDate = mapa ? mapaDateLookup.get(mapa) : null;
+      const dateForRecord = mapaDate ?? row.data_solicitacao;
+
       const existing = repoAggregated.get(key);
       if (existing) {
         existing.valor += row.valor;
-        if (row.data_solicitacao < existing.earliestDate) existing.earliestDate = row.data_solicitacao;
+        if (dateForRecord < existing.dataRef) existing.dataRef = dateForRecord;
       } else {
-        repoAggregated.set(key, { valor: row.valor, earliestDate: row.data_solicitacao });
+        repoAggregated.set(key, { valor: row.valor, dataRef: dateForRecord });
       }
     }
 
-    // Monthly totals
+    // Monthly totals for status
     const monthlyTotals = new Map<string, number>();
     for (const row of allRepoRows) {
       const monthKey = row.data_solicitacao.substring(0, 7);
@@ -339,12 +369,12 @@ Deno.serve(async (req) => {
     for (const [key, agg] of repoAggregated) {
       const [userId, mapaStr] = key.split("|");
       const rounded = Math.round(agg.valor * 100) / 100;
-      const monthKey = agg.earliestDate.substring(0, 7);
+      const monthKey = agg.dataRef.substring(0, 7);
       const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
       const withinTarget = Math.round(monthTotal * 100) / 100 <= repoMeta.meta;
       repoAffectedUsers.add(userId);
       repoUpserts.push({
-        user_id: userId, indicator_id: TX_REPOSICAO_ID, data_referencia: agg.earliestDate,
+        user_id: userId, indicator_id: TX_REPOSICAO_ID, data_referencia: agg.dataRef,
         valor: rounded, meta: repoMeta.meta,
         desafio: repoMeta.desafio > 0 ? repoMeta.desafio : null,
         percentual_atingimento: withinTarget ? 100 : 0,
