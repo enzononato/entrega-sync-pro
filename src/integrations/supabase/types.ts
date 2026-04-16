@@ -188,6 +188,8 @@ export type Database = {
           unidade_id: string | null
           user_id: string | null
           valor_bonificacao: number
+          valor_bonificacao_desafio: number
+          valor_desafio: number
           valor_meta: number
           vigencia_fim: string | null
           vigencia_inicio: string
@@ -202,6 +204,8 @@ export type Database = {
           unidade_id?: string | null
           user_id?: string | null
           valor_bonificacao?: number
+          valor_bonificacao_desafio?: number
+          valor_desafio?: number
           valor_meta?: number
           vigencia_fim?: string | null
           vigencia_inicio?: string
@@ -216,6 +220,8 @@ export type Database = {
           unidade_id?: string | null
           user_id?: string | null
           valor_bonificacao?: number
+          valor_bonificacao_desafio?: number
+          valor_desafio?: number
           valor_meta?: number
           vigencia_fim?: string | null
           vigencia_inicio?: string
