@@ -547,6 +547,61 @@ export default function Metas() {
                   </div>
                 </div>
 
+                {/* Desafio fields */}
+                <Separator />
+                <p className="text-xs font-semibold text-amber-600 flex items-center gap-1.5">🎯 Desafio (opcional)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Valor do Desafio</Label>
+                    {form.formato_meta === 'tempo' ? (
+                      <Input
+                        type="text"
+                        placeholder="HH:MM (ex: 04:00)"
+                        value={desafioTimeStr}
+                        onChange={e => {
+                          let v = e.target.value.replace(/[^0-9]/g, '');
+                          if (v.length > 4) v = v.slice(0, 4);
+                          let display = v;
+                          if (v.length > 2) display = v.slice(0, 2) + ':' + v.slice(2);
+                          setDesafioTimeStr(display);
+                          const mins = parseHHMM(display);
+                          setForm(f => ({ ...f, valor_desafio: mins }));
+                        }}
+                        className="h-9"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 3,0"
+                        value={desafioValorStr}
+                        onChange={e => {
+                          const v = e.target.value.replace(/[^0-9,]/g, '');
+                          setDesafioValorStr(v);
+                          const num = parseFloat(v.replace(',', '.'));
+                          setForm(f => ({ ...f, valor_desafio: isNaN(num) ? 0 : num }));
+                        }}
+                        className="h-9"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Bonificação Desafio (R$)</Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 10,00"
+                      value={desafioBonusStr}
+                      onChange={e => {
+                        const v = e.target.value.replace(/[^0-9,]/g, '');
+                        setDesafioBonusStr(v);
+                        const num = parseFloat(v.replace(',', '.'));
+                        setForm(f => ({ ...f, valor_bonificacao_desafio: isNaN(num) ? 0 : num }));
+                      }}
+                      className="h-9"
+                    />
+                  </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Período</Label>
