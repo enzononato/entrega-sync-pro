@@ -69,18 +69,46 @@ export default function Dashboard() {
   const bonusMes = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
     if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
-    let total = 0;
+
+    // Aggregate per user+indicator: average of daily values (sum for TX_REPOSICAO)
+    const SUM_CODES = new Set(['TX_REPOSICAO']);
+    const aggMap = new Map<string, { sum: number; count: number; userId: string; indicatorId: string }>();
     for (const d of desempenhoMes) {
-      if (d.status !== 'dentro_meta' && d.status !== 'acima_meta') continue;
-      const u = usuarios.find(u => u.id === d.user_id);
+      const key = `${d.user_id}|${d.indicator_id}`;
+      const entry = aggMap.get(key);
+      const val = Number(d.valor) || 0;
+      if (entry) {
+        entry.sum += val;
+        entry.count += 1;
+      } else {
+        aggMap.set(key, { sum: val, count: 1, userId: d.user_id, indicatorId: d.indicator_id });
+      }
+    }
+
+    let total = 0;
+    for (const [, agg] of aggMap) {
+      const u = usuarios.find(u => u.id === agg.userId);
       const goal = goalsComBonus.find(g => {
-        if (g.indicator_id !== d.indicator_id) return false;
-        if (g.user_id === d.user_id) return true;
+        if (g.indicator_id !== agg.indicatorId) return false;
+        if (g.user_id === agg.userId) return true;
         if (!g.user_id && g.worker_type === u?.worker_type) return true;
         if (!g.user_id && !g.worker_type) return true;
         return false;
       });
-      if (goal) total += goal.valor_bonificacao;
+      if (!goal) continue;
+
+      const indCode = (goal as any).indicators?.codigo?.toUpperCase() ?? '';
+      const valorAgregado = SUM_CODES.has(indCode) ? agg.sum : agg.sum / agg.count;
+      const metaVal = Number(goal.valor_meta);
+      const atingiu = valorAgregado <= metaVal;
+
+      if (atingiu) {
+        total += Number(goal.valor_bonificacao);
+        const desafioVal = Number(goal.valor_desafio) || 0;
+        if (desafioVal > 0 && valorAgregado <= desafioVal) {
+          total += Number(goal.valor_bonificacao_desafio) || 0;
+        }
+      }
     }
     return total;
   }, [metasAtivas, desempenhoMes, usuarios]);
