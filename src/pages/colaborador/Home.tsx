@@ -146,6 +146,13 @@ export default function ColaboradorHome() {
 
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
+
+  // Challenge stats
+  const desafioStats = useMemo(() => {
+    const withDesafio = kpis.filter(d => d.desafio != null && Number(d.desafio) > 0);
+    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu_desafio');
+    return { total: withDesafio.length, atingidos: atingidos.length };
+  }, [kpis]);
   const allOnTarget = kpis.length > 0 && badCount === 0;
   const overallPct = kpis.length > 0 ? Math.round((okCount / kpis.length) * 100) : 0;
   const acoesAbertas = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
@@ -295,6 +302,45 @@ export default function ColaboradorHome() {
         </div>
       )}
 
+      {/* ── Resumo Desafios ─────────────────────── */}
+      {desafioStats.total > 0 && (
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <span className="text-base">🎯</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Desafios do Período</p>
+              <p className="text-[10px] text-muted-foreground">{periodLabels[period]}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center rounded-xl bg-muted/40 py-2.5">
+              <p className="text-lg font-extrabold text-foreground">{desafioStats.total}</p>
+              <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Total</p>
+            </div>
+            <div className="text-center rounded-xl bg-success/10 py-2.5">
+              <p className="text-lg font-extrabold text-success">{desafioStats.atingidos}</p>
+              <p className="text-[9px] text-success font-medium uppercase tracking-wider">Atingidos</p>
+            </div>
+            <div className="text-center rounded-xl bg-destructive/10 py-2.5">
+              <p className="text-lg font-extrabold text-destructive">{desafioStats.total - desafioStats.atingidos}</p>
+              <p className="text-[9px] text-destructive font-medium uppercase tracking-wider">Pendentes</p>
+            </div>
+          </div>
+          {desafioStats.atingidos > 0 && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-success/5 border border-success/10 px-3 py-2">
+              <Trophy className="h-4 w-4 text-success shrink-0" />
+              <p className="text-xs text-success font-medium">
+                {desafioStats.atingidos === desafioStats.total
+                  ? 'Todos os desafios atingidos! 🔥'
+                  : `${desafioStats.atingidos} de ${desafioStats.total} desafios conquistados!`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── KPIs por Mapa ─────────────────────────── */}
       <section>
         <SectionHeader icon={<Zap className="h-4 w-4 text-primary" />} title="KPIs por Mapa" />
@@ -363,41 +409,51 @@ export default function ColaboradorHome() {
                                   'text-[10px] font-bold px-2 py-0.5 rounded-full',
                                   atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
                                 )}>
-                                  {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                 {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                                 </span>
+                                {d.desafio != null && Number(d.desafio) > 0 && (
+                                  <span className={cn(
+                                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                                    d.status_desafio === 'atingiu_desafio'
+                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                                      : 'bg-muted text-muted-foreground'
+                                  )}>
+                                    🎯 {d.status_desafio === 'atingiu_desafio' ? 'Desafio ✓' : 'Desafio ✗'}
+                                  </span>
+                                )}
                                 {!atingiu && d.indicator_id && (() => {
-                                  const existingCausa = causaLookup.get(`${d.indicator_id}|${d.data_referencia}`);
-                                  if (existingCausa) {
-                                    return (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setViewCausa(existingCausa);
-                                        }}
-                                        className="h-7 px-2 rounded-lg bg-success/10 text-success text-[10px] font-bold flex items-center gap-1 hover:bg-success/20 transition-colors"
-                                      >
-                                        <CheckCircle className="h-3 w-3" />
-                                        Reportado
-                                      </button>
-                                    );
-                                  }
-                                  return (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setReportTarget({
-                                          indicatorId: d.indicator_id,
-                                          indicatorNome: d.indicators?.nome ?? '',
-                                          dataReferencia: d.data_referencia,
-                                        });
-                                      }}
-                                      className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
-                                    >
-                                      <AlertTriangle className="h-3 w-3" />
-                                      Reportar
-                                    </button>
-                                  );
-                                })()}
+                                   const existingCausa = causaLookup.get(`${d.indicator_id}|${d.data_referencia}`);
+                                   if (existingCausa) {
+                                     return (
+                                       <button
+                                         onClick={(e) => {
+                                           e.stopPropagation();
+                                           setViewCausa(existingCausa);
+                                         }}
+                                         className="h-7 px-2 rounded-lg bg-success/10 text-success text-[10px] font-bold flex items-center gap-1 hover:bg-success/20 transition-colors"
+                                       >
+                                         <CheckCircle className="h-3 w-3" />
+                                         Reportado
+                                       </button>
+                                     );
+                                   }
+                                   return (
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         setReportTarget({
+                                           indicatorId: d.indicator_id,
+                                           indicatorNome: d.indicators?.nome ?? '',
+                                           dataReferencia: d.data_referencia,
+                                         });
+                                       }}
+                                       className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
+                                     >
+                                       <AlertTriangle className="h-3 w-3" />
+                                       Reportar
+                                     </button>
+                                   );
+                                 })()}
                               </div>
                             </div>
                           </div>
