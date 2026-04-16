@@ -335,7 +335,15 @@ export default function IncentivoColaborador() {
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         Bonificação: {fmtBRL(m.valor_bonificacao)}
+                        {m.valor_desafio > 0 && (
+                          <span className="ml-2 text-amber-600">| Desafio: +{fmtBRL(m.valor_bonificacao_desafio)}</span>
+                        )}
                       </p>
+                      {bonusDetail && bonusDetail.atingiu_desafio && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 inline-block mt-1">
+                          🎯 Desafio atingido! +{fmtBRL(bonusDetail.bonus_desafio ?? 0)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
