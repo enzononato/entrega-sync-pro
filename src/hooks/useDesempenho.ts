@@ -75,7 +75,7 @@ export function useCreateLancamento() {
       const { percentual_atingimento, status } = calcStatus(row.valor, row.meta);
       const { data, error } = await supabase.from('user_indicator_daily').upsert(
         { ...row, percentual_atingimento, status, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id,indicator_id,data_referencia' }
+        { onConflict: 'user_id,indicator_id,data_referencia,mapa_numero' }
       ).select().single();
       if (error) throw error; return data;
     },
