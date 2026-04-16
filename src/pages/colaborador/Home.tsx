@@ -103,7 +103,23 @@ export default function ColaboradorHome() {
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
   const { data: causasRaiz = [] } = useCausaRaizPorColaborador(user?.id);
+  const { data: metas = [] } = useMetas({ vigentes: true });
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+
+  // Build meta lookup from goals table
+  const getMetaConfig = useMemo(() => {
+    const m = new Map<string, { meta: number; desafio: number }>();
+    for (const g of metas) {
+      const code = (g as any).indicators?.codigo?.toUpperCase();
+      if (!code) continue;
+      const wt = g.worker_type || 'default';
+      const config = { meta: Number(g.valor_meta) || 0, desafio: Number(g.valor_desafio) || 0 };
+      m.set(`${code}|${wt}`, config);
+      if (!m.has(`${code}|default`)) m.set(`${code}|default`, config);
+    }
+    return (code: string, wt: string) =>
+      m.get(`${code}|${wt}`) ?? m.get(`${code}|default`) ?? { meta: 0, desafio: 0 };
+  }, [metas]);
 
 
   const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
