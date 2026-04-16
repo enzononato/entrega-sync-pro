@@ -3,7 +3,7 @@
   "short_name": "IncentivosPro",
   "description": "Gestão de entregas e desempenho de colaboradores",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#0f172a",
   "theme_color": "#1e3a8a",
   "orientation": "portrait",
