@@ -409,13 +409,18 @@ export default function ColaboradorHome() {
                                   'text-[10px] font-bold px-2 py-0.5 rounded-full',
                                   atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
                                 )}>
-                                  {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                 {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                                 </span>
-                                {!atingiu && d.indicator_id && (() => {
-                                  const existingCausa = causaLookup.get(`${d.indicator_id}|${d.data_referencia}`);
-                                  if (existingCausa) {
-                                    return (
-                                      <button
+                                {d.desafio != null && Number(d.desafio) > 0 && (
+                                  <span className={cn(
+                                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                                    d.status_desafio === 'atingiu_desafio'
+                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                                      : 'bg-muted text-muted-foreground'
+                                  )}>
+                                    🎯 {d.status_desafio === 'atingiu_desafio' ? 'Desafio ✓' : 'Desafio ✗'}
+                                  </span>
+                                )}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setViewCausa(existingCausa);
