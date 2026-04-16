@@ -151,7 +151,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       }
 
       // Recalcular indicadores apenas para as datas importadas
-      const uniqueDates = [...new Set(enriched.map(r => String(r.data_operacao)))].filter(Boolean);
+      const uniqueDates = [...new Set(enriched.map(r => String((r as any).data_operacao)))].filter(Boolean);
       setProgress('Recalculando indicadores...');
       try {
         const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', {
