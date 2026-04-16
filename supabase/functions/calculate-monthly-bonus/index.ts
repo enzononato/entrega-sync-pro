@@ -143,15 +143,23 @@ Deno.serve(async (req) => {
         if (!goal || goal.valor_bonificacao <= 0) continue;
 
         const key = `${user.id}|${indId}`;
-        const agg = aggMap.get(key);
 
         let valorAgregado: number;
         if (indId === TX_REPOSICAO_ID) {
-          // Sum for reposicao
-          valorAgregado = agg ? Math.round(agg.sum * 100) / 100 : 0;
+          // Sum total for reposicao
+          valorAgregado = Math.round((sumMap.get(key) || 0) * 100) / 100;
         } else {
-          // Average for TX_DEVOLUCAO and DISP_TEMPO
-          valorAgregado = agg && agg.count > 0 ? Math.round((agg.sum / agg.count) * 100) / 100 : 0;
+          // Average of daily averages for TX_DEVOLUCAO and DISP_TEMPO
+          const dayMap = dailyMap.get(key);
+          if (dayMap && dayMap.size > 0) {
+            let sumOfDailyAvgs = 0;
+            for (const [, day] of dayMap) {
+              sumOfDailyAvgs += day.sum / day.count;
+            }
+            valorAgregado = Math.round((sumOfDailyAvgs / dayMap.size) * 100) / 100;
+          } else {
+            valorAgregado = 0;
+          }
         }
 
         // For these indicators, lower is better (must be <= meta)
