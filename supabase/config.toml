@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.calculate-daily-indicators]
 verify_jwt = false
+
+[functions.calculate-monthly-bonus]
+verify_jwt = false
