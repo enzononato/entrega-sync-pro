@@ -85,11 +85,19 @@ export default function Dashboard() {
     return total;
   }, [metasAtivas, desempenhoMes, usuarios]);
 
-  // Desafio stats (período filtrado)
+  // Desafio stats (período filtrado): % das metas atingidas que também atingiram desafio
   const desafioStats = useMemo(() => {
     const withDesafio = desempenho.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu');
-    return { total: withDesafio.length, atingidos: atingidos.length };
+    const metasAtingidas = withDesafio.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta');
+    const desafiosAtingidos = metasAtingidas.filter(d => d.status_desafio === 'atingiu');
+    const percentual = metasAtingidas.length > 0 ? Math.round((desafiosAtingidos.length / metasAtingidas.length) * 100) : 0;
+
+    return {
+      totalComDesafio: withDesafio.length,
+      metasAtingidas: metasAtingidas.length,
+      desafiosAtingidos: desafiosAtingidos.length,
+      percentual,
+    };
   }, [desempenho]);
 
   const filteredUsers = useMemo(() => {
@@ -114,14 +122,14 @@ export default function Dashboard() {
     return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
   }, [planos, unidadeFilter, filteredUserIds]);
 
-  // Desafios mensais agregados por usuário + indicador
+  // Desafios mensais agregados: % das metas atingidas que também atingiram desafio
   const desafioStatsMes = useMemo(() => {
     const monthlyGoals = metasAtivas.filter(
       m => m.periodo_tipo === 'mensal' && Number(m.valor_desafio) > 0,
     );
 
     if (monthlyGoals.length === 0 || desempenhoMes.length === 0 || filteredUsers.length === 0) {
-      return { total: 0, atingidos: 0, bonus: 0 };
+      return { total: 0, metasAtingidas: 0, desafiosAtingidos: 0, bonus: 0, percentual: 0 };
     }
 
     const TX_REPOSICAO_ID = 'c4c40e3e-f23b-46ce-a576-885c610f2df7';
@@ -171,7 +179,8 @@ export default function Dashboard() {
 
     const indicatorIds = [...new Set(monthlyGoals.map(goal => goal.indicator_id))];
     let total = 0;
-    let atingidos = 0;
+    let metasAtingidas = 0;
+    let desafiosAtingidos = 0;
     let bonus = 0;
 
     for (const worker of filteredUsers) {
@@ -196,14 +205,20 @@ export default function Dashboard() {
         if (valorAgregado === null) continue;
 
         total += 1;
-        if (valorAgregado <= Number(goal.valor_desafio)) {
-          atingidos += 1;
+        const atingiuMeta = valorAgregado <= Number(goal.valor_meta);
+        const atingiuDesafio = atingiuMeta && valorAgregado <= Number(goal.valor_desafio);
+
+        if (atingiuMeta) metasAtingidas += 1;
+        if (atingiuDesafio) {
+          desafiosAtingidos += 1;
           bonus += Number(goal.valor_bonificacao_desafio) || 0;
         }
       }
     }
 
-    return { total, atingidos, bonus };
+    const percentual = metasAtingidas > 0 ? Math.round((desafiosAtingidos / metasAtingidas) * 100) : 0;
+
+    return { total, metasAtingidas, desafiosAtingidos, bonus, percentual };
   }, [metasAtivas, desempenhoMes, filteredUsers]);
 
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
