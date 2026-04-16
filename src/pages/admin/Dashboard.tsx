@@ -92,6 +92,28 @@ export default function Dashboard() {
     return { total: withDesafio.length, atingidos: atingidos.length };
   }, [desempenho]);
 
+  const filteredUsers = useMemo(() => {
+    let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
+    list = list.filter(u => !u.unidade_id || allowedUnitIds.has(u.unidade_id));
+    if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
+    if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
+    return list;
+  }, [usuarios, unidadeFilter, tipoFilter, allowedUnitIds]);
+
+  const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
+  const filteredDesempenho = desempenho;
+
+  const filteredIncentivos = useMemo(() => {
+    if (!unidadeFilter) return incentivos;
+    return incentivos.filter(i => filteredUserIds.has(i.user_id));
+  }, [incentivos, unidadeFilter, filteredUserIds]);
+
+  const filteredFeedbacks = feedbacks;
+  const filteredPlanos = useMemo(() => {
+    if (!unidadeFilter) return planos;
+    return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
+  }, [planos, unidadeFilter, filteredUserIds]);
+
   // Desafios mensais agregados por usuário + indicador
   const desafioStatsMes = useMemo(() => {
     const monthlyGoals = metasAtivas.filter(
@@ -130,7 +152,6 @@ export default function Dashboard() {
     }
 
     const matchesGoal = (goal: typeof monthlyGoals[number], worker: typeof filteredUsers[number]) => {
-      if (goal.indicator_id === undefined) return false;
       if (goal.user_id && goal.user_id !== worker.id) return false;
       if (goal.worker_type && goal.worker_type !== worker.worker_type) return false;
       if (goal.unidade_id && goal.unidade_id !== worker.unidade_id) return false;
@@ -148,13 +169,12 @@ export default function Dashboard() {
       return candidates[0];
     };
 
+    const indicatorIds = [...new Set(monthlyGoals.map(goal => goal.indicator_id))];
     let total = 0;
     let atingidos = 0;
     let bonus = 0;
 
     for (const worker of filteredUsers) {
-      const indicatorIds = [...new Set(monthlyGoals.map(goal => goal.indicator_id))];
-
       for (const indicatorId of indicatorIds) {
         const goal = getBestGoal(indicatorId, worker);
         if (!goal) continue;
@@ -163,16 +183,12 @@ export default function Dashboard() {
         let valorAgregado: number | null = null;
 
         if (indicatorId === TX_REPOSICAO_ID) {
-          if (sumMap.has(key)) {
-            valorAgregado = Math.round((sumMap.get(key) || 0) * 100) / 100;
-          }
+          if (sumMap.has(key)) valorAgregado = Math.round((sumMap.get(key) || 0) * 100) / 100;
         } else {
           const byDay = dailyMap.get(key);
           if (byDay && byDay.size > 0) {
             let sumOfDailyAvgs = 0;
-            for (const [, day] of byDay) {
-              sumOfDailyAvgs += day.sum / day.count;
-            }
+            for (const [, day] of byDay) sumOfDailyAvgs += day.sum / day.count;
             valorAgregado = Math.round((sumOfDailyAvgs / byDay.size) * 100) / 100;
           }
         }
@@ -189,28 +205,6 @@ export default function Dashboard() {
 
     return { total, atingidos, bonus };
   }, [metasAtivas, desempenhoMes, filteredUsers]);
-
-  const filteredUsers = useMemo(() => {
-    let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
-    list = list.filter(u => !u.unidade_id || allowedUnitIds.has(u.unidade_id));
-    if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
-    if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
-    return list;
-  }, [usuarios, unidadeFilter, tipoFilter, allowedUnitIds]);
-
-  const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
-  const filteredDesempenho = desempenho;
-
-  const filteredIncentivos = useMemo(() => {
-    if (!unidadeFilter) return incentivos;
-    return incentivos.filter(i => filteredUserIds.has(i.user_id));
-  }, [incentivos, unidadeFilter, filteredUserIds]);
-
-  const filteredFeedbacks = feedbacks;
-  const filteredPlanos = useMemo(() => {
-    if (!unidadeFilter) return planos;
-    return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
-  }, [planos, unidadeFilter, filteredUserIds]);
 
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
   const ajudantes = filteredUsers.filter(u => u.worker_type === 'ajudante').length;
