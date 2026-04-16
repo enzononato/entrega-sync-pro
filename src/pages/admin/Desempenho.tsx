@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { exportToCsv } from '@/lib/exportCsv';
+import { supabase } from '@/integrations/supabase/client';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/shared/ListPagination';
 import { format } from 'date-fns';
