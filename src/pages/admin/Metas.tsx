@@ -337,6 +337,25 @@ export default function Metas() {
                       </div>
                     )}
 
+                    {/* Challenge display */}
+                    {g.valor_desafio > 0 && (
+                      <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">🎯 Desafio:</span>
+                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                          {(() => {
+                            const codigo = (g.indicators?.codigo ?? '').toUpperCase();
+                            if (['TML','TR','TI','JL'].includes(codigo)) return formatMinutesHHMM(g.valor_desafio);
+                            if (g.valor_desafio > 200) return formatMinutesHHMM(g.valor_desafio);
+                            const unidade = g.indicators?.unidade_medida;
+                            if (unidade === 'R$') return `R$ ${g.valor_desafio.toFixed(2).replace('.', ',')}`;
+                            return `${g.valor_desafio}%`;
+                          })()}
+                        </span>
+                        <ArrowRight className="h-3 w-3 text-amber-500" />
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300">+R$ {g.valor_bonificacao_desafio.toFixed(2)}</span>
+                      </div>
+                    )}
+
                     {/* Details */}
                     <div className="space-y-1.5 text-xs text-muted-foreground">
                       {userName && (
