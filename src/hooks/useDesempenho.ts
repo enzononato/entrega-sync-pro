@@ -7,6 +7,7 @@ export interface DesempenhoRow {
   valor: number; meta: number | null; percentual_atingimento: number | null;
   status: string | null; origem_dado: string; created_at: string; updated_at: string;
   mapa_numero: string | null;
+  desafio: number | null; status_desafio: string | null;
   users: { nome: string; worker_type: string | null; matricula: string; unidade_id: string | null } | null;
   indicators: { nome: string; codigo: string } | null;
 }
