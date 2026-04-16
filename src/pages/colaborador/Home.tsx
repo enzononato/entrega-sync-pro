@@ -146,6 +146,13 @@ export default function ColaboradorHome() {
 
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
+
+  // Challenge stats
+  const desafioStats = useMemo(() => {
+    const withDesafio = kpis.filter(d => d.desafio != null && Number(d.desafio) > 0);
+    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu_desafio');
+    return { total: withDesafio.length, atingidos: atingidos.length };
+  }, [kpis]);
   const allOnTarget = kpis.length > 0 && badCount === 0;
   const overallPct = kpis.length > 0 ? Math.round((okCount / kpis.length) * 100) : 0;
   const acoesAbertas = planos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
