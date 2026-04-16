@@ -43,19 +43,21 @@ interface IndicatorResult {
   indicator_id: string;
   valor: number;
   meta: number;
+  desafio: number;
   percentual_atingimento: number;
   status: string;
+  status_desafio: string;
   code: string;
 }
 
 // Metas structure: code -> workerType -> value
 // workerType keys: "motorista", "ajudante", "default"
-type MetasMap = Record<string, Record<string, number>>;
+type MetasMap = Record<string, Record<string, { meta: number; desafio: number }>>;
 
-function getMetaForWorker(metas: MetasMap, code: string, workerType: string): number {
+function getMetaForWorker(metas: MetasMap, code: string, workerType: string): { meta: number; desafio: number } {
   const byCode = metas[code];
-  if (!byCode) return DEFAULT_METAS[code] ?? 0;
-  return byCode[workerType] ?? byCode["default"] ?? DEFAULT_METAS[code] ?? 0;
+  if (!byCode) return { meta: DEFAULT_METAS[code] ?? 0, desafio: 0 };
+  return byCode[workerType] ?? byCode["default"] ?? { meta: DEFAULT_METAS[code] ?? 0, desafio: 0 };
 }
 
 function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap): IndicatorResult[] {
@@ -84,7 +86,7 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
     // Skip motorista-only indicators for ajudantes
     if (isAjudante && MOTORISTA_ONLY.has(code)) return;
 
-    const meta = getMetaForWorker(metas, code, workerType);
+    const { meta, desafio } = getMetaForWorker(metas, code, workerType);
     let withinTarget: boolean;
     if (code === "TML") {
       withinTarget = hrSai !== null && hrSai <= LIMIT_TIME;
@@ -94,12 +96,16 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
       withinTarget = valor <= meta;
     }
 
+    const withinDesafio = desafio > 0 && withinTarget && valor <= desafio;
+
     results.push({
       indicator_id: INDICATOR_IDS[code],
       valor,
       meta,
+      desafio,
       percentual_atingimento: withinTarget ? 100 : 0,
       status: withinTarget ? "dentro_meta" : "abaixo_meta",
+      status_desafio: desafio > 0 ? (withinDesafio ? "atingiu" : "nao_atingiu") : "sem_desafio",
       code,
     });
   };
@@ -168,12 +174,12 @@ Deno.serve(async (req) => {
     const metas: MetasMap = {};
     // Initialize defaults
     for (const [code, val] of Object.entries(DEFAULT_METAS)) {
-      metas[code] = { default: val };
+      metas[code] = { default: { meta: val, desafio: 0 } };
     }
 
     const { data: goalsData } = await supabase
       .from("goals")
-      .select("valor_meta, worker_type, indicators(codigo)")
+      .select("valor_meta, valor_desafio, worker_type, indicators(codigo)")
       .eq("ativo", true);
 
     if (goalsData) {
@@ -181,10 +187,10 @@ Deno.serve(async (req) => {
         const code = (g as any).indicators?.codigo?.toUpperCase();
         if (!code || !INDICATOR_IDS[code]) continue;
         const wt = g.worker_type || "default";
-        if (!metas[code]) metas[code] = { default: DEFAULT_METAS[code] ?? 0 };
+        if (!metas[code]) metas[code] = { default: { meta: DEFAULT_METAS[code] ?? 0, desafio: 0 } };
         // Only set if not already set (first active goal wins)
         if (metas[code][wt] === undefined || wt !== "default") {
-          metas[code][wt] = g.valor_meta;
+          metas[code][wt] = { meta: g.valor_meta, desafio: Number((g as any).valor_desafio) || 0 };
         }
       }
       console.log("Loaded metas:", JSON.stringify(metas));
@@ -305,8 +311,10 @@ Deno.serve(async (req) => {
               data_referencia: date,
               valor: ind.valor,
               meta: ind.meta,
+              desafio: ind.desafio || null,
               percentual_atingimento: ind.percentual_atingimento,
               status: ind.status,
+              status_desafio: ind.status_desafio !== "sem_desafio" ? ind.status_desafio : null,
               origem_dado: "mapa_historico",
               mapa_numero: row.mapa,
             });

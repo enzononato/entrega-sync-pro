@@ -50,7 +50,9 @@ function getScope(g: GoalWithRelations) {
 
 const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
-  user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
+  user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0,
+  valor_desafio: 0, valor_bonificacao_desafio: 0,
+  periodo_tipo: 'diario',
   vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
   formato_meta: 'tempo' as 'tempo' | 'porcentagem' | 'dinheiro',
 };
@@ -118,6 +120,9 @@ export default function Metas() {
   const [metaTimeStr, setMetaTimeStr] = useState('');
   const [metaValorStr, setMetaValorStr] = useState('');
   const [bonusStr, setBonusStr] = useState('');
+  const [desafioTimeStr, setDesafioTimeStr] = useState('');
+  const [desafioValorStr, setDesafioValorStr] = useState('');
+  const [desafioBonusStr, setDesafioBonusStr] = useState('');
 
   // KPIs
   const { data: allMetas = [] } = useMetas({});
@@ -137,20 +142,25 @@ export default function Metas() {
   }, [metas, activeTab]);
   const pg = usePagination(filteredMetas);
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setMetaValorStr(''); setBonusStr(''); setFormTab('tipo'); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setMetaValorStr(''); setBonusStr(''); setDesafioTimeStr(''); setDesafioValorStr(''); setDesafioBonusStr(''); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
     const fmt = detectFormato(g.valor_meta, g.indicators?.codigo, g.indicators?.unidade_medida);
     setEditing(g);
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
       worker_type: g.worker_type ?? '', user_id: g.user_id ?? '',
-      valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0, periodo_tipo: g.periodo_tipo,
+      valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0,
+      valor_desafio: g.valor_desafio ?? 0, valor_bonificacao_desafio: g.valor_bonificacao_desafio ?? 0,
+      periodo_tipo: g.periodo_tipo,
       vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
       formato_meta: fmt,
     });
     setMetaTimeStr(fmt === 'tempo' && g.valor_meta ? minutesToHHMM(g.valor_meta) : '');
     setMetaValorStr(fmt !== 'tempo' && g.valor_meta ? String(g.valor_meta).replace('.', ',') : '');
     setBonusStr(g.valor_bonificacao ? String(g.valor_bonificacao).replace('.', ',') : '');
+    setDesafioTimeStr(fmt === 'tempo' && g.valor_desafio ? minutesToHHMM(g.valor_desafio) : '');
+    setDesafioValorStr(fmt !== 'tempo' && g.valor_desafio ? String(g.valor_desafio).replace('.', ',') : '');
+    setDesafioBonusStr(g.valor_bonificacao_desafio ? String(g.valor_bonificacao_desafio).replace('.', ',') : '');
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
   };
@@ -164,6 +174,8 @@ export default function Metas() {
       user_id: isIndividual ? (form.user_id || null) : null,
       valor_meta: form.valor_meta,
       valor_bonificacao: form.valor_bonificacao,
+      valor_desafio: form.valor_desafio,
+      valor_bonificacao_desafio: form.valor_bonificacao_desafio,
       periodo_tipo: form.periodo_tipo,
       vigencia_inicio: form.vigencia_inicio,
       vigencia_fim: null,
@@ -322,6 +334,25 @@ export default function Metas() {
                       <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
                         <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">💰 Bonificação:</span>
                         <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">R$ {g.valor_bonificacao.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {/* Challenge display */}
+                    {g.valor_desafio > 0 && (
+                      <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">🎯 Desafio:</span>
+                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                          {(() => {
+                            const codigo = (g.indicators?.codigo ?? '').toUpperCase();
+                            if (['TML','TR','TI','JL'].includes(codigo)) return formatMinutesHHMM(g.valor_desafio);
+                            if (g.valor_desafio > 200) return formatMinutesHHMM(g.valor_desafio);
+                            const unidade = g.indicators?.unidade_medida;
+                            if (unidade === 'R$') return `R$ ${g.valor_desafio.toFixed(2).replace('.', ',')}`;
+                            return `${g.valor_desafio}%`;
+                          })()}
+                        </span>
+                        <ArrowRight className="h-3 w-3 text-amber-500" />
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300">+R$ {g.valor_bonificacao_desafio.toFixed(2)}</span>
                       </div>
                     )}
 
@@ -510,6 +541,62 @@ export default function Metas() {
                         setBonusStr(v);
                         const num = parseFloat(v.replace(',', '.'));
                         setForm(f => ({ ...f, valor_bonificacao: isNaN(num) ? 0 : num }));
+                      }}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                {/* Desafio fields */}
+                <Separator />
+                <p className="text-xs font-semibold text-amber-600 flex items-center gap-1.5">🎯 Desafio (opcional)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Valor do Desafio</Label>
+                    {form.formato_meta === 'tempo' ? (
+                      <Input
+                        type="text"
+                        placeholder="HH:MM (ex: 04:00)"
+                        value={desafioTimeStr}
+                        onChange={e => {
+                          let v = e.target.value.replace(/[^0-9]/g, '');
+                          if (v.length > 4) v = v.slice(0, 4);
+                          let display = v;
+                          if (v.length > 2) display = v.slice(0, 2) + ':' + v.slice(2);
+                          setDesafioTimeStr(display);
+                          const mins = parseHHMM(display);
+                          setForm(f => ({ ...f, valor_desafio: mins }));
+                        }}
+                        className="h-9"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 3,0"
+                        value={desafioValorStr}
+                        onChange={e => {
+                          const v = e.target.value.replace(/[^0-9,]/g, '');
+                          setDesafioValorStr(v);
+                          const num = parseFloat(v.replace(',', '.'));
+                          setForm(f => ({ ...f, valor_desafio: isNaN(num) ? 0 : num }));
+                        }}
+                        className="h-9"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Bonificação Desafio (R$)</Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 10,00"
+                      value={desafioBonusStr}
+                      onChange={e => {
+                        const v = e.target.value.replace(/[^0-9,]/g, '');
+                        setDesafioBonusStr(v);
+                        const num = parseFloat(v.replace(',', '.'));
+                        setForm(f => ({ ...f, valor_bonificacao_desafio: isNaN(num) ? 0 : num }));
                       }}
                       className="h-9"
                     />

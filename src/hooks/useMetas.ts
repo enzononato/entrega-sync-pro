@@ -5,7 +5,9 @@ import { useToast } from '@/hooks/use-toast';
 export interface GoalWithRelations {
   id: string; indicator_id: string; unidade_id: string | null;
   worker_type: string | null; user_id: string | null;
-  valor_meta: number; valor_bonificacao: number; periodo_tipo: string; vigencia_inicio: string;
+  valor_meta: number; valor_bonificacao: number;
+  valor_desafio: number; valor_bonificacao_desafio: number;
+  periodo_tipo: string; vigencia_inicio: string;
   vigencia_fim: string | null; ativo: boolean; created_at: string;
   indicators: { nome: string; codigo: string; unidade_medida?: string } | null;
   units: { nome: string } | null;
@@ -36,7 +38,7 @@ export function useMetas(filters?: { indicator_id?: string; worker_type?: string
 export function useCreateMeta() {
   const qc = useQueryClient(); const { toast } = useToast();
   return useMutation({
-    mutationFn: async (goal: { indicator_id: string; unidade_id?: string | null; worker_type?: string | null; user_id?: string | null; valor_meta: number; valor_bonificacao?: number; periodo_tipo: string; vigencia_inicio: string; vigencia_fim?: string | null; ativo: boolean }) => {
+    mutationFn: async (goal: { indicator_id: string; unidade_id?: string | null; worker_type?: string | null; user_id?: string | null; valor_meta: number; valor_bonificacao?: number; valor_desafio?: number; valor_bonificacao_desafio?: number; periodo_tipo: string; vigencia_inicio: string; vigencia_fim?: string | null; ativo: boolean }) => {
       const { data, error } = await supabase.from('goals').insert(goal).select().single();
       if (error) throw error; return data;
     },
@@ -48,7 +50,7 @@ export function useCreateMeta() {
 export function useUpdateMeta() {
   const qc = useQueryClient(); const { toast } = useToast();
   return useMutation({
-    mutationFn: async ({ id, ...goal }: { id: string; indicator_id?: string; unidade_id?: string | null; worker_type?: string | null; user_id?: string | null; valor_meta?: number; valor_bonificacao?: number; periodo_tipo?: string; vigencia_inicio?: string; vigencia_fim?: string | null; ativo?: boolean }) => {
+    mutationFn: async ({ id, ...goal }: { id: string; indicator_id?: string; unidade_id?: string | null; worker_type?: string | null; user_id?: string | null; valor_meta?: number; valor_bonificacao?: number; valor_desafio?: number; valor_bonificacao_desafio?: number; periodo_tipo?: string; vigencia_inicio?: string; vigencia_fim?: string | null; ativo?: boolean }) => {
       const { error } = await supabase.from('goals').update(goal).eq('id', id);
       if (error) throw error;
     },
