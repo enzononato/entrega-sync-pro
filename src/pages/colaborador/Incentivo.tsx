@@ -12,9 +12,11 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   DollarSign, Loader2, TrendingUp, TrendingDown, Target,
   AlertTriangle, Info, ChevronDown, ChevronUp, Sparkles,
-  CheckCircle2, XCircle, Minus,
+  CheckCircle2, XCircle, Minus, Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
