@@ -138,7 +138,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       const batchSize = 200;
       for (let i = 0; i < enriched.length; i += batchSize) {
         const batch = enriched.slice(i, i + batchSize);
-        const { error } = await supabase.from('mapa_historico').insert(batch as any);
+        const { error } = await supabase.from('mapa_historico').upsert(batch as any, { onConflict: 'mapa,data_operacao' });
         if (error) throw error;
       }
 
