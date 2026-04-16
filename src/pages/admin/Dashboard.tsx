@@ -85,11 +85,19 @@ export default function Dashboard() {
     return total;
   }, [metasAtivas, desempenhoMes, usuarios]);
 
-  // Desafio stats (período filtrado)
+  // Desafio stats (período filtrado): % das metas atingidas que também atingiram desafio
   const desafioStats = useMemo(() => {
     const withDesafio = desempenho.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu');
-    return { total: withDesafio.length, atingidos: atingidos.length };
+    const metasAtingidas = withDesafio.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta');
+    const desafiosAtingidos = metasAtingidas.filter(d => d.status_desafio === 'atingiu');
+    const percentual = metasAtingidas.length > 0 ? Math.round((desafiosAtingidos.length / metasAtingidas.length) * 100) : 0;
+
+    return {
+      totalComDesafio: withDesafio.length,
+      metasAtingidas: metasAtingidas.length,
+      desafiosAtingidos: desafiosAtingidos.length,
+      percentual,
+    };
   }, [desempenho]);
 
   const filteredUsers = useMemo(() => {
@@ -114,14 +122,14 @@ export default function Dashboard() {
     return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
   }, [planos, unidadeFilter, filteredUserIds]);
 
-  // Desafios mensais agregados por usuário + indicador
+  // Desafios mensais agregados: % das metas atingidas que também atingiram desafio
   const desafioStatsMes = useMemo(() => {
     const monthlyGoals = metasAtivas.filter(
       m => m.periodo_tipo === 'mensal' && Number(m.valor_desafio) > 0,
     );
 
     if (monthlyGoals.length === 0 || desempenhoMes.length === 0 || filteredUsers.length === 0) {
-      return { total: 0, atingidos: 0, bonus: 0 };
+      return { total: 0, metasAtingidas: 0, desafiosAtingidos: 0, bonus: 0, percentual: 0 };
     }
 
     const TX_REPOSICAO_ID = 'c4c40e3e-f23b-46ce-a576-885c610f2df7';
@@ -171,7 +179,8 @@ export default function Dashboard() {
 
     const indicatorIds = [...new Set(monthlyGoals.map(goal => goal.indicator_id))];
     let total = 0;
-    let atingidos = 0;
+    let metasAtingidas = 0;
+    let desafiosAtingidos = 0;
     let bonus = 0;
 
     for (const worker of filteredUsers) {
@@ -196,14 +205,20 @@ export default function Dashboard() {
         if (valorAgregado === null) continue;
 
         total += 1;
-        if (valorAgregado <= Number(goal.valor_desafio)) {
-          atingidos += 1;
+        const atingiuMeta = valorAgregado <= Number(goal.valor_meta);
+        const atingiuDesafio = atingiuMeta && valorAgregado <= Number(goal.valor_desafio);
+
+        if (atingiuMeta) metasAtingidas += 1;
+        if (atingiuDesafio) {
+          desafiosAtingidos += 1;
           bonus += Number(goal.valor_bonificacao_desafio) || 0;
         }
       }
     }
 
-    return { total, atingidos, bonus };
+    const percentual = metasAtingidas > 0 ? Math.round((desafiosAtingidos / metasAtingidas) * 100) : 0;
+
+    return { total, metasAtingidas, desafiosAtingidos, bonus, percentual };
   }, [metasAtivas, desempenhoMes, filteredUsers]);
 
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
@@ -276,7 +291,7 @@ export default function Dashboard() {
   };
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
-  const desafioPct = desafioStats.total > 0 ? Math.round((desafioStats.atingidos / desafioStats.total) * 100) : 0;
+  const desafioPct = desafioStats.percentual;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -312,7 +327,7 @@ export default function Dashboard() {
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
           <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} />
           <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusMes)} label="Bônus Mês" isSmall />
-          <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.atingidos}/${desafioStatsMes.total}`} label="Desafios Mês" sub={desafioStatsMes.bonus > 0 ? `+${fmtBRL(desafioStatsMes.bonus)}` : undefined} />
+          <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
       </div>
 
@@ -369,33 +384,33 @@ export default function Dashboard() {
       </div>
 
       {/* ── Desafio Banner ───────────────────────────── */}
-      {desafioStats.total > 0 && (
+      {desafioStats.totalComDesafio > 0 && (
         <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 via-card to-card p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
               <span className="text-lg">🎯</span>
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold text-foreground">Desafios do Período</h3>
-              <p className="text-[11px] text-muted-foreground">Indicadores com meta desafio configurada</p>
+              <h3 className="text-sm font-bold text-foreground">Desafio nas Metas Atingidas</h3>
+              <p className="text-[11px] text-muted-foreground">Percentual das metas batidas que também bateram o desafio</p>
             </div>
             <div className="text-right">
               <p className="text-2xl font-extrabold text-foreground">{desafioPct}%</p>
-              <p className="text-[10px] text-muted-foreground">atingimento</p>
+              <p className="text-[10px] text-muted-foreground">conversão para desafio</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-muted/50 p-3 text-center">
-              <p className="text-xl font-extrabold text-foreground">{desafioStats.total}</p>
-              <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Total</p>
+              <p className="text-xl font-extrabold text-foreground">{desafioStats.totalComDesafio}</p>
+              <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Com Desafio</p>
+            </div>
+            <div className="rounded-xl bg-primary/10 p-3 text-center">
+              <p className="text-xl font-extrabold text-primary">{desafioStats.metasAtingidas}</p>
+              <p className="text-[9px] text-primary font-medium uppercase tracking-wider mt-0.5">Metas Batidas</p>
             </div>
             <div className="rounded-xl bg-success/10 p-3 text-center">
-              <p className="text-xl font-extrabold text-success">{desafioStats.atingidos}</p>
-              <p className="text-[9px] text-success font-medium uppercase tracking-wider mt-0.5">Atingidos</p>
-            </div>
-            <div className="rounded-xl bg-destructive/10 p-3 text-center">
-              <p className="text-xl font-extrabold text-destructive">{desafioStats.total - desafioStats.atingidos}</p>
-              <p className="text-[9px] text-destructive font-medium uppercase tracking-wider mt-0.5">Não Atingidos</p>
+              <p className="text-xl font-extrabold text-success">{desafioStats.desafiosAtingidos}</p>
+              <p className="text-[9px] text-success font-medium uppercase tracking-wider mt-0.5">Bateram Desafio</p>
             </div>
           </div>
           <div className="mt-3">
