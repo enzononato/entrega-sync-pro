@@ -1,47 +1,36 @@
 
 
-# Adicionar "Desafio" às Metas
+## Problem
 
-## Resumo
-Adicionar dois novos campos na tabela `goals`: `valor_desafio` (meta mais apertada) e `valor_bonificacao_desafio` (R$ extra, configurável por indicador e perfil). Se o colaborador bater o desafio, ganha a bonificação normal + a bonificação do desafio.
+In `useRanking.ts`, `bonusPotencial` and `bonusGanho` are accumulated per daily record (per map). If a user has 20 maps in a month and the bonus is R$50, the ranking shows R$1,000 instead of R$50. The fix must match the Dashboard logic: aggregate all records by user+indicator for the month, then award the bonus once per indicator if the monthly aggregate meets the goal.
 
-## Mudanças
+## Plan
 
-### 1. Migration: novos campos em `goals`
-```sql
-ALTER TABLE public.goals
-  ADD COLUMN valor_desafio numeric NOT NULL DEFAULT 0,
-  ADD COLUMN valor_bonificacao_desafio numeric NOT NULL DEFAULT 0;
-```
+### 1. Refactor bonus calculation in `useRanking.ts`
 
-### 2. UI de Metas (`src/pages/admin/Metas.tsx`)
-- No formulário de criação/edição, adicionar dois campos extras abaixo da bonificação:
-  - **Desafio (valor)**: mesmo formato da meta (tempo HH:MM ou porcentagem), representando o valor mais exigente
-  - **Bonificação Desafio (R$)**: valor monetário extra
-- No card de listagem, mostrar o desafio quando configurado (ex: "🎯 Desafio: 04:00 → +R$ 10,00")
-- Adicionar estados `desafioTimeStr`, `desafioValorStr`, `desafioBonusStr` no formulário
+**After** building the `byIndicator` map (which already aggregates values per user per indicator), compute bonuses in a second pass:
 
-### 3. Hook `useMetas` (`src/hooks/useMetas.ts`)
-- Adicionar `valor_desafio` e `valor_bonificacao_desafio` nos tipos e mutations
+- For each user, iterate over their `byIndicator` entries
+- Calculate monthly aggregate: **sum** for `TX_REPOSICAO`, **average** for all others
+- Look up the goal's `valor_meta`, `valor_desafio`, `valor_bonificacao`, `valor_bonificacao_desafio` from the goals query
+- Award `bonusPotencial` = sum of all `valor_bonificacao` (+ `valor_bonificacao_desafio` where applicable) across indicators that have a bonus configured
+- Award `bonusGanho` only if the monthly aggregate <= meta (and challenge bonus if <= desafio)
 
-### 4. Edge Function `calculate-monthly-bonus`
-- Para cada indicador mensal, após verificar se bateu a meta normal, verificar também se bateu o desafio (valor_desafio)
-- Se bateu o desafio: bonus = `valor_bonificacao` + `valor_bonificacao_desafio`
-- Incluir info do desafio no `detalhes_json`
+**Changes needed:**
+- Expand the goals query to also fetch `valor_meta`, `valor_desafio`, `valor_bonificacao_desafio` and indicator `codigo`
+- Remove the per-row bonus accumulation (lines 119-121)
+- Add a second loop after the data grouping that calculates bonus from aggregated indicator data
+- Use the same `SUM_CODES = ['TX_REPOSICAO']` pattern as Dashboard
 
-### 5. Edge Function `calculate-daily-indicators`
-- Para indicadores diários, incluir a lógica de desafio no cálculo diário de incentivos
-- Registrar `status_desafio` e valor extra no `user_indicator_daily`
+### 2. Also fix `onTarget` status recalculation
 
-### 6. UI do Colaborador (`Incentivo.tsx`)
-- Mostrar se o colaborador atingiu o desafio além da meta, com o valor extra ganho
+Currently `onTarget` uses the snapshot `status` from daily records. To stay consistent with the "goals table is source of truth" rule, recalculate status from aggregated values using current goal targets — same as Dashboard does.
 
-### 7. Memória
-- Atualizar `mem://logic/goals-and-bonus-management` com a regra do desafio
+**Technical details:**
+- `bonusPotencial`: sum of `valor_bonificacao` (+ `valor_bonificacao_desafio`) for all indicators that have a bonus, counted once per indicator per user
+- `bonusGanho`: same but only where monthly aggregate meets the target
+- Aggregation: group records by `(user_id, indicator_id)`, compute sum of `valor` and count, then derive aggregate
 
-## Escopo
-- 1 migration (2 colunas)
-- 4 arquivos editados: `Metas.tsx`, `useMetas.ts`, `calculate-monthly-bonus/index.ts`, `Incentivo.tsx`
-- 1 arquivo possivelmente editado: `calculate-daily-indicators/index.ts`
-- 1 memory update
+### Files to modify
+- `src/hooks/useRanking.ts` — refactor bonus logic
 
