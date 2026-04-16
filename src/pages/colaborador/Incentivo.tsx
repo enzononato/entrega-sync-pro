@@ -49,7 +49,7 @@ export default function IncentivoColaborador() {
       if (!data) return null;
       const detalhes = data.detalhes_json as any;
       if (detalhes?.tipo !== 'bonus_mensal') return null;
-      return data as { valor_estimado: number; detalhes_json: { tipo: string; mes: string; indicadores: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number }[] } };
+      return data as { valor_estimado: number; detalhes_json: { tipo: string; mes: string; indicadores: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number; desafio?: number; atingiu_desafio?: boolean; bonus_desafio?: number }[] } };
     },
     enabled: !!user?.id,
   });
@@ -84,13 +84,18 @@ export default function IncentivoColaborador() {
       const d = desempenho.find(x => x.indicator_id === m.indicator_id);
       const atingiu = d?.status === 'dentro_meta' || d?.status === 'acima_meta';
       const valorGerado = atingiu ? m.valor_bonificacao : 0;
+      const atingiuDesafio = atingiu && m.valor_desafio > 0 && (d?.valor ?? Infinity) <= m.valor_desafio;
+      const bonusDesafio = atingiuDesafio ? m.valor_bonificacao_desafio : 0;
       return {
         indicador: m.indicators?.nome ?? '',
         codigo: m.indicators?.codigo ?? '',
         valor: d?.valor ?? 0,
         atingiu,
+        atingiuDesafio,
+        bonusDesafio,
         status: d?.status ?? 'abaixo_meta',
-        valorGerado,
+        valorGerado: valorGerado + bonusDesafio,
+        desafio: m.valor_desafio,
       };
     });
   }, [metasRelevantes, desempenho]);
@@ -256,6 +261,11 @@ export default function IncentivoColaborador() {
                           )}>
                             {b.atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
                           </span>
+                          {b.atingiuDesafio && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                              🎯 Desafio +{fmtBRL(b.bonusDesafio)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
