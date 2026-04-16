@@ -70,12 +70,12 @@ Deno.serve(async (req) => {
 
     // ── 3. Fetch all daily indicator data for the month for these indicators ──
     const PAGE = 1000;
-    let allRows: { user_id: string; indicator_id: string; valor: number }[] = [];
+    let allRows: { user_id: string; indicator_id: string; valor: number; data_referencia: string }[] = [];
     let offset = 0;
     while (true) {
       const { data: chunk, error } = await supabase
         .from("user_indicator_daily")
-        .select("user_id, indicator_id, valor")
+        .select("user_id, indicator_id, valor, data_referencia")
         .in("indicator_id", MONTHLY_INDICATORS)
         .gte("data_referencia", startDate)
         .lte("data_referencia", endDate)
@@ -91,17 +91,34 @@ Deno.serve(async (req) => {
     console.log(`Fetched ${allRows.length} daily indicator rows for month`);
 
     // ── 4. Aggregate per user per indicator ──
-    // TX_DEVOLUCAO & DISP_TEMPO: average of daily values
-    // TX_REPOSICAO: sum of daily values
-    const aggMap = new Map<string, { sum: number; count: number }>();
+    // TX_DEVOLUCAO & DISP_TEMPO: average of daily averages (group by day first)
+    // TX_REPOSICAO: sum of all values
+    // Structure: Map<"userId|indicatorId", Map<"date", { sum, count }>>
+    const dailyMap = new Map<string, Map<string, { sum: number; count: number }>>();
+    // For TX_REPOSICAO we just need total sum
+    const sumMap = new Map<string, number>();
+
     for (const row of allRows) {
       const key = `${row.user_id}|${row.indicator_id}`;
-      const entry = aggMap.get(key);
-      if (entry) {
-        entry.sum += Number(row.valor) || 0;
-        entry.count += 1;
+      const val = Number(row.valor) || 0;
+
+      if (row.indicator_id === TX_REPOSICAO_ID) {
+        sumMap.set(key, (sumMap.get(key) || 0) + val);
       } else {
-        aggMap.set(key, { sum: Number(row.valor) || 0, count: 1 });
+        // Group by day for averaging
+        let dayMap = dailyMap.get(key);
+        if (!dayMap) {
+          dayMap = new Map();
+          dailyMap.set(key, dayMap);
+        }
+        const dateKey = (row as any).data_referencia as string;
+        const dayEntry = dayMap.get(dateKey);
+        if (dayEntry) {
+          dayEntry.sum += val;
+          dayEntry.count += 1;
+        } else {
+          dayMap.set(dateKey, { sum: val, count: 1 });
+        }
       }
     }
 
