@@ -384,33 +384,33 @@ export default function Dashboard() {
       </div>
 
       {/* ── Desafio Banner ───────────────────────────── */}
-      {desafioStats.total > 0 && (
+      {desafioStats.totalComDesafio > 0 && (
         <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 via-card to-card p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
               <span className="text-lg">🎯</span>
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold text-foreground">Desafios do Período</h3>
-              <p className="text-[11px] text-muted-foreground">Indicadores com meta desafio configurada</p>
+              <h3 className="text-sm font-bold text-foreground">Desafio nas Metas Atingidas</h3>
+              <p className="text-[11px] text-muted-foreground">Percentual das metas batidas que também bateram o desafio</p>
             </div>
             <div className="text-right">
               <p className="text-2xl font-extrabold text-foreground">{desafioPct}%</p>
-              <p className="text-[10px] text-muted-foreground">atingimento</p>
+              <p className="text-[10px] text-muted-foreground">conversão para desafio</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-muted/50 p-3 text-center">
-              <p className="text-xl font-extrabold text-foreground">{desafioStats.total}</p>
-              <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Total</p>
+              <p className="text-xl font-extrabold text-foreground">{desafioStats.totalComDesafio}</p>
+              <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Com Desafio</p>
+            </div>
+            <div className="rounded-xl bg-primary/10 p-3 text-center">
+              <p className="text-xl font-extrabold text-primary">{desafioStats.metasAtingidas}</p>
+              <p className="text-[9px] text-primary font-medium uppercase tracking-wider mt-0.5">Metas Batidas</p>
             </div>
             <div className="rounded-xl bg-success/10 p-3 text-center">
-              <p className="text-xl font-extrabold text-success">{desafioStats.atingidos}</p>
-              <p className="text-[9px] text-success font-medium uppercase tracking-wider mt-0.5">Atingidos</p>
-            </div>
-            <div className="rounded-xl bg-destructive/10 p-3 text-center">
-              <p className="text-xl font-extrabold text-destructive">{desafioStats.total - desafioStats.atingidos}</p>
-              <p className="text-[9px] text-destructive font-medium uppercase tracking-wider mt-0.5">Não Atingidos</p>
+              <p className="text-xl font-extrabold text-success">{desafioStats.desafiosAtingidos}</p>
+              <p className="text-[9px] text-success font-medium uppercase tracking-wider mt-0.5">Bateram Desafio</p>
             </div>
           </div>
           <div className="mt-3">
