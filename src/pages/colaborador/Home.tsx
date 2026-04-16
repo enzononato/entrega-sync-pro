@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
+import { useMetas } from '@/hooks/useMetas';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { useCausaRaizPorColaborador, type CausaRaizRow } from '@/hooks/useCausaRaiz';
