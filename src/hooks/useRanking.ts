@@ -125,32 +125,24 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         if (isOnTarget) ind.onTarget++;
       }
 
-      // Second pass: compute bonus and onTarget from aggregated data
+      // Second pass: compute bonus from aggregated data (onTarget stays original)
       const result: RankingEntry[] = [];
       for (const [user_id, e] of map) {
         let bonusPotencial = 0;
         let bonusGanho = 0;
-        let onTargetCount = 0;
-        let totalIndicators = 0;
         const breakdown: IndicatorBreakdown[] = [];
         let bestPct = -1, worstPct = Infinity;
         let bestName: string | null = null, worstName: string | null = null;
-        const allPcts: number[] = [];
 
         for (const [ind_id, ind] of e.byIndicator) {
-          totalIndicators += ind.count;
           const indAvgPct = ind.pcts.reduce((a, b) => a + b, 0) / ind.pcts.length;
           const avgValor = ind.valores.reduce((a, b) => a + b, 0) / ind.valores.length;
           const avgMeta = ind.metas.reduce((a, b) => a + b, 0) / ind.metas.length;
-          allPcts.push(...ind.pcts);
 
-          // Monthly aggregate for bonus: sum for TX_REPOSICAO, average for others
+          // Monthly aggregate for bonus only: sum for TX_REPOSICAO, average for others
           const valorAgregado = SUM_CODES.has(ind.codigo) ? ind.sum : ind.sum / ind.count;
 
-          // Find goal to determine target
           const goal = findGoal(ind_id, user_id, e.worker_type);
-          let indOnTarget = 0;
-
           if (goal) {
             const metaVal = Number(goal.valor_meta);
             const bonif = Number(goal.valor_bonificacao);
@@ -162,15 +154,12 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             }
 
             if (metaVal > 0 && valorAgregado <= metaVal) {
-              indOnTarget = 1;
               if (bonif > 0) bonusGanho += bonif;
               if (desafioVal > 0 && valorAgregado <= desafioVal && bonifDesafio > 0) {
                 bonusGanho += bonifDesafio;
               }
             }
           }
-
-          onTargetCount += indOnTarget;
 
           breakdown.push({
             indicator_id: ind_id,
@@ -180,7 +169,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
             avg_valor: Math.round(avgValor * 10) / 10,
             avg_meta: Math.round(avgMeta * 10) / 10,
             count: ind.count,
-            on_target: indOnTarget,
+            on_target: ind.onTarget,
           });
 
           if (indAvgPct > bestPct) { bestPct = indAvgPct; bestName = ind.nome; }
@@ -188,7 +177,7 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
         }
 
         breakdown.sort((a, b) => b.avg_pct - a.avg_pct);
-        const avg = allPcts.length > 0 ? allPcts.reduce((a, b) => a + b, 0) / allPcts.length : 0;
+        const avg = e.pcts.length > 0 ? e.pcts.reduce((a, b) => a + b, 0) / e.pcts.length : 0;
 
         result.push({
           user_id,
@@ -196,9 +185,9 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
           worker_type: e.worker_type,
           unidade_nome: e.unidade_nome,
           avatar_url: e.avatar_url,
-          total_indicators: e.byIndicator.size,
+          total_indicators: e.pcts.length,
           avg_atingimento: Math.round(avg * 10) / 10,
-          on_target_count: onTargetCount,
+          on_target_count: e.onTarget,
           best_indicator: bestName,
           worst_indicator: worstName,
           indicators_breakdown: breakdown,
