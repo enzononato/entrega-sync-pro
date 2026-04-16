@@ -284,7 +284,8 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       // Auto-calculate all indicators (includes reposição)
       setProgress('Recalculando indicadores...');
       try {
-        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: {} });
+        const uniqueDates = [...new Set(rows.map(r => r.data_solicitacao).filter(Boolean))];
+        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: { data_referencia: uniqueDates } });
         if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
         else toast.success('Indicadores recalculados automaticamente!');
       } catch (e) {
