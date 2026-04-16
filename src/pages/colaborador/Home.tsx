@@ -421,34 +421,39 @@ export default function ColaboradorHome() {
                                     🎯 {d.status_desafio === 'atingiu_desafio' ? 'Desafio ✓' : 'Desafio ✗'}
                                   </span>
                                 )}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setViewCausa(existingCausa);
-                                        }}
-                                        className="h-7 px-2 rounded-lg bg-success/10 text-success text-[10px] font-bold flex items-center gap-1 hover:bg-success/20 transition-colors"
-                                      >
-                                        <CheckCircle className="h-3 w-3" />
-                                        Reportado
-                                      </button>
-                                    );
-                                  }
-                                  return (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setReportTarget({
-                                          indicatorId: d.indicator_id,
-                                          indicatorNome: d.indicators?.nome ?? '',
-                                          dataReferencia: d.data_referencia,
-                                        });
-                                      }}
-                                      className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
-                                    >
-                                      <AlertTriangle className="h-3 w-3" />
-                                      Reportar
-                                    </button>
-                                  );
-                                })()}
+                                {!atingiu && d.indicator_id && (() => {
+                                   const existingCausa = causaLookup.get(`${d.indicator_id}|${d.data_referencia}`);
+                                   if (existingCausa) {
+                                     return (
+                                       <button
+                                         onClick={(e) => {
+                                           e.stopPropagation();
+                                           setViewCausa(existingCausa);
+                                         }}
+                                         className="h-7 px-2 rounded-lg bg-success/10 text-success text-[10px] font-bold flex items-center gap-1 hover:bg-success/20 transition-colors"
+                                       >
+                                         <CheckCircle className="h-3 w-3" />
+                                         Reportado
+                                       </button>
+                                     );
+                                   }
+                                   return (
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         setReportTarget({
+                                           indicatorId: d.indicator_id,
+                                           indicatorNome: d.indicators?.nome ?? '',
+                                           dataReferencia: d.data_referencia,
+                                         });
+                                       }}
+                                       className="h-7 px-2 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold flex items-center gap-1 hover:bg-destructive/20 transition-colors"
+                                     >
+                                       <AlertTriangle className="h-3 w-3" />
+                                       Reportar
+                                     </button>
+                                   );
+                                 })()}
                               </div>
                             </div>
                           </div>
