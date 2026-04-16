@@ -138,13 +138,32 @@ export default function ColaboradorHome() {
   }, [causasRaiz]);
 
 
-  const kpis = useMemo(() => desempenho.filter(d => {
-    if (!user?.worker_type || !d.indicators) return true;
-    const cat = d.indicators.codigo?.toLowerCase() ?? '';
-    if (user.worker_type === 'motorista' && cat.includes('refugo')) return false;
-    if (user.worker_type === 'ajudante' && cat.includes('repos')) return false;
-    return true;
-  }), [desempenho, user?.worker_type]);
+  const kpis = useMemo(() => {
+    const wt = user?.worker_type ?? 'motorista';
+    return desempenho.filter(d => {
+      if (!user?.worker_type || !d.indicators) return true;
+      const cat = d.indicators.codigo?.toLowerCase() ?? '';
+      if (user.worker_type === 'motorista' && cat.includes('refugo')) return false;
+      if (user.worker_type === 'ajudante' && cat.includes('repos')) return false;
+      return true;
+    }).map(d => {
+      const code = d.indicators?.codigo?.toUpperCase();
+      if (code) {
+        const goalConfig = getMetaConfig(code, wt);
+        if (goalConfig.meta > 0) {
+          d.meta = goalConfig.meta;
+          d.status = d.valor <= goalConfig.meta ? 'dentro_meta' : 'abaixo_meta';
+        }
+        d.desafio = goalConfig.desafio;
+        if (goalConfig.desafio > 0) {
+          d.status_desafio = d.valor <= goalConfig.desafio ? 'atingiu' : 'nao_atingiu';
+        } else {
+          d.status_desafio = null;
+        }
+      }
+      return d;
+    });
+  }, [desempenho, user?.worker_type, getMetaConfig]);
 
   // Group by mapa
   const groupedByMapa = useMemo(() => {
