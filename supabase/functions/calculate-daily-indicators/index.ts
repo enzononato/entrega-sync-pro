@@ -107,7 +107,7 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
     if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
       const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
       const partsTP = cleanTP.split(":");
-      if (partsTP.length === 2) {
+      if (partsTP.length >= 2) {
         const hTP = parseInt(partsTP[0], 10);
         const mTP = parseInt(partsTP[1], 10);
         if (!isNaN(hTP) && !isNaN(mTP)) {
