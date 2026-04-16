@@ -285,6 +285,23 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       setProgress('Recalculando indicadores...');
       try {
         const uniqueDates = [...new Set(rows.map(r => r.data_solicitacao).filter(Boolean))];
+        
+        // FIX: Also include data_operacao from related maps so map-based indicators get recalculated
+        const uniqueMapas = [...new Set(rows.map(r => r.mapa_origem).filter(m => m && m !== '0'))];
+        if (uniqueMapas.length > 0) {
+          const { data: mapaDates } = await supabase
+            .from('mapa_historico')
+            .select('data_operacao')
+            .in('mapa', uniqueMapas);
+          if (mapaDates) {
+            for (const md of mapaDates) {
+              if (md.data_operacao && !uniqueDates.includes(md.data_operacao)) {
+                uniqueDates.push(md.data_operacao);
+              }
+            }
+          }
+        }
+        
         const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: { data_referencia: uniqueDates } });
         if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
         else toast.success('Indicadores recalculados automaticamente!');
