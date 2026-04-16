@@ -263,6 +263,7 @@ export default function Desempenho() {
         }}>
           <Download className="h-4 w-4" /> CSV
         </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
