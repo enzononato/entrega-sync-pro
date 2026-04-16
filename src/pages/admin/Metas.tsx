@@ -50,7 +50,9 @@ function getScope(g: GoalWithRelations) {
 
 const emptyForm = {
   indicator_id: '', unidade_id: '' as string | null, worker_type: '' as string | null,
-  user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0, periodo_tipo: 'diario',
+  user_id: '' as string | null, valor_meta: 0, valor_bonificacao: 0,
+  valor_desafio: 0, valor_bonificacao_desafio: 0,
+  periodo_tipo: 'diario',
   vigencia_inicio: format(new Date(), 'yyyy-MM-dd'), ativo: true,
   formato_meta: 'tempo' as 'tempo' | 'porcentagem' | 'dinheiro',
 };
@@ -118,6 +120,9 @@ export default function Metas() {
   const [metaTimeStr, setMetaTimeStr] = useState('');
   const [metaValorStr, setMetaValorStr] = useState('');
   const [bonusStr, setBonusStr] = useState('');
+  const [desafioTimeStr, setDesafioTimeStr] = useState('');
+  const [desafioValorStr, setDesafioValorStr] = useState('');
+  const [desafioBonusStr, setDesafioBonusStr] = useState('');
 
   // KPIs
   const { data: allMetas = [] } = useMetas({});
@@ -137,20 +142,25 @@ export default function Metas() {
   }, [metas, activeTab]);
   const pg = usePagination(filteredMetas);
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setMetaValorStr(''); setBonusStr(''); setFormTab('tipo'); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setMetaTimeStr(''); setMetaValorStr(''); setBonusStr(''); setDesafioTimeStr(''); setDesafioValorStr(''); setDesafioBonusStr(''); setFormTab('tipo'); setDialogOpen(true); };
   const openEdit = (g: GoalWithRelations) => {
     const fmt = detectFormato(g.valor_meta, g.indicators?.codigo, g.indicators?.unidade_medida);
     setEditing(g);
     setForm({
       indicator_id: g.indicator_id, unidade_id: g.unidade_id ?? '',
       worker_type: g.worker_type ?? '', user_id: g.user_id ?? '',
-      valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0, periodo_tipo: g.periodo_tipo,
+      valor_meta: g.valor_meta, valor_bonificacao: g.valor_bonificacao ?? 0,
+      valor_desafio: g.valor_desafio ?? 0, valor_bonificacao_desafio: g.valor_bonificacao_desafio ?? 0,
+      periodo_tipo: g.periodo_tipo,
       vigencia_inicio: g.vigencia_inicio, ativo: g.ativo,
       formato_meta: fmt,
     });
     setMetaTimeStr(fmt === 'tempo' && g.valor_meta ? minutesToHHMM(g.valor_meta) : '');
     setMetaValorStr(fmt !== 'tempo' && g.valor_meta ? String(g.valor_meta).replace('.', ',') : '');
     setBonusStr(g.valor_bonificacao ? String(g.valor_bonificacao).replace('.', ',') : '');
+    setDesafioTimeStr(fmt === 'tempo' && g.valor_desafio ? minutesToHHMM(g.valor_desafio) : '');
+    setDesafioValorStr(fmt !== 'tempo' && g.valor_desafio ? String(g.valor_desafio).replace('.', ',') : '');
+    setDesafioBonusStr(g.valor_bonificacao_desafio ? String(g.valor_bonificacao_desafio).replace('.', ',') : '');
     setFormTab(g.user_id ? 'individual' : 'tipo');
     setDialogOpen(true);
   };
@@ -164,6 +174,8 @@ export default function Metas() {
       user_id: isIndividual ? (form.user_id || null) : null,
       valor_meta: form.valor_meta,
       valor_bonificacao: form.valor_bonificacao,
+      valor_desafio: form.valor_desafio,
+      valor_bonificacao_desafio: form.valor_bonificacao_desafio,
       periodo_tipo: form.periodo_tipo,
       vigencia_inicio: form.vigencia_inicio,
       vigencia_fim: null,
