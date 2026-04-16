@@ -174,12 +174,12 @@ Deno.serve(async (req) => {
     const metas: MetasMap = {};
     // Initialize defaults
     for (const [code, val] of Object.entries(DEFAULT_METAS)) {
-      metas[code] = { default: val };
+      metas[code] = { default: { meta: val, desafio: 0 } };
     }
 
     const { data: goalsData } = await supabase
       .from("goals")
-      .select("valor_meta, worker_type, indicators(codigo)")
+      .select("valor_meta, valor_desafio, worker_type, indicators(codigo)")
       .eq("ativo", true);
 
     if (goalsData) {
@@ -187,10 +187,10 @@ Deno.serve(async (req) => {
         const code = (g as any).indicators?.codigo?.toUpperCase();
         if (!code || !INDICATOR_IDS[code]) continue;
         const wt = g.worker_type || "default";
-        if (!metas[code]) metas[code] = { default: DEFAULT_METAS[code] ?? 0 };
+        if (!metas[code]) metas[code] = { default: { meta: DEFAULT_METAS[code] ?? 0, desafio: 0 } };
         // Only set if not already set (first active goal wins)
         if (metas[code][wt] === undefined || wt !== "default") {
-          metas[code][wt] = g.valor_meta;
+          metas[code][wt] = { meta: g.valor_meta, desafio: Number((g as any).valor_desafio) || 0 };
         }
       }
       console.log("Loaded metas:", JSON.stringify(metas));
