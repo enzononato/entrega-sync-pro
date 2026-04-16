@@ -1,31 +1,28 @@
 
 
-## Problem
+## Upsert para Importação 03.18.05 (Reposição)
 
-The CSV header uses accented characters (`KmLaço`, `TmpoLaço`) while `ImportMapasDialog.tsx` defines the CSV_COLUMNS as `KmLaco` and `TmpoLaco`. The case-insensitive comparison still fails because `ç` ≠ `c`. This causes two columns to be silently skipped.
+### Problema
+Atualmente, se o mesmo CSV de reposição for importado novamente, registros duplicados são criados.
 
-## Solution
+### Solução
+Aplicar a mesma lógica de upsert usada nos mapas: adicionar uma constraint única e trocar `.insert()` por `.upsert()`.
 
-Normalize the header matching to handle accented characters by stripping diacritics before comparing. This is a small, targeted fix.
+### Chave única
+A combinação `solicitacao_reposicao` + `produto` identifica unicamente cada linha (uma solicitação pode ter vários produtos, mas o mesmo produto não aparece duas vezes na mesma solicitação).
 
-### File: `src/components/admin/ImportMapasDialog.tsx`
+### Passos
 
-Add a helper function that strips accents (using `String.normalize('NFD')` + regex to remove combining marks), then use it when comparing CSV headers to `CSV_COLUMNS`.
+1. **Migration**: Adicionar constraint única na tabela `reposicao_031805`:
+   ```sql
+   ALTER TABLE public.reposicao_031805
+     ADD CONSTRAINT reposicao_031805_solicitacao_produto_unique
+     UNIQUE (solicitacao_reposicao, produto);
+   ```
 
-```typescript
-function stripAccents(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-```
+2. **Import031805.tsx**: Trocar `.insert(batch)` por `.upsert(batch, { onConflict: 'solicitacao_reposicao,produto' })` no `handleImport`.
 
-Change the header matching (line 86) from:
-```typescript
-const csvIdx = CSV_COLUMNS.findIndex(c => c.toLowerCase() === h.toLowerCase());
-```
-to:
-```typescript
-const csvIdx = CSV_COLUMNS.findIndex(c => stripAccents(c.toLowerCase()) === stripAccents(h.toLowerCase()));
-```
-
-This ensures `KmLaço` matches `KmLaco`, `TmpoLaço` matches `TmpoLaco`, and any future accent variations are handled automatically. No other files need changes.
+### Arquivos modificados
+- Nova migration SQL
+- `src/components/admin/Import031805.tsx` — uma linha alterada
 
