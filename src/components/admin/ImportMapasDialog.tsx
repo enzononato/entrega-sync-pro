@@ -150,9 +150,18 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         if (error) throw error;
       }
 
+      // Recalcular indicadores a partir dos mapas importados
+      setProgress('Recalculando indicadores...');
+      try {
+        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: {} });
+        if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
+      } catch (e) {
+        console.error('Erro ao chamar calculate-daily-indicators:', e);
+      }
+
       const matched = new Set(Object.keys(matriculaToUserId)).size;
       const total = allMatriculas.size;
-      toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
+      toast.success(`${rows.length} registros importados e indicadores recalculados! (${matched}/${total} matrículas vinculadas)`);
       setRows([]);
       setOpen(false);
       onSuccess();
