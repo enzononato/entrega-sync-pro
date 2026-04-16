@@ -170,6 +170,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState('');
   const [totalOriginal, setTotalOriginal] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -266,8 +267,11 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
         };
       });
 
-      const batchSize = 200;
+      const batchSize = 500;
+      const totalBatches = Math.ceil(enriched.length / batchSize);
       for (let i = 0; i < enriched.length; i += batchSize) {
+        const batchNum = Math.floor(i / batchSize) + 1;
+        setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length} registros)`);
         const batch = enriched.slice(i, i + batchSize);
         const { error } = await (supabase.from('reposicao_031805') as any).upsert(batch, { onConflict: 'solicitacao_reposicao,produto' });
         if (error) throw error;
@@ -278,6 +282,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
 
       // Auto-calculate all indicators (includes reposição)
+      setProgress('Recalculando indicadores...');
       try {
         const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: {} });
         if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
@@ -293,6 +298,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       toast.error('Erro na importação: ' + err.message);
     } finally {
       setImporting(false);
+      setProgress('');
     }
   };
 
