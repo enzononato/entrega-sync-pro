@@ -291,7 +291,7 @@ export default function Dashboard() {
   };
 
   const firstName = user?.nome?.split(' ')[0] ?? 'Admin';
-  const desafioPct = desafioStats.total > 0 ? Math.round((desafioStats.atingidos / desafioStats.total) * 100) : 0;
+  const desafioPct = desafioStats.percentual;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -327,7 +327,7 @@ export default function Dashboard() {
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
           <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} />
           <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusMes)} label="Bônus Mês" isSmall />
-          <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.atingidos}/${desafioStatsMes.total}`} label="Desafios Mês" sub={desafioStatsMes.bonus > 0 ? `+${fmtBRL(desafioStatsMes.bonus)}` : undefined} />
+          <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
       </div>
 
