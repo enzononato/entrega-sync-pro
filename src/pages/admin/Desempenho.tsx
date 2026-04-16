@@ -430,11 +430,15 @@ export default function Desempenho() {
                               const isTime = isTimeIndicator(code);
                               const valStr = isPct ? `${d.valor}%` : isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isPct ? `${d.meta}%` : isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
-                              const desafioAtivo = Number(d.desafio ?? 0) > 0;
-                              const desafioStr = desafioAtivo ? formatVal(Number(d.desafio), code) : null;
+                              const wt = group.user?.worker_type ?? 'motorista';
+                              const goalDesafio = code ? getMetaConfig(code, wt).desafio : 0;
+                              const desafioVal = Number(d.desafio ?? 0) > 0 ? Number(d.desafio) : goalDesafio;
+                              const desafioAtivo = desafioVal > 0;
+                              const desafioStr = desafioAtivo ? formatVal(desafioVal, code) : null;
+                              const atingiuDesafioFromGoal = desafioAtivo && d.valor <= desafioVal;
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
-                              const atingiuDesafio = d.status_desafio === 'atingiu';
+                              const atingiuDesafio = d.status_desafio === 'atingiu' || atingiuDesafioFromGoal;
 
                               return (
                                 <button
@@ -510,12 +514,15 @@ export default function Desempenho() {
             const isTime = isTimeIndicator(code);
             const valor = isTime ? formatMinutesHHMM(detailRow.valor) : String(detailRow.valor);
             const meta = detailRow.meta != null ? (isTime ? formatMinutesHHMM(detailRow.meta) : String(detailRow.meta)) : '—';
-            const desafioAtivo = Number(detailRow.desafio ?? 0) > 0;
+            const detailWt = detailRow.users?.worker_type ?? 'motorista';
+            const goalDesafioDetail = code ? getMetaConfig(code, detailWt).desafio : 0;
+            const desafioValDetail = Number(detailRow.desafio ?? 0) > 0 ? Number(detailRow.desafio) : goalDesafioDetail;
+            const desafioAtivo = desafioValDetail > 0;
             const desafio = desafioAtivo
-              ? (isTime ? formatMinutesHHMM(Number(detailRow.desafio)) : String(detailRow.desafio))
+              ? (isTime ? formatMinutesHHMM(desafioValDetail) : String(desafioValDetail))
               : '—';
             const atingiu = detailRow.status === 'dentro_meta' || detailRow.status === 'acima_meta';
-            const atingiuDesafio = detailRow.status_desafio === 'atingiu';
+            const atingiuDesafio = detailRow.status_desafio === 'atingiu' || (desafioAtivo && detailRow.valor <= desafioValDetail);
             const pct = detailRow.percentual_atingimento;
 
             return (
