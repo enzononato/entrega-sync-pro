@@ -302,6 +302,45 @@ export default function ColaboradorHome() {
         </div>
       )}
 
+      {/* ── Resumo Desafios ─────────────────────── */}
+      {desafioStats.total > 0 && (
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <span className="text-base">🎯</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Desafios do Período</p>
+              <p className="text-[10px] text-muted-foreground">{periodLabels[period]}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center rounded-xl bg-muted/40 py-2.5">
+              <p className="text-lg font-extrabold text-foreground">{desafioStats.total}</p>
+              <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Total</p>
+            </div>
+            <div className="text-center rounded-xl bg-success/10 py-2.5">
+              <p className="text-lg font-extrabold text-success">{desafioStats.atingidos}</p>
+              <p className="text-[9px] text-success font-medium uppercase tracking-wider">Atingidos</p>
+            </div>
+            <div className="text-center rounded-xl bg-destructive/10 py-2.5">
+              <p className="text-lg font-extrabold text-destructive">{desafioStats.total - desafioStats.atingidos}</p>
+              <p className="text-[9px] text-destructive font-medium uppercase tracking-wider">Pendentes</p>
+            </div>
+          </div>
+          {desafioStats.atingidos > 0 && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-success/5 border border-success/10 px-3 py-2">
+              <Trophy className="h-4 w-4 text-success shrink-0" />
+              <p className="text-xs text-success font-medium">
+                {desafioStats.atingidos === desafioStats.total
+                  ? 'Todos os desafios atingidos! 🔥'
+                  : `${desafioStats.atingidos} de ${desafioStats.total} desafios conquistados!`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── KPIs por Mapa ─────────────────────────── */}
       <section>
         <SectionHeader icon={<Zap className="h-4 w-4 text-primary" />} title="KPIs por Mapa" />
