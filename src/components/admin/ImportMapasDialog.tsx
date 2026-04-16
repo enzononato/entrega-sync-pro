@@ -50,6 +50,10 @@ function parseBrNum(raw: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+function stripAccents(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function parseCsvLine(line: string): string[] {
   return line.split(';').map(c => c.trim().replace(/^"|"$/g, ''));
 }
@@ -83,7 +87,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         if (cols.length < 10) continue;
         const row: Record<string, unknown> = {};
         header.forEach((h, idx) => {
-          const csvIdx = CSV_COLUMNS.findIndex(c => c.toLowerCase() === h.toLowerCase());
+          const csvIdx = CSV_COLUMNS.findIndex(c => stripAccents(c.toLowerCase()) === stripAccents(h.toLowerCase()));
           if (csvIdx < 0) return;
           const dbCol = DB_COLUMNS[csvIdx];
           const val = cols[idx] ?? '';
