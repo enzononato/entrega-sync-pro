@@ -1,0 +1,1 @@
+UPDATE public.goals SET periodo_tipo = 'mensal' WHERE indicator_id = '488d1de9-9d88-42f2-bf3b-625752c0db02' AND periodo_tipo = 'diario';
