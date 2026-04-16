@@ -19,15 +19,8 @@ const DEFAULT_METAS: Record<string, number> = {
   TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 15, TX_REPOSICAO: 49.8,
 };
 
-// Indicators that only apply to motoristas
 const MOTORISTA_ONLY = new Set(["DISP_TEMPO"]);
 
-// All indicator codes for ajudantes (excludes motorista-only)
-const AJUDANTE_CODES = Object.keys(INDICATOR_IDS).filter(c => !MOTORISTA_ONLY.has(c));
-
-/**
- * Parse "HH:MM" or "HH:MM:SS" into total minutes.
- */
 function parseTime(hhmm: string | null): number | null {
   if (!hhmm) return null;
   const clean = hhmm.replace(/[^\d:]/g, "");
@@ -50,8 +43,6 @@ interface IndicatorResult {
   code: string;
 }
 
-// Metas structure: code -> workerType -> value
-// workerType keys: "motorista", "ajudante", "default"
 type MetasMap = Record<string, Record<string, { meta: number; desafio: number }>>;
 
 function getMetaForWorker(metas: MetasMap, code: string, workerType: string): { meta: number; desafio: number } {
@@ -72,37 +63,24 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
   const LIMIT_TIME = 8 * 60 + 20;
 
   let tmlVal: number | null = null;
-  if (hrSai !== null) {
-    tmlVal = Math.max(0, hrSai - REF_TIME);
-  }
+  if (hrSai !== null) tmlVal = Math.max(0, hrSai - REF_TIME);
 
   let trVal: number | null = null;
-  if (hrEntr !== null && hrSai !== null) {
-    trVal = Math.max(0, hrEntr - hrSai);
-  }
+  if (hrEntr !== null && hrSai !== null) trVal = Math.max(0, hrEntr - hrSai);
 
   const addResult = (code: string, valor: number | null) => {
     if (valor === null) return;
-    // Skip motorista-only indicators for ajudantes
     if (isAjudante && MOTORISTA_ONLY.has(code)) return;
-
     const { meta, desafio } = getMetaForWorker(metas, code, workerType);
     let withinTarget: boolean;
     if (code === "TML") {
       withinTarget = hrSai !== null && hrSai <= LIMIT_TIME;
-    } else if (code === "DISP_TEMPO") {
-      withinTarget = valor <= meta;
     } else {
       withinTarget = valor <= meta;
     }
-
     const withinDesafio = desafio > 0 && withinTarget && valor <= desafio;
-
     results.push({
-      indicator_id: INDICATOR_IDS[code],
-      valor,
-      meta,
-      desafio,
+      indicator_id: INDICATOR_IDS[code], valor, meta, desafio,
       percentual_atingimento: withinTarget ? 100 : 0,
       status: withinTarget ? "dentro_meta" : "abaixo_meta",
       status_desafio: desafio > 0 ? (withinDesafio ? "atingiu" : "nao_atingiu") : "sem_desafio",
@@ -113,13 +91,8 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
   addResult("TML", tmlVal);
   addResult("TR", trVal);
   addResult("TI", tiVal);
+  if (tmlVal !== null && trVal !== null && tiVal !== null) addResult("JL", tmlVal + trVal + tiVal);
 
-  // JL: sum of TML + TR + TI
-  if (tmlVal !== null && trVal !== null && tiVal !== null) {
-    addResult("JL", tmlVal + trVal + tiVal);
-  }
-
-  // TX_DEVOLUCAO - applies to both motorista and ajudante
   let txDevVal: number | null = null;
   const cxCarreg = Number(row.cx_carreg);
   const cxEntreg = Number(row.cx_entreg);
@@ -129,10 +102,7 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
   }
   addResult("TX_DEVOLUCAO", txDevVal);
 
-  // Motorista-only indicators
   if (!isAjudante) {
-    // DISP_TEMPO: percentual de dispersão = ((tempoReal - tempoPrev) / tempoPrev) * 100
-    // Meta: não pode ultrapassar 15% do tempo previsto
     let dispTempoVal: number | null = null;
     if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
       const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
@@ -144,8 +114,7 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
           const tempoPrev = hTP * 60 + mTP;
           const tempoReal = Math.max(0, hrEntr - hrSai);
           if (tempoPrev > 0) {
-            const pct = ((tempoReal - tempoPrev) / tempoPrev) * 100;
-            dispTempoVal = Math.round(Math.max(0, pct) * 100) / 100;
+            dispTempoVal = Math.round(Math.max(0, ((tempoReal - tempoPrev) / tempoPrev) * 100) * 100) / 100;
           }
         }
       }
@@ -170,39 +139,28 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { data_referencia } = body;
 
-    // ── Step 0: Load metas from goals table, keyed by code + worker_type ──
+    // ── Load metas ──
     const metas: MetasMap = {};
-    // Initialize defaults
     for (const [code, val] of Object.entries(DEFAULT_METAS)) {
       metas[code] = { default: { meta: val, desafio: 0 } };
     }
-
     const { data: goalsData } = await supabase
-      .from("goals")
-      .select("valor_meta, valor_desafio, worker_type, indicators(codigo)")
-      .eq("ativo", true);
-
+      .from("goals").select("valor_meta, valor_desafio, worker_type, indicators(codigo)").eq("ativo", true);
     if (goalsData) {
       for (const g of goalsData) {
         const code = (g as any).indicators?.codigo?.toUpperCase();
         if (!code || !INDICATOR_IDS[code]) continue;
         const wt = g.worker_type || "default";
         if (!metas[code]) metas[code] = { default: { meta: DEFAULT_METAS[code] ?? 0, desafio: 0 } };
-        // Only set if not already set (first active goal wins)
         if (metas[code][wt] === undefined || wt !== "default") {
           metas[code][wt] = { meta: g.valor_meta, desafio: Number((g as any).valor_desafio) || 0 };
         }
       }
-      console.log("Loaded metas:", JSON.stringify(metas));
     }
 
-    // ── Step 0b: Build user -> worker_type map ──
+    // ── Load users ──
     const { data: allUsers } = await supabase
-      .from("users")
-      .select("id, matricula, worker_type")
-      .neq("matricula", "")
-      .eq("ativo", true);
-
+      .from("users").select("id, matricula, worker_type").neq("matricula", "").eq("ativo", true);
     const userWorkerType = new Map<string, string>();
     const matriculaMap = new Map<string, string>();
     if (allUsers) {
@@ -212,70 +170,33 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Step 1: Link user_id on mapa_historico rows ──
-    if (allUsers && allUsers.length > 0) {
-      const PAGE = 1000;
-
-      const linkField = async (field: string, userIdField: string) => {
-        let unlinked: any[] = [];
-        let offset = 0;
-        while (true) {
-          const { data: chunk } = await supabase
-            .from("mapa_historico")
-            .select(`id, ${field}`)
-            .is(userIdField, null)
-            .neq(field, "")
-            .neq(field, "0")
-            .range(offset, offset + PAGE - 1);
-          if (!chunk || chunk.length === 0) break;
-          unlinked = unlinked.concat(chunk);
-          if (chunk.length < PAGE) break;
-          offset += PAGE;
-        }
-        for (const row of unlinked) {
-          const userId = matriculaMap.get(row[field]?.trim());
-          if (userId) {
-            await supabase.from("mapa_historico").update({ [userIdField]: userId }).eq("id", row.id);
-          }
-        }
-        return unlinked.length;
-      };
-
-      const [motCount, aju1Count, aju2Count] = await Promise.all([
-        linkField("cd_mot", "mot_user_id"),
-        linkField("cd_aju1", "aju1_user_id"),
-        linkField("cd_aju2", "aju2_user_id"),
-      ]);
-      console.log(`Linked: mot=${motCount}, aju1=${aju1Count}, aju2=${aju2Count}`);
-    }
-
-    // ── Step 2: Get dates to process ──
+    // ── Determine dates to process ──
     let dates: string[] = [];
     if (data_referencia) {
       dates = Array.isArray(data_referencia) ? data_referencia : [data_referencia];
     } else {
-      const { data: allDates } = await supabase
-        .from("mapa_historico")
-        .select("data_operacao")
-        .order("data_operacao", { ascending: false })
-        .limit(10000);
-      if (allDates) {
-        dates = [...new Set(allDates.map((d: any) => d.data_operacao))];
+      // Fallback: only last 7 days to avoid timeout
+      const now = new Date();
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        dates.push(d.toISOString().split("T")[0]);
       }
     }
 
-    let totalInserted = 0;
+    console.log(`Processing ${dates.length} dates: ${dates.join(", ")}`);
+
     const indicatorIds = Object.values(INDICATOR_IDS);
     const PAGE = 1000;
+    let totalInserted = 0;
 
     for (const date of dates) {
+      // Fetch mapas for this date
       let allMapas: any[] = [];
       let offset = 0;
       while (true) {
         const { data: chunk, error: fetchErr } = await supabase
-          .from("mapa_historico")
-          .select("*")
-          .eq("data_operacao", date)
+          .from("mapa_historico").select("*").eq("data_operacao", date)
           .range(offset, offset + PAGE - 1);
         if (fetchErr) throw fetchErr;
         if (!chunk || chunk.length === 0) break;
@@ -283,127 +204,105 @@ Deno.serve(async (req) => {
         if (chunk.length < PAGE) break;
         offset += PAGE;
       }
-
       if (allMapas.length === 0) continue;
 
+      // Link unlinked user_ids in batch
+      const updates: { id: string; field: string; userId: string }[] = [];
+      for (const row of allMapas) {
+        const tryLink = (code: string, field: string) => {
+          if (!row[field] && code && code !== "0") {
+            const uid = matriculaMap.get(code.trim());
+            if (uid) { row[field] = uid; updates.push({ id: row.id, field, userId: uid }); }
+          }
+        };
+        tryLink(row.cd_mot, "mot_user_id");
+        tryLink(row.cd_aju1, "aju1_user_id");
+        tryLink(row.cd_aju2, "aju2_user_id");
+      }
+      // Batch link updates (group by field to minimize calls)
+      for (const field of ["mot_user_id", "aju1_user_id", "aju2_user_id"]) {
+        const fieldUpdates = updates.filter(u => u.field === field);
+        for (const u of fieldUpdates) {
+          await supabase.from("mapa_historico").update({ [field]: u.userId }).eq("id", u.id);
+        }
+      }
+
+      // Calculate indicators
       const upserts: any[] = [];
       const affectedUserIds = new Set<string>();
 
       for (const row of allMapas) {
-        // Process each worker in this mapa row
         const workers = [
           { userId: row.mot_user_id, defaultType: "motorista" },
           { userId: row.aju1_user_id, defaultType: "ajudante" },
           { userId: row.aju2_user_id, defaultType: "ajudante" },
         ];
-
         for (const { userId, defaultType } of workers) {
           if (!userId) continue;
           affectedUserIds.add(userId);
-
           const workerType = userWorkerType.get(userId) || defaultType;
           const indicators = calculateIndicatorsForRow(row, workerType, metas);
-
           for (const ind of indicators) {
             upserts.push({
-              user_id: userId,
-              indicator_id: ind.indicator_id,
-              data_referencia: date,
-              valor: ind.valor,
-              meta: ind.meta,
-              desafio: ind.desafio || null,
-              percentual_atingimento: ind.percentual_atingimento,
-              status: ind.status,
+              user_id: userId, indicator_id: ind.indicator_id, data_referencia: date,
+              valor: ind.valor, meta: ind.meta, desafio: ind.desafio || null,
+              percentual_atingimento: ind.percentual_atingimento, status: ind.status,
               status_desafio: ind.status_desafio !== "sem_desafio" ? ind.status_desafio : null,
-              origem_dado: "mapa_historico",
-              mapa_numero: row.mapa,
+              origem_dado: "mapa_historico", mapa_numero: row.mapa,
             });
           }
         }
       }
 
       if (upserts.length > 0) {
-        for (const uid of affectedUserIds) {
-          await supabase
-            .from("user_indicator_daily")
-            .delete()
-            .eq("user_id", uid)
-            .eq("data_referencia", date)
-            .in("indicator_id", indicatorIds)
-            .eq("origem_dado", "mapa_historico");
+        // Delete old records for affected users on this date
+        const userArr = Array.from(affectedUserIds);
+        for (let i = 0; i < userArr.length; i += 50) {
+          const batch = userArr.slice(i, i + 50);
+          await supabase.from("user_indicator_daily").delete()
+            .in("user_id", batch).eq("data_referencia", date)
+            .in("indicator_id", indicatorIds).eq("origem_dado", "mapa_historico");
         }
-
-        for (let i = 0; i < upserts.length; i += 200) {
-          const batch = upserts.slice(i, i + 200);
-          const { error: insertErr } = await supabase
-            .from("user_indicator_daily")
-            .insert(batch);
+        // Insert new
+        for (let i = 0; i < upserts.length; i += 500) {
+          const batch = upserts.slice(i, i + 500);
+          const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
           if (insertErr) throw insertErr;
         }
-
         totalInserted += upserts.length;
       }
     }
 
-    // ── Step 4: Calculate TX_REPOSICAO from reposicao_031805 (per-map, like other indicators) ──
+    // ── TX_REPOSICAO from reposicao_031805 ──
     const TX_REPOSICAO_ID = INDICATOR_IDS["TX_REPOSICAO"];
-    let metaReposicao = DEFAULT_METAS["TX_REPOSICAO"];
+    const repoMeta = getMetaForWorker(metas, "TX_REPOSICAO", "motorista");
 
-    const { data: goalRow } = await supabase
-      .from("goals")
-      .select("valor_meta")
-      .eq("indicator_id", TX_REPOSICAO_ID)
-      .eq("ativo", true)
-      .eq("periodo_tipo", "mensal")
-      .or("worker_type.eq.motorista,worker_type.is.null")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (goalRow) metaReposicao = goalRow.valor_meta;
-
-    // Link mot_user_id on unlinked reposicao rows
+    // Only process reposição for the requested dates (or last 7 days)
+    let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null; motorista_codigo: string | null }[] = [];
     {
       let offset = 0;
       while (true) {
-        const { data: unlinked } = await supabase
-          .from("reposicao_031805")
-          .select("id, motorista_codigo")
-          .is("mot_user_id", null)
-          .not("motorista_codigo", "is", null)
-          .neq("motorista_codigo", "")
-          .range(offset, offset + PAGE - 1);
-        if (!unlinked || unlinked.length === 0) break;
-        for (const row of unlinked) {
-          const userId = matriculaMap.get(row.motorista_codigo?.trim() ?? "");
-          if (userId) {
-            await supabase.from("reposicao_031805").update({ mot_user_id: userId }).eq("id", row.id);
-          }
-        }
-        if (unlinked.length < PAGE) break;
-        offset += PAGE;
-      }
-    }
-
-    // Fetch all reposição rows with linked user
-    let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null }[] = [];
-    {
-      let offset = 0;
-      while (true) {
-        const { data: chunk, error: rErr } = await supabase
-          .from("reposicao_031805")
-          .select("mot_user_id, data_solicitacao, valor, mapa_origem")
-          .not("mot_user_id", "is", null)
+        let q = supabase.from("reposicao_031805")
+          .select("mot_user_id, data_solicitacao, valor, mapa_origem, motorista_codigo")
           .not("data_solicitacao", "is", null)
           .range(offset, offset + PAGE - 1);
+        if (dates.length > 0) q = q.in("data_solicitacao", dates);
+        const { data: chunk, error: rErr } = await q;
         if (rErr) throw rErr;
         if (!chunk || chunk.length === 0) break;
         for (const r of chunk) {
-          if (r.mot_user_id && r.data_solicitacao && r.valor != null) {
+          // Link user if needed
+          let userId = r.mot_user_id;
+          if (!userId && r.motorista_codigo) {
+            userId = matriculaMap.get(r.motorista_codigo.trim()) ?? null;
+          }
+          if (userId && r.data_solicitacao && r.valor != null) {
             allRepoRows.push({
-              mot_user_id: r.mot_user_id,
+              mot_user_id: userId,
               data_solicitacao: r.data_solicitacao,
               valor: Number(r.valor) || 0,
               mapa_origem: r.mapa_origem && r.mapa_origem !== "0" ? r.mapa_origem : null,
+              motorista_codigo: r.motorista_codigo,
             });
           }
         }
@@ -412,7 +311,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Aggregate by user + mapa (sum all values regardless of date, keep earliest date)
+    // Aggregate by user + mapa
     const repoAggregated = new Map<string, { valor: number; earliestDate: string }>();
     for (const row of allRepoRows) {
       const mapa = row.mapa_origem ?? "";
@@ -426,7 +325,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Monthly totals for status calculation
+    // Monthly totals
     const monthlyTotals = new Map<string, number>();
     for (const row of allRepoRows) {
       const monthKey = row.data_solicitacao.substring(0, 7);
@@ -442,36 +341,34 @@ Deno.serve(async (req) => {
       const rounded = Math.round(agg.valor * 100) / 100;
       const monthKey = agg.earliestDate.substring(0, 7);
       const monthTotal = monthlyTotals.get(`${userId}|${monthKey}`) || 0;
-      const withinTarget = Math.round(monthTotal * 100) / 100 <= metaReposicao;
-
+      const withinTarget = Math.round(monthTotal * 100) / 100 <= repoMeta.meta;
       repoAffectedUsers.add(userId);
-
       repoUpserts.push({
-        user_id: userId,
-        indicator_id: TX_REPOSICAO_ID,
-        data_referencia: agg.earliestDate,
-        valor: rounded,
-        meta: metaReposicao,
+        user_id: userId, indicator_id: TX_REPOSICAO_ID, data_referencia: agg.earliestDate,
+        valor: rounded, meta: repoMeta.meta,
+        desafio: repoMeta.desafio > 0 ? repoMeta.desafio : null,
         percentual_atingimento: withinTarget ? 100 : 0,
         status: withinTarget ? "dentro_meta" : "abaixo_meta",
-        origem_dado: "reposicao_031805",
-        mapa_numero: mapaStr || null,
+        status_desafio: repoMeta.desafio > 0 ? (rounded <= repoMeta.desafio ? "atingiu" : "nao_atingiu") : null,
+        origem_dado: "reposicao_031805", mapa_numero: mapaStr || null,
       });
     }
 
-    // Delete all old reposição records for affected users
-    for (const uid of repoAffectedUsers) {
+    // Delete + insert reposição
+    const repoUserArr = Array.from(repoAffectedUsers);
+    for (let i = 0; i < repoUserArr.length; i += 50) {
+      const batch = repoUserArr.slice(i, i + 50);
       await supabase.from("user_indicator_daily").delete()
-        .eq("user_id", uid).eq("indicator_id", TX_REPOSICAO_ID)
+        .in("user_id", batch).eq("indicator_id", TX_REPOSICAO_ID)
         .eq("origem_dado", "reposicao_031805");
     }
-    for (let i = 0; i < repoUpserts.length; i += 200) {
-      const batch = repoUpserts.slice(i, i + 200);
+    for (let i = 0; i < repoUpserts.length; i += 500) {
+      const batch = repoUpserts.slice(i, i + 500);
       const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
       if (insertErr) throw insertErr;
     }
     totalInserted += repoUpserts.length;
-    console.log(`TX_REPOSICAO: ${repoUpserts.length} records upserted (per-map)`);
+    console.log(`Done: ${totalInserted} records, ${dates.length} dates`);
 
     return new Response(
       JSON.stringify({ success: true, total_inserted: totalInserted, dates_processed: dates.length }),
