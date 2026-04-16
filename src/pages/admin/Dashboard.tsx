@@ -85,31 +85,12 @@ export default function Dashboard() {
     return total;
   }, [metasAtivas, desempenhoMes, usuarios]);
 
-  // Desafio stats
+  // Desafio stats (período filtrado)
   const desafioStats = useMemo(() => {
     const withDesafio = desempenho.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu_desafio');
+    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu');
     return { total: withDesafio.length, atingidos: atingidos.length };
   }, [desempenho]);
-
-  const desafioStatsMes = useMemo(() => {
-    const withDesafio = desempenhoMes.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu_desafio');
-    // Bonus from desafios
-    let bonusDesafio = 0;
-    for (const d of atingidos) {
-      const u = usuarios.find(u => u.id === d.user_id);
-      const goal = metasAtivas.find(g => {
-        if (g.indicator_id !== d.indicator_id) return false;
-        if (g.user_id === d.user_id) return true;
-        if (!g.user_id && g.worker_type === u?.worker_type) return true;
-        if (!g.user_id && !g.worker_type) return true;
-        return false;
-      });
-      if (goal) bonusDesafio += goal.valor_bonificacao_desafio;
-    }
-    return { total: withDesafio.length, atingidos: atingidos.length, bonus: bonusDesafio };
-  }, [desempenhoMes, metasAtivas, usuarios]);
 
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
@@ -132,6 +113,98 @@ export default function Dashboard() {
     if (!unidadeFilter) return planos;
     return planos.filter(p => filteredUserIds.has(p.responsavel_user_id));
   }, [planos, unidadeFilter, filteredUserIds]);
+
+  // Desafios mensais agregados por usuário + indicador
+  const desafioStatsMes = useMemo(() => {
+    const monthlyGoals = metasAtivas.filter(
+      m => m.periodo_tipo === 'mensal' && Number(m.valor_desafio) > 0,
+    );
+
+    if (monthlyGoals.length === 0 || desempenhoMes.length === 0 || filteredUsers.length === 0) {
+      return { total: 0, atingidos: 0, bonus: 0 };
+    }
+
+    const TX_REPOSICAO_ID = 'c4c40e3e-f23b-46ce-a576-885c610f2df7';
+    const dailyMap = new Map<string, Map<string, { sum: number; count: number }>>();
+    const sumMap = new Map<string, number>();
+
+    for (const row of desempenhoMes) {
+      const key = `${row.user_id}|${row.indicator_id}`;
+      const val = Number(row.valor) || 0;
+
+      if (row.indicator_id === TX_REPOSICAO_ID) {
+        sumMap.set(key, (sumMap.get(key) || 0) + val);
+      } else {
+        let byDay = dailyMap.get(key);
+        if (!byDay) {
+          byDay = new Map();
+          dailyMap.set(key, byDay);
+        }
+        const dayKey = row.data_referencia;
+        const entry = byDay.get(dayKey);
+        if (entry) {
+          entry.sum += val;
+          entry.count += 1;
+        } else {
+          byDay.set(dayKey, { sum: val, count: 1 });
+        }
+      }
+    }
+
+    const matchesGoal = (goal: typeof monthlyGoals[number], worker: typeof filteredUsers[number]) => {
+      if (goal.user_id && goal.user_id !== worker.id) return false;
+      if (goal.worker_type && goal.worker_type !== worker.worker_type) return false;
+      if (goal.unidade_id && goal.unidade_id !== worker.unidade_id) return false;
+      return true;
+    };
+
+    const getBestGoal = (indicatorId: string, worker: typeof filteredUsers[number]) => {
+      const candidates = monthlyGoals
+        .filter(goal => goal.indicator_id === indicatorId && matchesGoal(goal, worker))
+        .sort((a, b) => {
+          const score = (goal: typeof monthlyGoals[number]) =>
+            (goal.user_id ? 4 : 0) + (goal.unidade_id ? 2 : 0) + (goal.worker_type ? 1 : 0);
+          return score(b) - score(a);
+        });
+      return candidates[0];
+    };
+
+    const indicatorIds = [...new Set(monthlyGoals.map(goal => goal.indicator_id))];
+    let total = 0;
+    let atingidos = 0;
+    let bonus = 0;
+
+    for (const worker of filteredUsers) {
+      for (const indicatorId of indicatorIds) {
+        const goal = getBestGoal(indicatorId, worker);
+        if (!goal) continue;
+
+        const key = `${worker.id}|${indicatorId}`;
+        let valorAgregado: number | null = null;
+
+        if (indicatorId === TX_REPOSICAO_ID) {
+          if (sumMap.has(key)) valorAgregado = Math.round((sumMap.get(key) || 0) * 100) / 100;
+        } else {
+          const byDay = dailyMap.get(key);
+          if (byDay && byDay.size > 0) {
+            let sumOfDailyAvgs = 0;
+            for (const [, day] of byDay) sumOfDailyAvgs += day.sum / day.count;
+            valorAgregado = Math.round((sumOfDailyAvgs / byDay.size) * 100) / 100;
+          }
+        }
+
+        if (valorAgregado === null) continue;
+
+        total += 1;
+        if (valorAgregado <= Number(goal.valor_desafio)) {
+          atingidos += 1;
+          bonus += Number(goal.valor_bonificacao_desafio) || 0;
+        }
+      }
+    }
+
+    return { total, atingidos, bonus };
+  }, [metasAtivas, desempenhoMes, filteredUsers]);
 
   const motoristas = filteredUsers.filter(u => u.worker_type === 'motorista').length;
   const ajudantes = filteredUsers.filter(u => u.worker_type === 'ajudante').length;
