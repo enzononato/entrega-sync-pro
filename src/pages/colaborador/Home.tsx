@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useIncentivoDiario } from '@/hooks/useIncentivoDiario';
+import { useMetas } from '@/hooks/useMetas';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { useCausaRaizPorColaborador, type CausaRaizRow } from '@/hooks/useCausaRaiz';
@@ -102,7 +103,23 @@ export default function ColaboradorHome() {
   const { data: planos = [], isLoading: loadPlan } = usePlanosDoColaborador(user?.id);
   const { data: pendingFeedback = [] } = usePendingMandatoryFeedback(user?.id);
   const { data: causasRaiz = [] } = useCausaRaizPorColaborador(user?.id);
+  const { data: metas = [] } = useMetas({ vigentes: true });
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+
+  // Build meta lookup from goals table
+  const getMetaConfig = useMemo(() => {
+    const m = new Map<string, { meta: number; desafio: number }>();
+    for (const g of metas) {
+      const code = (g as any).indicators?.codigo?.toUpperCase();
+      if (!code) continue;
+      const wt = g.worker_type || 'default';
+      const config = { meta: Number(g.valor_meta) || 0, desafio: Number(g.valor_desafio) || 0 };
+      m.set(`${code}|${wt}`, config);
+      if (!m.has(`${code}|default`)) m.set(`${code}|default`, config);
+    }
+    return (code: string, wt: string) =>
+      m.get(`${code}|${wt}`) ?? m.get(`${code}|default`) ?? { meta: 0, desafio: 0 };
+  }, [metas]);
 
 
   const showMandatoryModal = pendingFeedback.length > 0 && !feedbackDismissed;
@@ -121,13 +138,32 @@ export default function ColaboradorHome() {
   }, [causasRaiz]);
 
 
-  const kpis = useMemo(() => desempenho.filter(d => {
-    if (!user?.worker_type || !d.indicators) return true;
-    const cat = d.indicators.codigo?.toLowerCase() ?? '';
-    if (user.worker_type === 'motorista' && cat.includes('refugo')) return false;
-    if (user.worker_type === 'ajudante' && cat.includes('repos')) return false;
-    return true;
-  }), [desempenho, user?.worker_type]);
+  const kpis = useMemo(() => {
+    const wt = user?.worker_type ?? 'motorista';
+    return desempenho.filter(d => {
+      if (!user?.worker_type || !d.indicators) return true;
+      const cat = d.indicators.codigo?.toLowerCase() ?? '';
+      if (user.worker_type === 'motorista' && cat.includes('refugo')) return false;
+      if (user.worker_type === 'ajudante' && cat.includes('repos')) return false;
+      return true;
+    }).map(d => {
+      const code = d.indicators?.codigo?.toUpperCase();
+      if (code) {
+        const goalConfig = getMetaConfig(code, wt);
+        if (goalConfig.meta > 0) {
+          d.meta = goalConfig.meta;
+          d.status = d.valor <= goalConfig.meta ? 'dentro_meta' : 'abaixo_meta';
+        }
+        d.desafio = goalConfig.desafio;
+        if (goalConfig.desafio > 0) {
+          d.status_desafio = d.valor <= goalConfig.desafio ? 'atingiu' : 'nao_atingiu';
+        } else {
+          d.status_desafio = null;
+        }
+      }
+      return d;
+    });
+  }, [desempenho, user?.worker_type, getMetaConfig]);
 
   // Group by mapa
   const groupedByMapa = useMemo(() => {
@@ -150,7 +186,7 @@ export default function ColaboradorHome() {
   // Challenge stats
   const desafioStats = useMemo(() => {
     const withDesafio = kpis.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu_desafio');
+    const atingidos = withDesafio.filter(d => d.status_desafio === 'atingiu');
     return { total: withDesafio.length, atingidos: atingidos.length };
   }, [kpis]);
   const allOnTarget = kpis.length > 0 && badCount === 0;
@@ -414,11 +450,11 @@ export default function ColaboradorHome() {
                                 {d.desafio != null && Number(d.desafio) > 0 && (
                                   <span className={cn(
                                     'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
-                                    d.status_desafio === 'atingiu_desafio'
+                                    d.status_desafio === 'atingiu'
                                       ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
                                       : 'bg-muted text-muted-foreground'
                                   )}>
-                                    🎯 {d.status_desafio === 'atingiu_desafio' ? 'Desafio ✓' : 'Desafio ✗'}
+                                    🎯 {d.status_desafio === 'atingiu' ? 'Desafio ✓' : 'Desafio ✗'}
                                   </span>
                                 )}
                                 {!atingiu && d.indicator_id && (() => {

@@ -110,6 +110,26 @@ export default function Desempenho() {
       const entry = map.get(d.user_id)!;
       const mapaKey = d.mapa_numero ?? 'manual';
       if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
+
+      // Override meta/desafio from current goals and recalculate status
+      const code = d.indicators?.codigo?.toUpperCase();
+      const wt = entry.user?.worker_type ?? 'motorista';
+      if (code) {
+        const goalConfig = getMetaConfig(code, wt);
+        if (goalConfig.meta > 0) {
+          d.meta = goalConfig.meta;
+          const pct = (d.valor / goalConfig.meta) * 100;
+          d.percentual_atingimento = Math.round(pct * 10) / 10;
+          d.status = d.valor <= goalConfig.meta ? 'dentro_meta' : 'abaixo_meta';
+        }
+        d.desafio = goalConfig.desafio;
+        if (goalConfig.desafio > 0) {
+          d.status_desafio = d.valor <= goalConfig.desafio ? 'atingiu' : 'nao_atingiu';
+        } else {
+          d.status_desafio = null;
+        }
+      }
+
       entry.mapas.get(mapaKey)!.push(d);
     }
 
