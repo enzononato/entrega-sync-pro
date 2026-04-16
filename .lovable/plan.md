@@ -1,47 +1,32 @@
 
 
-# Plan: Metas Mensais com Bonificação (TX_DEVOLUCAO, DISP_TEMPO, TX_REPOSICAO)
+# Corrigir cálculo mensal: média dos dias (não dos mapas)
 
-## Context
+## Problema
+A Edge Function `calculate-monthly-bonus` calcula `sum / count` de todos os registros do mês, tratando cada mapa como um ponto. O correto é:
+- **TX_DEVOLUCAO e DISP_TEMPO**: Agrupar por dia → média do dia → depois média das médias diárias
+- **TX_REPOSICAO**: Soma total (já está correto)
 
-Three indicators have **monthly** goals: TX_DEVOLUCAO, DISP_TEMPO, TX_REPOSICAO. If a worker meets the monthly target, they receive a bonus (R$). The bonus values differ per indicator and per worker type (Motorista/Ajudante). Currently, DISP_TEMPO goals are set as `diario` -- they need to be `mensal`.
+## Mudança
 
-## What Changes
+### 1. Corrigir `calculate-monthly-bonus/index.ts`
+Alterar a lógica de agregação para TX_DEVOLUCAO e DISP_TEMPO:
+- Primeiro agrupar por `user_id + indicator_id + data_referencia` (dia)
+- Calcular a média de cada dia
+- Depois calcular a média das médias diárias
 
-### 1. Fix DISP_TEMPO goal period (Database)
-- Update the two DISP_TEMPO goal records from `periodo_tipo = 'diario'` to `periodo_tipo = 'mensal'` so they align with the other monthly indicators.
+Estrutura do mapa de agregação:
+```
+Map<"userId|indicatorId", Map<"data_referencia", { sum, count }>>
+```
 
-### 2. Create monthly bonus calculation Edge Function
-- New function `calculate-monthly-bonus` that:
-  - For each user, for a given month, aggregates `user_indicator_daily` data for TX_DEVOLUCAO, DISP_TEMPO, TX_REPOSICAO
-  - **TX_DEVOLUCAO**: Monthly average deviation rate must be <= meta (5%)
-  - **DISP_TEMPO**: Monthly average dispersion % must be <= meta (15%)
-  - **TX_REPOSICAO**: Monthly total reposition value must be <= meta (49.80)
-  - Looks up `goals` table for the `valor_bonificacao` per indicator/worker_type
-  - Upserts results into `user_incentives_daily` (or a new `user_incentives_monthly` table) with the bonus breakdown
+Para TX_DEVOLUCAO/DISP_TEMPO: média das médias diárias
+Para TX_REPOSICAO: soma total (sem mudança)
 
-### 3. Add monthly bonus summary to admin UI
-- On the **Desempenho** or **Incentivo** page, show monthly aggregation for these 3 indicators per worker
-- Display whether each monthly goal was met and the corresponding bonus earned
+### 2. Atualizar memória
+Registrar a regra de agregação correta no memory file `monthly-bonus`.
 
-### 4. Worker portal visibility
-- On the worker's **Incentivo** page, show the 3 monthly goals with current month progress and potential bonus value
-
-## Technical Details
-
-- The Edge Function will be callable manually or via cron at month-end
-- Monthly aggregation logic:
-  - **TX_DEVOLUCAO**: `AVG(valor)` across all daily records in the month <= meta
-  - **DISP_TEMPO**: `AVG(valor)` across all daily records in the month <= meta  
-  - **TX_REPOSICAO**: Already calculated monthly by `calculate-reposicao` -- just check the monthly total <= meta
-- Bonus values come from `goals.valor_bonificacao` for the matching indicator + worker_type
-- The user will set the R$ values via the existing Metas UI (which already has the bonificacao field)
-
-## Steps
-
-1. Update DISP_TEMPO goals to `periodo_tipo = 'mensal'`
-2. Create `calculate-monthly-bonus` Edge Function  
-3. Add a "Calcular Bônus Mensal" button on admin Desempenho or Incentivo page
-4. Show monthly bonus results on worker Incentivo page
-5. Update memory with monthly bonus rules
+## Escopo
+- 1 arquivo: `supabase/functions/calculate-monthly-bonus/index.ts`
+- 1 memory update
 
