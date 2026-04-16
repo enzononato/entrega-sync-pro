@@ -345,6 +345,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
                 </table>
                 {rows.length > 20 && <p className="p-1 text-center text-muted-foreground">... e mais {rows.length - 20}</p>}
               </div>
+              {importing && progress && <p className="text-xs text-muted-foreground text-center">{progress}</p>}
               <Button onClick={handleImport} disabled={importing} className="w-full">
                 {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</> : <><FileUp className="h-4 w-4 mr-2" /> Confirmar Importação</>}
               </Button>
