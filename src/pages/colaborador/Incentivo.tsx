@@ -33,6 +33,38 @@ export default function IncentivoColaborador() {
   const { data: desempenho = [] } = useDesempenhoDiario(today, today, { user_id: user?.id });
   const { data: descontos = [] } = useDescontosColaborador(user?.id, 60);
 
+  // Monthly bonus record (stored on first day of month)
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const firstDayOfMonth = `${mesAtual}-01`;
+  const { data: bonusMensal } = useQuery({
+    queryKey: ['bonus_mensal', user?.id, mesAtual],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('user_incentives_daily' as any) as any)
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('data_referencia', firstDayOfMonth)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const detalhes = data.detalhes_json as any;
+      if (detalhes?.tipo !== 'bonus_mensal') return null;
+      return data as { valor_estimado: number; detalhes_json: { tipo: string; mes: string; indicadores: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number }[] } };
+    },
+    enabled: !!user?.id,
+  });
+
+  // Monthly goals with bonificacao > 0 for this user's worker_type
+  const metasMensais = useMemo(() => {
+    return metas.filter(m => {
+      if (m.periodo_tipo !== 'mensal' || m.valor_bonificacao <= 0) return false;
+      if (!m.user_id && m.worker_type === user?.worker_type) return true;
+      if (!m.user_id && !m.worker_type) return true;
+      if (m.user_id === user?.id) return true;
+      return false;
+    });
+  }, [metas, user]);
+
   // Filter goals relevant to this user's worker_type and with bonus > 0
   const metasRelevantes = useMemo(() => {
     return metas.filter(m => {
