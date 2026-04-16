@@ -269,7 +269,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       const batchSize = 200;
       for (let i = 0; i < enriched.length; i += batchSize) {
         const batch = enriched.slice(i, i + batchSize);
-        const { error } = await (supabase.from('reposicao_031805') as any).insert(batch);
+        const { error } = await (supabase.from('reposicao_031805') as any).upsert(batch, { onConflict: 'solicitacao_reposicao,produto' });
         if (error) throw error;
       }
 
