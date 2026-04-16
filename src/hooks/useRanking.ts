@@ -79,7 +79,8 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       const map = new Map<string, {
         nome: string; worker_type: string | null; unidade_id: string | null;
         unidade_nome: string | null; avatar_url: string | null;
-        byIndicator: Map<string, { nome: string; codigo: string; sum: number; count: number; valores: number[]; metas: number[]; pcts: number[] }>;
+        pcts: number[]; onTarget: number;
+        byIndicator: Map<string, { nome: string; codigo: string; sum: number; count: number; valores: number[]; metas: number[]; pcts: number[]; onTarget: number }>;
       }>();
 
       for (const row of allData as any[]) {
