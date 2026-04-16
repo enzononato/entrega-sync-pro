@@ -601,6 +601,7 @@ export default function Metas() {
                       className="h-9"
                     />
                   </div>
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
