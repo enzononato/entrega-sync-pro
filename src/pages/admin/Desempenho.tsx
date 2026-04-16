@@ -28,8 +28,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { cn } from '@/lib/utils';
 import { compareIndicators } from '@/lib/indicatorOrder';
 
-// DatePick removed — using DateRangePick from shared components
-
 export default function Desempenho() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [dateStart, setDateStart] = useState(today);
@@ -40,7 +38,8 @@ export default function Desempenho() {
   const { data: desempenho = [], isLoading } = useDesempenhoDiario(dateStart, dateEnd, {
     unidade_id: filters.unidade_id,
     worker_type: activeTab !== 'todos' ? activeTab : filters.worker_type,
-    user_id: filters.user_id, indicator_id: filters.indicator_id,
+    user_id: filters.user_id,
+    indicator_id: filters.indicator_id,
   });
   const { data: indicators = [] } = useIndicadores({ ativo: 'true' });
   const { allowedUnits } = useAllowedUnits();
@@ -71,35 +70,35 @@ export default function Desempenho() {
   const activeUnits = allowedUnits;
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
-  // Expected indicators per mapa (by worker type)
   const MAPA_INDICATORS_MOT = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO', 'DISP_TEMPO'];
   const MAPA_INDICATORS_AJU = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO'];
 
-  // Build indicator lookup by code
   const indicatorByCode = useMemo(() => {
     const m = new Map<string, { id: string; nome: string; codigo: string }>();
     for (const ind of indicators) m.set(ind.codigo.toUpperCase(), { id: ind.id, nome: ind.nome, codigo: ind.codigo });
     return m;
   }, [indicators]);
 
-  // Build meta lookup by indicator code + worker_type
   const metaLookup = useMemo(() => {
-    const m = new Map<string, number>();
+    const m = new Map<string, { meta: number; desafio: number }>();
     for (const g of metas) {
       const code = (g as any).indicators?.codigo?.toUpperCase();
       if (!code) continue;
       const wt = g.worker_type || 'default';
-      m.set(`${code}|${wt}`, g.valor_meta);
-      if (!m.has(`${code}|default`)) m.set(`${code}|default`, g.valor_meta);
+      const config = {
+        meta: Number(g.valor_meta) || 0,
+        desafio: Number(g.valor_desafio) || 0,
+      };
+      m.set(`${code}|${wt}`, config);
+      if (!m.has(`${code}|default`)) m.set(`${code}|default`, config);
     }
     return m;
   }, [metas]);
 
-  const getMetaVal = (code: string, wt: string) => {
-    return metaLookup.get(`${code}|${wt}`) ?? metaLookup.get(`${code}|default`) ?? 0;
+  const getMetaConfig = (code: string, wt: string) => {
+    return metaLookup.get(`${code}|${wt}`) ?? metaLookup.get(`${code}|default`) ?? { meta: 0, desafio: 0 };
   };
 
-  // Group desempenho by user, then by mapa_numero — fill missing indicators
   const groupedByUser = useMemo(() => {
     const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
     const uniqueDesempenho = Array.from(new Map(desempenho.map(row => [row.id, row])).values());
@@ -125,16 +124,18 @@ export default function Desempenho() {
             if (presentCodes.has(code)) continue;
             const ind = indicatorByCode.get(code);
             if (!ind) continue;
-            const metaVal = getMetaVal(code, wt);
+            const metaConfig = getMetaConfig(code, wt);
             rows.push({
               id: `placeholder-${entry.userId}-${mapaKey}-${code}`,
               user_id: entry.userId,
               indicator_id: ind.id,
               data_referencia: rows[0]?.data_referencia ?? '',
               valor: 0,
-              meta: metaVal,
-              percentual_atingimento: metaVal === 0 ? 100 : 0,
-              status: metaVal === 0 ? 'dentro_meta' : 'sem_dados',
+              meta: metaConfig.meta,
+              desafio: metaConfig.desafio,
+              percentual_atingimento: metaConfig.meta === 0 ? 100 : 0,
+              status: metaConfig.meta === 0 ? 'dentro_meta' : 'sem_dados',
+              status_desafio: metaConfig.desafio > 0 ? 'nao_atingiu' : 'sem_desafio',
               origem_dado: 'mapa_historico',
               created_at: '',
               updated_at: '',
@@ -176,7 +177,6 @@ export default function Desempenho() {
 
   const pg = usePagination(groupedByUser);
 
-  // KPIs (exclude placeholder rows)
   const realDesempenho = desempenho.filter(d => d.status !== 'sem_dados');
   const dentroMeta = realDesempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
   const abaixoMeta = realDesempenho.filter(d => d.status === 'abaixo_meta').length;
@@ -200,7 +200,6 @@ export default function Desempenho() {
     return worst.taxaFalha > 0 ? worst : null;
   }, [realDesempenho]);
 
-  // Chart data
   const chartData = useMemo(() => {
     const byInd: Record<string, { nome: string; total: number; atingiu: number }> = {};
     realDesempenho.forEach(d => {
@@ -230,7 +229,6 @@ export default function Desempenho() {
     { label: 'Não Atingiu', value: abaixoMeta, icon: TrendingDown, iconBg: 'bg-red-100', iconColor: 'text-red-600', borderColor: 'border-l-red-500' },
   ];
 
-  // Detail helpers
   const isTimeIndicator = (code: string | undefined) => ['TML', 'TR', 'TI', 'JL'].includes(code?.toUpperCase() ?? '');
   const isPercentIndicator = (code: string | undefined) => ['DISP_TEMPO'].includes(code?.toUpperCase() ?? '');
   const formatVal = (val: number, code: string | undefined) => {
@@ -250,24 +248,34 @@ export default function Desempenho() {
           }
         />
         <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={handleCalcMonthlyBonus} disabled={calcLoading}>
-          {calcLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
-          Calcular Bônus Mensal
-        </Button>
-        <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
-          const rows = desempenho.map(d => [
-            d.users?.nome ?? '', d.indicators?.codigo ?? '', d.indicators?.nome ?? '',
-            d.valor, d.meta ?? '', d.percentual_atingimento != null ? `${d.percentual_atingimento}%` : '',
-            d.status ?? '', d.data_referencia,
-          ]);
-          exportToCsv(`desempenho-${dateStart}_${dateEnd}.csv`, ['Colaborador', 'Código', 'Indicador', 'Valor', 'Meta', '% Ating.', 'Status', 'Data'], rows);
-        }}>
-          <Download className="h-4 w-4" /> CSV
-        </Button>
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={handleCalcMonthlyBonus} disabled={calcLoading}>
+            {calcLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+            Calcular Bônus Mensal
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => {
+            const rows = desempenho.map(d => [
+              d.users?.nome ?? '',
+              d.indicators?.codigo ?? '',
+              d.indicators?.nome ?? '',
+              d.valor,
+              d.meta ?? '',
+              d.desafio ?? '',
+              d.percentual_atingimento != null ? `${d.percentual_atingimento}%` : '',
+              d.status ?? '',
+              d.status_desafio ?? '',
+              d.data_referencia,
+            ]);
+            exportToCsv(
+              `desempenho-${dateStart}_${dateEnd}.csv`,
+              ['Colaborador', 'Código', 'Indicador', 'Valor', 'Meta', 'Desafio', '% Ating.', 'Status Meta', 'Status Desafio', 'Data'],
+              rows,
+            );
+          }}>
+            <Download className="h-4 w-4" /> CSV
+          </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map(k => {
           const Icon = k.icon;
@@ -287,7 +295,6 @@ export default function Desempenho() {
         })}
       </div>
 
-      {/* Worst indicator callout */}
       {piorIndicador && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
@@ -299,7 +306,6 @@ export default function Desempenho() {
         </div>
       )}
 
-      {/* Tabs + Filters */}
       <div className="flex flex-col gap-3">
         <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); pg.resetPage(); }}>
           <TabsList className="w-full sm:w-auto">
@@ -335,7 +341,6 @@ export default function Desempenho() {
         </div>
       </div>
 
-      {/* Chart */}
       {chartData.length > 0 && (
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground mb-4">% de Metas Atingidas por Indicador</h3>
@@ -378,7 +383,6 @@ export default function Desempenho() {
 
               return (
                 <div key={group.userId} className="rounded-xl border bg-card shadow-sm overflow-hidden">
-                  {/* User header - clickable */}
                   <button
                     onClick={() => toggleUser(group.userId)}
                     className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors"
@@ -409,7 +413,6 @@ export default function Desempenho() {
                     <ChevronDown className={cn('h-5 w-5 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
                   </button>
 
-                  {/* Expanded: show each map */}
                   {isExpanded && (
                     <div className="border-t border-border/50">
                       {Array.from(group.mapas.entries()).map(([mapaNum, rows]) => (
@@ -427,25 +430,35 @@ export default function Desempenho() {
                               const isTime = isTimeIndicator(code);
                               const valStr = isPct ? `${d.valor}%` : isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isPct ? `${d.meta}%` : isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
+                              const desafioAtivo = Number(d.desafio ?? 0) > 0;
+                              const desafioStr = desafioAtivo ? formatVal(Number(d.desafio), code) : null;
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
+                              const atingiuDesafio = d.status_desafio === 'atingiu';
 
                               return (
                                 <button
                                   key={d.id}
                                   onClick={() => !isSemDados && setDetailRow(d)}
                                   className={cn(
-                                    "w-full flex items-center gap-3 px-5 py-2.5 pl-10 transition-colors text-left",
+                                    'w-full flex items-center gap-3 px-5 py-2.5 pl-10 transition-colors text-left',
                                     isSemDados ? 'opacity-50 cursor-default' : 'hover:bg-muted/20 cursor-pointer'
                                   )}
                                 >
                                   <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary font-mono shrink-0">
                                     {d.indicators?.codigo}
                                   </span>
-                                  <span className="text-xs text-muted-foreground hidden sm:inline truncate min-w-0">
-                                    {d.indicators?.nome}
-                                  </span>
-                                  <div className="flex items-center gap-2 ml-auto shrink-0">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-xs text-muted-foreground hidden sm:inline truncate">
+                                      {d.indicators?.nome}
+                                    </span>
+                                    {desafioAtivo && (
+                                      <div className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 font-medium">
+                                        🎯 Desafio: {desafioStr}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-auto shrink-0 flex-wrap justify-end">
                                     <span className="text-xs text-muted-foreground">
                                       <strong className="text-foreground">{valStr}</strong> / {metaStr}
                                     </span>
@@ -454,12 +467,24 @@ export default function Desempenho() {
                                         Sem dados
                                       </span>
                                     ) : (
-                                      <span className={cn(
-                                        'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                                        atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                                      )}>
-                                        {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                                      </span>
+                                      <>
+                                        <span className={cn(
+                                          'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                          atingiu ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                                        )}>
+                                          {atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
+                                        </span>
+                                        {desafioAtivo && (
+                                          <span className={cn(
+                                            'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                                            atingiuDesafio
+                                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                                              : 'bg-muted text-muted-foreground'
+                                          )}>
+                                            {atingiuDesafio ? 'Desafio ✓' : 'Desafio ✗'}
+                                          </span>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 </button>
@@ -478,7 +503,6 @@ export default function Desempenho() {
         </>
       )}
 
-      {/* Detail Dialog */}
       <Dialog open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }}>
         <DialogContent className="max-w-sm p-0">
           {detailRow && (() => {
@@ -486,7 +510,12 @@ export default function Desempenho() {
             const isTime = isTimeIndicator(code);
             const valor = isTime ? formatMinutesHHMM(detailRow.valor) : String(detailRow.valor);
             const meta = detailRow.meta != null ? (isTime ? formatMinutesHHMM(detailRow.meta) : String(detailRow.meta)) : '—';
+            const desafioAtivo = Number(detailRow.desafio ?? 0) > 0;
+            const desafio = desafioAtivo
+              ? (isTime ? formatMinutesHHMM(Number(detailRow.desafio)) : String(detailRow.desafio))
+              : '—';
             const atingiu = detailRow.status === 'dentro_meta' || detailRow.status === 'acima_meta';
+            const atingiuDesafio = detailRow.status_desafio === 'atingiu';
             const pct = detailRow.percentual_atingimento;
 
             return (
@@ -497,11 +526,16 @@ export default function Desempenho() {
                   </DialogHeader>
                 </div>
                 <div className="px-6 py-5 space-y-4">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary font-mono">
                       {detailRow.indicators?.codigo}
                     </span>
                     <span className="text-sm font-medium text-foreground">{detailRow.indicators?.nome}</span>
+                    {desafioAtivo && (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                        🎯 Com desafio
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-xs text-muted-foreground">
@@ -509,9 +543,8 @@ export default function Desempenho() {
                     {detailRow.mapa_numero && ` • Mapa ${detailRow.mapa_numero}`}
                   </div>
 
-                  {/* Valor vs Meta visual */}
                   <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className={cn('grid gap-4 text-center', desafioAtivo ? 'grid-cols-3' : 'grid-cols-2')}>
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Realizado</p>
                         <p className="text-2xl font-bold text-foreground">{valor}</p>
@@ -520,9 +553,14 @@ export default function Desempenho() {
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Meta</p>
                         <p className="text-2xl font-bold text-foreground">{meta}</p>
                       </div>
+                      {desafioAtivo && (
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Desafio</p>
+                          <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{desafio}</p>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Progress bar */}
                     {detailRow.meta != null && detailRow.meta > 0 && (
                       <div className="space-y-1.5">
                         <div className="w-full h-3 rounded-full bg-muted overflow-hidden">
@@ -538,8 +576,7 @@ export default function Desempenho() {
                     )}
                   </div>
 
-                  {/* Status badge */}
-                  <div className="flex justify-center">
+                  <div className="flex justify-center gap-2 flex-wrap">
                     <span className={cn(
                       'text-sm font-bold px-4 py-1.5 rounded-full',
                       atingiu
@@ -548,6 +585,16 @@ export default function Desempenho() {
                     )}>
                       {atingiu ? '✓ Atingiu a Meta' : '✗ Não Atingiu a Meta'}
                     </span>
+                    {desafioAtivo && (
+                      <span className={cn(
+                        'text-sm font-bold px-4 py-1.5 rounded-full',
+                        atingiuDesafio
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                          : 'bg-muted text-muted-foreground'
+                      )}>
+                        {atingiuDesafio ? '🎯 Atingiu o Desafio' : '🎯 Não Atingiu o Desafio'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="px-6 pb-6 flex justify-end border-t border-border/50 pt-4">
