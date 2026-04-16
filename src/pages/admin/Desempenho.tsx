@@ -430,8 +430,12 @@ export default function Desempenho() {
                               const isTime = isTimeIndicator(code);
                               const valStr = isPct ? `${d.valor}%` : isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isPct ? `${d.meta}%` : isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
-                              const desafioAtivo = Number(d.desafio ?? 0) > 0;
-                              const desafioStr = desafioAtivo ? formatVal(Number(d.desafio), code) : null;
+                              const wt = group.user?.worker_type ?? 'motorista';
+                              const goalDesafio = code ? getMetaConfig(code, wt).desafio : 0;
+                              const desafioVal = Number(d.desafio ?? 0) > 0 ? Number(d.desafio) : goalDesafio;
+                              const desafioAtivo = desafioVal > 0;
+                              const desafioStr = desafioAtivo ? formatVal(desafioVal, code) : null;
+                              const atingiuDesafioFromGoal = desafioAtivo && d.valor <= desafioVal;
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
                               const atingiuDesafio = d.status_desafio === 'atingiu';
