@@ -150,10 +150,13 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         if (error) throw error;
       }
 
-      // Recalcular indicadores a partir dos mapas importados
+      // Recalcular indicadores apenas para as datas importadas
+      const uniqueDates = [...new Set(enriched.map(r => String(r.data_operacao)))].filter(Boolean);
       setProgress('Recalculando indicadores...');
       try {
-        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: {} });
+        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', {
+          body: { data_referencia: uniqueDates },
+        });
         if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
       } catch (e) {
         console.error('Erro ao chamar calculate-daily-indicators:', e);
