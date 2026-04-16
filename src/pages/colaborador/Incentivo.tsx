@@ -300,7 +300,7 @@ export default function IncentivoColaborador() {
               );
               const atingiu = bonusDetail?.atingiu ?? false;
               const valorAgregado = bonusDetail?.valor_agregado;
-              const bonusValor = bonusDetail?.bonus ?? 0;
+              const bonusValor = (bonusDetail?.bonus ?? 0) + (bonusDetail?.atingiu_desafio ? (bonusDetail?.bonus_desafio ?? 0) : 0);
               const StatusIcon = bonusDetail ? (atingiu ? CheckCircle2 : XCircle) : Minus;
               const statusClr = bonusDetail ? (atingiu ? 'text-success' : 'text-destructive') : 'text-muted-foreground';
 
