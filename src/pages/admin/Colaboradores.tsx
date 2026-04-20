@@ -472,6 +472,16 @@ export default function Colaboradores() {
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Ativar'} onConfirm={confirmToggle}
         onCancel={() => { setConfirmOpen(false); setToggleTarget(null); }} loading={toggleMut.isPending} />
 
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Excluir colaborador"
+        description={`Tem certeza que deseja excluir definitivamente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        onConfirm={handleDeleteUser}
+        onCancel={() => { setDeleteOpen(false); setDeleteTarget(null); }}
+        loading={deleteLoading}
+      />
+
       {/* Performance Drawer */}
       <Sheet open={!!perfDrawer} onOpenChange={o => !o && setPerfDrawer(null)}>
         <SheetContent className="w-full sm:w-96 overflow-y-auto">
