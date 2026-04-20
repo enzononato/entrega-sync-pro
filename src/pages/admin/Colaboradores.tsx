@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { compareIndicators } from '@/lib/indicatorOrder';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -132,6 +133,7 @@ export default function Colaboradores() {
   };
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleResetPassword = async () => {
     if (!resetPwTarget || newPassword.length < 6) return;
@@ -161,6 +163,8 @@ export default function Colaboradores() {
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
       toast({ title: 'Colaborador excluído com sucesso' });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-paginated'] });
       setDeleteOpen(false);
       setDeleteTarget(null);
     } catch (e: any) {
@@ -338,6 +342,9 @@ export default function Colaboradores() {
                   </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
                     <Power className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Excluir colaborador" onClick={() => { setDeleteTarget(u); setDeleteOpen(true); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
               </div>
