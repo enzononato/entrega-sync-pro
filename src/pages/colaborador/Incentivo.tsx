@@ -16,6 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CaixasBatidasCard } from '@/components/colaborador/CaixasBatidasCard';
+import { useCaixasBatidasColaborador } from '@/hooks/useCaixasBatidas';
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -38,20 +40,20 @@ export default function IncentivoColaborador() {
   const { data: bonusMensal } = useQuery({
     queryKey: ['bonus_mensal', user?.id, mesAtual],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data: rows, error } = await (supabase
         .from('user_incentives_daily' as any) as any)
         .select('*')
         .eq('user_id', user!.id)
-        .eq('data_referencia', firstDayOfMonth)
-        .maybeSingle();
+        .eq('data_referencia', firstDayOfMonth);
       if (error) throw error;
+      const data = (rows ?? []).find((r: any) => (r.detalhes_json as any)?.tipo === 'bonus_mensal');
       if (!data) return null;
-      const detalhes = data.detalhes_json as any;
-      if (detalhes?.tipo !== 'bonus_mensal') return null;
       return data as { valor_estimado: number; detalhes_json: { tipo: string; mes: string; indicadores: { indicator_id: string; valor_agregado: number; meta: number; atingiu: boolean; bonus: number; desafio?: number; atingiu_desafio?: boolean; bonus_desafio?: number }[] } };
     },
     enabled: !!user?.id,
   });
+
+  const { data: caixasBatidas } = useCaixasBatidasColaborador(user?.id, mesAtual);
 
   // Monthly goals with bonificacao > 0 for this user's worker_type
   const metasMensais = useMemo(() => {
@@ -104,7 +106,9 @@ export default function IncentivoColaborador() {
 
   const mesAtualStr = format(new Date(), 'yyyy-MM');
   const mesHistorico = useMemo(() => historico.filter(h => h.data_referencia.startsWith(mesAtualStr)), [historico, mesAtualStr]);
-  const bonusAcumulado = mesHistorico.reduce((s, h) => s + (h.valor_fechado ?? h.valor_estimado), 0);
+  const bonusAcumuladoBase = mesHistorico.reduce((s, h) => s + (h.valor_fechado ?? h.valor_estimado), 0);
+  const valorCaixasBatidas = caixasBatidas?.valor_estimado ?? 0;
+  const bonusAcumulado = bonusAcumuladoBase + valorCaixasBatidas;
   const diasComDados = mesHistorico.length;
 
   const descontosMes = useMemo(() => descontos.filter(d => d.data_referencia.startsWith(mesAtualStr)), [descontos, mesAtualStr]);
@@ -175,6 +179,9 @@ export default function IncentivoColaborador() {
           </div>
         </div>
       </div>
+
+      {/* ── Caixas Batidas ─────────────────────── */}
+      <CaixasBatidasCard userId={user?.id} mes={mesAtual} />
 
       {/* ── Bônus Mensal ──────────────────────── */}
       {metasMensais.length > 0 && (
