@@ -117,6 +117,26 @@ export default function Usuarios() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteTarget.id, auth_user_id: deleteTarget.auth_user_id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: 'Usuário excluído com sucesso' });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-paginated'] });
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir usuário', description: e.message, variant: 'destructive' });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const saving = createMut.isPending || updateMut.isPending;
   const canSave = form.nome.length >= 3 && form.email.includes('@') && (editing || form.password.length >= 6);
 
