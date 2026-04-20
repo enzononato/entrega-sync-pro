@@ -1,12 +1,15 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileUp, Loader2, Database } from 'lucide-react';
+import { Upload, FileUp, Loader2, Database, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/formatters';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePick } from '@/components/shared/DateRangePick';
 
 interface ParsedRow {
   unb: string;
@@ -82,6 +85,11 @@ const JUSTIFICATIVAS_PERMITIDAS = ['Produto Avariado', 'Quebra'];
 export default function Import031805() {
   const [dbRows, setDbRows] = useState<DbRow[]>([]);
   const [loadingDb, setLoadingDb] = useState(true);
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [justificativa, setJustificativa] = useState('all');
+  const [unb, setUnb] = useState('all');
 
   const fetchDbRows = useCallback(async () => {
     setLoadingDb(true);
@@ -108,6 +116,40 @@ export default function Import031805() {
   }, []);
 
   useEffect(() => { fetchDbRows(); }, [fetchDbRows]);
+
+  const unbs = useMemo(() => {
+    const set = new Set<string>();
+    dbRows.forEach(r => { if (r.unb) set.add(r.unb); });
+    return Array.from(set).sort();
+  }, [dbRows]);
+
+  const filteredRows = useMemo(() => {
+    return dbRows.filter(r => {
+      if (search) {
+        const s = search.toLowerCase();
+        const match =
+          r.mapa_origem?.toLowerCase().includes(s) ||
+          r.nome_cliente?.toLowerCase().includes(s) ||
+          r.motorista_nome?.toLowerCase().includes(s) ||
+          r.ajudante_nome?.toLowerCase().includes(s) ||
+          r.nf_origem?.toLowerCase().includes(s) ||
+          r.produto?.toLowerCase().includes(s) ||
+          r.descricao_produto?.toLowerCase().includes(s);
+        if (!match) return false;
+      }
+      if (dateFrom && (!r.data_solicitacao || r.data_solicitacao < dateFrom)) return false;
+      if (dateTo && (!r.data_solicitacao || r.data_solicitacao > dateTo)) return false;
+      if (justificativa !== 'all' && !r.justificativa?.includes(justificativa)) return false;
+      if (unb !== 'all' && r.unb !== unb) return false;
+      return true;
+    });
+  }, [dbRows, search, dateFrom, dateTo, justificativa, unb]);
+
+  const totalValor = useMemo(() => filteredRows.reduce((acc, r) => acc + (Number(r.valor) || 0), 0), [filteredRows]);
+  const hasFilters = !!(search || dateFrom || dateTo || justificativa !== 'all' || unb !== 'all');
+  const clearFilters = () => {
+    setSearch(''); setDateFrom(''); setDateTo(''); setJustificativa('all'); setUnb('all');
+  };
 
   const dbColumns: Column<DbRow>[] = [
     { key: 'data_solicitacao', label: 'Data', render: (r) => r.data_solicitacao ? formatDate(r.data_solicitacao) : '—' },
@@ -155,11 +197,45 @@ export default function Import031805() {
             Dados Importados
           </CardTitle>
           <CardDescription>
-            {loadingDb ? 'Carregando...' : `${dbRows.length} registros no banco de dados`}
+            {loadingDb
+              ? 'Carregando...'
+              : `${filteredRows.length} de ${dbRows.length} registros • Total: R$ ${totalValor.toFixed(2)}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <DataTable columns={dbColumns} data={dbRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar mapa, cliente, motorista, NF, produto..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <DateRangePick from={dateFrom} to={dateTo} onChangeFrom={setDateFrom} onChangeTo={setDateTo} />
+            <Select value={justificativa} onValueChange={setJustificativa}>
+              <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Justificativa" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas justificativas</SelectItem>
+                <SelectItem value="Produto Avariado">Produto Avariado</SelectItem>
+                <SelectItem value="Quebra">Quebra</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={unb} onValueChange={setUnb}>
+              <SelectTrigger className="w-36 h-9"><SelectValue placeholder="UNB" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas UNB</SelectItem>
+                {unbs.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
+                <X className="h-4 w-4 mr-1" /> Limpar
+              </Button>
+            )}
+          </div>
+          <DataTable columns={dbColumns} data={filteredRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
         </CardContent>
       </Card>
     </div>
