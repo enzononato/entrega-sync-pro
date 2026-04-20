@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.user_incentives_daily_user_data_unique;
