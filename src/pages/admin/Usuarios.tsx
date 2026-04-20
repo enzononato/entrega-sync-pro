@@ -15,8 +15,9 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, UserCog, Building2, Mail, Hash,
-  Shield, Eye, EyeOff, Plus, Search, KeyRound,
+  Shield, Eye, EyeOff, Plus, Search, KeyRound, Trash2,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
@@ -45,6 +46,10 @@ export default function Usuarios() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetPwLoading, setResetPwLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<UserWithRelations | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Filter only admin users
   const adminUsers = useMemo(() => {
