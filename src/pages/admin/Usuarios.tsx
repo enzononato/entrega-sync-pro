@@ -255,6 +255,9 @@ export default function Usuarios() {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
                     <Power className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Excluir usuário" onClick={() => { setDeleteTarget(u); setDeleteOpen(true); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
                 </div>
               </div>
             );
@@ -354,6 +357,16 @@ export default function Usuarios() {
         description={`Deseja ${toggleTarget?.ativo ? 'inativar' : 'ativar'} "${toggleTarget?.nome}"?`}
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Ativar'} onConfirm={confirmToggle}
         onCancel={() => { setConfirmOpen(false); setToggleTarget(null); }} loading={toggleMut.isPending} />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Excluir usuário"
+        description={`Tem certeza que deseja excluir definitivamente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        onConfirm={handleDeleteUser}
+        onCancel={() => { setDeleteOpen(false); setDeleteTarget(null); }}
+        loading={deleteLoading}
+      />
 
       {/* Reset Password Dialog */}
       <Dialog open={resetPwOpen} onOpenChange={(o) => { if (!o) { setResetPwOpen(false); setResetPwTarget(null); setNewPassword(''); } }}>
