@@ -9,7 +9,7 @@ import { useDescontosColaborador } from '@/hooks/useDescontos';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  DollarSign, Loader2, TrendingDown,
+  DollarSign, Loader2, TrendingDown, TrendingUp,
   AlertTriangle, Info, ChevronDown, ChevronUp, Sparkles,
   CheckCircle2, XCircle, Minus, Award,
 } from 'lucide-react';
