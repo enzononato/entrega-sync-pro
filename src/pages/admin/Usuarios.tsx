@@ -39,6 +39,12 @@ export default function Usuarios() {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<UserWithRelations | null>(null);
+  const [resetPwTarget, setResetPwTarget] = useState<UserWithRelations | null>(null);
+  const [resetPwOpen, setResetPwOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetPwLoading, setResetPwLoading] = useState(false);
+  const { toast } = useToast();
 
   // Filter only admin users
   const adminUsers = useMemo(() => {
@@ -85,6 +91,25 @@ export default function Usuarios() {
   const confirmToggle = async () => {
     if (toggleTarget) await toggleMut.mutateAsync({ id: toggleTarget.id, ativo: toggleTarget.ativo });
     setConfirmOpen(false); setToggleTarget(null);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPwTarget || newPassword.length < 6) return;
+    setResetPwLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-password', {
+        body: { auth_user_id: resetPwTarget.auth_user_id, new_password: newPassword },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: 'Senha redefinida com sucesso' });
+      setResetPwOpen(false);
+      setNewPassword('');
+      setResetPwTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro ao redefinir senha', description: e.message, variant: 'destructive' });
+    } finally {
+      setResetPwLoading(false);
+    }
   };
 
   const saving = createMut.isPending || updateMut.isPending;
