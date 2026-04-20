@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -13,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, UserCog, Building2, Mail, Hash,
-  Shield, Eye, EyeOff, Plus, Search,
+  Shield, Eye, EyeOff, Plus, Search, KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
