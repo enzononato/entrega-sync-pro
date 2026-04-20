@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Separator } from '@/components/ui/separator';
 import { MessageSquare, Send, Loader2, ChevronRight, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const PROBLEMAS_RAPIDOS = [
   { id: 'rota', tipo: 'operacao', label: 'Rota com problemas', desc: 'Fluxo intenso, ausências ou atraso na entrega', urgencia: 'media' },
@@ -32,6 +33,7 @@ export default function FeedbacksColaborador() {
   const { user } = useAuth();
   const { data: feedbacks = [], isLoading } = useFeedbacksDoColaborador(user?.id);
   const createMut = useCreateFeedback();
+  const { toast } = useToast();
 
   const [selected, setSelected] = useState<string[]>([]);
   const [sugestao, setSugestao] = useState('');
@@ -40,13 +42,20 @@ export default function FeedbacksColaborador() {
   const enviados = feedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status));
   const respondidos = feedbacks.filter(f => ['respondido', 'encerrado'].includes(f.status));
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const jaEnviouHoje = feedbacks.some(f => f.data_referencia === today);
+
   const toggleProblem = (id: string) => {
+    if (jaEnviouHoje) return;
     setSelected(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
   };
 
   const handleEnviar = async () => {
     if (!user) return;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    if (jaEnviouHoje) {
+      toast({ title: 'Você já enviou um feedback hoje', description: 'É permitido apenas um feedback por dia.', variant: 'destructive' });
+      return;
+    }
 
     // Send selected quick problems
     for (const id of selected) {
@@ -82,7 +91,7 @@ export default function FeedbacksColaborador() {
     setSugestao('');
   };
 
-  const canSend = selected.length > 0 || sugestao.trim().length >= 10;
+  const canSend = !jaEnviouHoje && (selected.length > 0 || sugestao.trim().length >= 10);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
@@ -90,10 +99,17 @@ export default function FeedbacksColaborador() {
     <div className="space-y-5 animate-fade-up pb-24">
       <h1 className="text-lg font-bold text-foreground">Feedback Diário</h1>
 
+      {jaEnviouHoje && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          <p className="font-semibold">Feedback de hoje já enviado ✓</p>
+          <p className="text-xs text-muted-foreground mt-0.5">É permitido apenas um envio por dia. Volte amanhã para registrar novamente.</p>
+        </div>
+      )}
+
       {/* Quick problems section */}
       <section>
         <h2 className="text-sm font-bold text-foreground mb-3">Como foi seu dia hoje?</h2>
-        <div className="card-elevated divide-y divide-border/40">
+        <div className={cn('card-elevated divide-y divide-border/40', jaEnviouHoje && 'opacity-50 pointer-events-none')}>
           {PROBLEMAS_RAPIDOS.map(prob => (
             <label
               key={prob.id}
@@ -127,6 +143,7 @@ export default function FeedbacksColaborador() {
             rows={4}
             className="resize-none"
             maxLength={1000}
+            disabled={jaEnviouHoje}
           />
           <p className="text-[10px] text-muted-foreground text-right">{sugestao.length}/1000</p>
         </div>
