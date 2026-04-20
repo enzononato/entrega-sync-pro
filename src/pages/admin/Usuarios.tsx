@@ -224,6 +224,9 @@ export default function Usuarios() {
                   <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => openEdit(u)}>
                     <Pencil className="h-3.5 w-3.5" /> Editar
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Redefinir senha" onClick={() => { setResetPwTarget(u); setNewPassword(''); setShowNewPassword(false); setResetPwOpen(true); }}>
+                    <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
                     <Power className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
