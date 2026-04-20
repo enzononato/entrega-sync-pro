@@ -8,6 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Search, Clock, Truck, Timer, Route, PackageX, Gauge } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePick } from '@/components/shared/DateRangePick';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 function parseTime(hhmm: string | null | undefined): number | null {
   if (!hhmm) return null;
@@ -167,6 +171,11 @@ export default function HistoricoMapas() {
   const { data: goals = [] } = useMetas({ ativo: 'true' });
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [regiao, setRegiao] = useState('all');
+  const [frota, setFrota] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const metasMap = useMemo<MetasMap>(() => {
     const map: MetasMap = {};
@@ -177,17 +186,48 @@ export default function HistoricoMapas() {
     return map;
   }, [goals]);
 
-  const filtered = mapas.filter(m => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (
-      m.mapa?.toLowerCase().includes(s) ||
-      m.placa?.toLowerCase().includes(s) ||
-      m.cd_mot?.toLowerCase().includes(s) ||
-      m.cd_aju1?.toLowerCase().includes(s) ||
-      m.veiculo?.toLowerCase().includes(s)
-    );
-  });
+  const regioes = useMemo(() => {
+    const set = new Set<string>();
+    mapas.forEach(m => { if (m.regiao) set.add(m.regiao); });
+    return Array.from(set).sort();
+  }, [mapas]);
+
+  const frotas = useMemo(() => {
+    const set = new Set<string>();
+    mapas.forEach(m => { if (m.frota) set.add(m.frota); });
+    return Array.from(set).sort();
+  }, [mapas]);
+
+  const filtered = useMemo(() => {
+    return mapas.filter(m => {
+      if (search) {
+        const s = search.toLowerCase();
+        const match =
+          m.mapa?.toLowerCase().includes(s) ||
+          m.placa?.toLowerCase().includes(s) ||
+          m.cd_mot?.toLowerCase().includes(s) ||
+          m.cd_aju1?.toLowerCase().includes(s) ||
+          m.veiculo?.toLowerCase().includes(s);
+        if (!match) return false;
+      }
+      if (dateFrom && m.data_operacao < dateFrom) return false;
+      if (dateTo && m.data_operacao > dateTo) return false;
+      if (regiao !== 'all' && m.regiao !== regiao) return false;
+      if (frota !== 'all' && m.frota !== frota) return false;
+      if (statusFilter !== 'all') {
+        const inds = calculateMapIndicators(m, metasMap);
+        const allOk = inds.every(i => i.valor === null || i.status === 'dentro_meta');
+        if (statusFilter === 'ok' && !allOk) return false;
+        if (statusFilter === 'falhou' && allOk) return false;
+      }
+      return true;
+    });
+  }, [mapas, search, dateFrom, dateTo, regiao, frota, statusFilter, metasMap]);
+
+  const hasFilters = !!(search || dateFrom || dateTo || regiao !== 'all' || frota !== 'all' || statusFilter !== 'all');
+  const clearFilters = () => {
+    setSearch(''); setDateFrom(''); setDateTo(''); setRegiao('all'); setFrota('all'); setStatusFilter('all');
+  };
 
   const selectedMapa = selectedIndex !== null ? filtered[selectedIndex] : null;
   const indicators = useMemo(() => selectedMapa ? calculateMapIndicators(selectedMapa, metasMap) : [], [selectedMapa, metasMap]);
@@ -248,19 +288,48 @@ export default function HistoricoMapas() {
   return (
     <div className="space-y-6">
       <PageHeader title="Mapas" subtitle={`${filtered.length} registros`}>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar mapa, placa, matrícula..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 w-64"
-            />
-          </div>
-          <ImportMapasDialog onSuccess={refetch} />
-        </div>
+        <ImportMapasDialog onSuccess={refetch} />
       </PageHeader>
+
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-card">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar mapa, placa, matrícula..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+        <DateRangePick from={dateFrom} to={dateTo} onChangeFrom={setDateFrom} onChangeTo={setDateTo} />
+        <Select value={regiao} onValueChange={setRegiao}>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Região" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas regiões</SelectItem>
+            {regioes.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={frota} onValueChange={setFrota}>
+          <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Frota" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas frotas</SelectItem>
+            {frotas.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="ok">Todas metas atingidas</SelectItem>
+            <SelectItem value="falhou">Com falhas</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
+            <X className="h-4 w-4 mr-1" /> Limpar
+          </Button>
+        )}
+      </div>
 
       <Dialog open={selectedMapa !== null} onOpenChange={(open) => { if (!open) setSelectedIndex(null); }}>
         <DialogContent className="max-w-2xl">
