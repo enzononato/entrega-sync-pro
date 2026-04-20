@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -29,9 +29,8 @@ export default function IncentivosAdmin() {
     fator_0: '', fator_1: '', fator_2: '', teto_motorista: '', teto_ajudante: '',
   });
 
-  // Sync form when rule loads
-  useState(() => {
-    if (rule && !form.fator_0) {
+  useEffect(() => {
+    if (rule) {
       setForm({
         fator_0: String(rule.fator_0),
         fator_1: String(rule.fator_1),
@@ -40,18 +39,7 @@ export default function IncentivosAdmin() {
         teto_ajudante: String(rule.teto_ajudante),
       });
     }
-  });
-
-  // Use effect-style sync via render
-  if (rule && !form.fator_0 && !update.isPending) {
-    setTimeout(() => setForm({
-      fator_0: String(rule.fator_0),
-      fator_1: String(rule.fator_1),
-      fator_2: String(rule.fator_2),
-      teto_motorista: String(rule.teto_motorista),
-      teto_ajudante: String(rule.teto_ajudante),
-    }), 0);
-  }
+  }, [rule]);
 
   const handleSave = async () => {
     if (!rule) return;
