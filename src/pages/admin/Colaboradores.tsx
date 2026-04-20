@@ -152,6 +152,24 @@ export default function Colaboradores() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteTarget.id, auth_user_id: deleteTarget.auth_user_id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: 'Colaborador excluído com sucesso' });
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir colaborador', description: e.message, variant: 'destructive' });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const saving = createMut.isPending || updateMut.isPending;
   const cpfValid = !form.cpf || validateCpf(form.cpf);
   const canSave = form.nome.length >= 3 && form.matricula.length >= 1 && (editing || form.password.length >= 6) && cpfValid && form.unit_ids.length > 0;
