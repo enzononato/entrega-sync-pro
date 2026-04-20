@@ -24,6 +24,7 @@ import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Hash, Shield,
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package, KeyRound,
+  Trash2,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
 import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
@@ -69,6 +70,9 @@ export default function Colaboradores() {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetPwLoading, setResetPwLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserWithRelations | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
 
   // KPIs from all users (unfiltered)
