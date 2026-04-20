@@ -381,6 +381,14 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
         const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: { data_referencia: uniqueDates } });
         if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
         else toast.success('Indicadores recalculados automaticamente!');
+
+        // Recalcular Caixas Batidas dos meses afetados
+        const mesesAfetados = [...new Set(uniqueDates.map(d => d.slice(0, 7)))];
+        for (const mes of mesesAfetados) {
+          const { error: cbErr } = await supabase.functions.invoke('calculate-caixas-batidas', { body: { mes } });
+          if (cbErr) console.error('Erro ao calcular caixas batidas:', cbErr);
+        }
+        if (mesesAfetados.length > 0) toast.success('Caixas Batidas recalculadas!');
       } catch (e) {
         console.error('Erro ao chamar calculate-daily-indicators:', e);
       }

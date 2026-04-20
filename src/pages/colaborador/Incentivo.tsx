@@ -180,6 +180,9 @@ export default function IncentivoColaborador() {
         </div>
       </div>
 
+      {/* ── Caixas Batidas ─────────────────────── */}
+      <CaixasBatidasCard userId={user?.id} mes={mesAtual} />
+
       {/* ── Bônus Mensal ──────────────────────── */}
       {metasMensais.length > 0 && (
         <div className="card-elevated rounded-2xl overflow-hidden">
