@@ -15,8 +15,9 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Pencil, Power, Loader2, UserCog, Building2, Mail, Hash,
-  Shield, Eye, EyeOff, Plus, Search, KeyRound,
+  Shield, Eye, EyeOff, Plus, Search, KeyRound, Trash2,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
@@ -45,6 +46,10 @@ export default function Usuarios() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetPwLoading, setResetPwLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<UserWithRelations | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Filter only admin users
   const adminUsers = useMemo(() => {
@@ -109,6 +114,26 @@ export default function Usuarios() {
       toast({ title: 'Erro ao redefinir senha', description: e.message, variant: 'destructive' });
     } finally {
       setResetPwLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteTarget.id, auth_user_id: deleteTarget.auth_user_id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: 'Usuário excluído com sucesso' });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-paginated'] });
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir usuário', description: e.message, variant: 'destructive' });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -230,6 +255,9 @@ export default function Usuarios() {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
                     <Power className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Excluir usuário" onClick={() => { setDeleteTarget(u); setDeleteOpen(true); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
                 </div>
               </div>
             );
@@ -329,6 +357,16 @@ export default function Usuarios() {
         description={`Deseja ${toggleTarget?.ativo ? 'inativar' : 'ativar'} "${toggleTarget?.nome}"?`}
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Ativar'} onConfirm={confirmToggle}
         onCancel={() => { setConfirmOpen(false); setToggleTarget(null); }} loading={toggleMut.isPending} />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Excluir usuário"
+        description={`Tem certeza que deseja excluir definitivamente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        onConfirm={handleDeleteUser}
+        onCancel={() => { setDeleteOpen(false); setDeleteTarget(null); }}
+        loading={deleteLoading}
+      />
 
       {/* Reset Password Dialog */}
       <Dialog open={resetPwOpen} onOpenChange={(o) => { if (!o) { setResetPwOpen(false); setResetPwTarget(null); setNewPassword(''); } }}>

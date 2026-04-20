@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { compareIndicators } from '@/lib/indicatorOrder';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -24,6 +25,7 @@ import {
   Pencil, Power, Loader2, Users, Truck, UserCheck, BarChart2,
   Eye, EyeOff, Building2, MapPin, Hash, Shield,
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload, Package, KeyRound,
+  Trash2,
 } from 'lucide-react';
 import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradoresDialog';
 import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
@@ -69,6 +71,9 @@ export default function Colaboradores() {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetPwLoading, setResetPwLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserWithRelations | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
 
   // KPIs from all users (unfiltered)
@@ -128,6 +133,7 @@ export default function Colaboradores() {
   };
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleResetPassword = async () => {
     if (!resetPwTarget || newPassword.length < 6) return;
@@ -145,6 +151,26 @@ export default function Colaboradores() {
       toast({ title: 'Erro ao redefinir senha', description: e.message, variant: 'destructive' });
     } finally {
       setResetPwLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteTarget.id, auth_user_id: deleteTarget.auth_user_id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: 'Colaborador excluído com sucesso' });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-paginated'] });
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir colaborador', description: e.message, variant: 'destructive' });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -317,6 +343,9 @@ export default function Colaboradores() {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setToggleTarget(u); setConfirmOpen(true); }}>
                     <Power className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Excluir colaborador" onClick={() => { setDeleteTarget(u); setDeleteOpen(true); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
                 </div>
               </div>
             );
@@ -442,6 +471,16 @@ export default function Colaboradores() {
         description={`Deseja ${toggleTarget?.ativo ? 'inativar' : 'ativar'} "${toggleTarget?.nome}"?`}
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Ativar'} onConfirm={confirmToggle}
         onCancel={() => { setConfirmOpen(false); setToggleTarget(null); }} loading={toggleMut.isPending} />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Excluir colaborador"
+        description={`Tem certeza que deseja excluir definitivamente "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        onConfirm={handleDeleteUser}
+        onCancel={() => { setDeleteOpen(false); setDeleteTarget(null); }}
+        loading={deleteLoading}
+      />
 
       {/* Performance Drawer */}
       <Sheet open={!!perfDrawer} onOpenChange={o => !o && setPerfDrawer(null)}>
