@@ -165,123 +165,17 @@ export default function IncentivoColaborador() {
         </div>
 
         {/* Stats strip */}
-        <div className="grid grid-cols-2 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
-          <div className="py-3 px-4 text-center">
-            <p className="text-[8px] text-white/40 uppercase tracking-widest font-medium mb-0.5">Hoje</p>
-            <p className="text-base font-bold text-white">{fmtBRL(valorHoje)}</p>
-          </div>
+        <div className="bg-white/[0.06] backdrop-blur-sm">
           <div className="py-3 px-4 text-center">
             <p className="text-[8px] text-white/40 uppercase tracking-widest font-medium mb-0.5">
-              Metas Atingidas
+              Metas Mensais Atingidas
             </p>
             <p className="text-base font-bold text-white">
-              {breakdown.filter(b => b.atingiu).length}/{breakdown.length}
+              {(bonusMensal?.detalhes_json?.indicadores?.filter((i: any) => i.atingiu).length ?? 0)}/{metasMensais.length}
             </p>
           </div>
         </div>
       </div>
-
-      {/* ── Spark Chart ────────────────────────── */}
-      {chartData.length > 1 && (
-        <div className="card-elevated p-4 rounded-2xl">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-bold text-foreground">Últimos 7 dias</span>
-            </div>
-          </div>
-          {loadHist ? (
-            <Skeleton className="h-24 w-full rounded-lg" />
-          ) : (
-            <ResponsiveContainer width="100%" height={100}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="data" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  formatter={(v: number) => [fmtBRL(v), 'Valor']}
-                  contentStyle={{
-                    borderRadius: '10px',
-                    border: '1px solid hsl(var(--border))',
-                    background: 'hsl(var(--card))',
-                    fontSize: '11px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="valor"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  fill="url(#incGrad)"
-                  dot={{ r: 3, fill: 'hsl(var(--primary))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      )}
-
-      {/* ── Breakdown Indicadores ──────────────── */}
-      {breakdown.length > 0 && (
-        <div className="card-elevated rounded-2xl overflow-hidden">
-          <button
-            onClick={() => setShowBreakdown(p => !p)}
-            className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/20 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold text-foreground">Detalhamento do Dia</span>
-            </div>
-            {showBreakdown ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-          </button>
-
-          {showBreakdown && (
-            <div className="divide-y divide-border/40">
-              {breakdown.map((b, i) => {
-                const StatusIcon = b.atingiu ? CheckCircle2 : XCircle;
-                const statusClr = b.atingiu ? 'text-success' : 'text-destructive';
-                return (
-                  <div key={i} className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <StatusIcon className={cn('h-4 w-4 shrink-0', statusClr)} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground truncate">{b.indicador}</span>
-                          <span className="text-sm font-bold text-primary ml-2 shrink-0">{fmtBRL(b.valorGerado)}</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className={cn(
-                            'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                            b.atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                          )}>
-                            {b.atingiu ? 'Atingiu ✓' : 'Não Atingiu ✗'}
-                          </span>
-                          {b.atingiuDesafio && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                              🎯 Desafio +{fmtBRL(b.bonusDesafio)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Total */}
-              <div className="flex items-center justify-between px-4 py-3 bg-primary/5">
-                <span className="text-sm font-bold text-foreground">Total estimado hoje</span>
-                <span className="text-lg font-extrabold text-primary">{fmtBRL(valorHoje)}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Bônus Mensal ──────────────────────── */}
       {metasMensais.length > 0 && (
