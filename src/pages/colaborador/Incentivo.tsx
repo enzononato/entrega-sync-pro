@@ -8,9 +8,8 @@ import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useDescontosColaborador } from '@/hooks/useDescontos';
 import { ProgressBar } from '@/components/shared/ProgressBar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
-  DollarSign, Loader2, TrendingUp, TrendingDown, Target,
+  DollarSign, Loader2, TrendingDown,
   AlertTriangle, Info, ChevronDown, ChevronUp, Sparkles,
   CheckCircle2, XCircle, Minus, Award,
 } from 'lucide-react';
