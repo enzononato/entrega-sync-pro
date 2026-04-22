@@ -256,6 +256,80 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
               </div>
             </CardHeader>
             <CardContent>
+              {report && (() => {
+                const erros = report?.erros ?? {};
+                const errMapas: any[] = erros.mapas ?? [];
+                const errUsers: any[] = erros.usuarios ?? [];
+                const errIns: any[] = erros.insercoes ?? [];
+                const fatal = report?.error;
+                const total = errMapas.length + errUsers.length + errIns.length + (fatal ? 1 : 0);
+                if (total === 0) {
+                  return (
+                    <Alert className="mb-4 border-success/50">
+                      <AlertTitle>Recálculo concluído sem falhas</AlertTitle>
+                      <AlertDescription>
+                        {report.processados ?? 0} colaboradores processados em {report.qtd_mapas ?? 0} mapas.
+                      </AlertDescription>
+                    </Alert>
+                  );
+                }
+                return (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>
+                      {fatal ? 'Falha no recálculo' : `Recálculo concluído com ${total} avisos`}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <div className="space-y-3 mt-2 text-xs">
+                        {fatal && (
+                          <div>
+                            <p className="font-semibold">Erro fatal:</p>
+                            <p className="font-mono">{String(fatal)}</p>
+                          </div>
+                        )}
+                        {errMapas.length > 0 && (
+                          <div>
+                            <p className="font-semibold mb-1">Mapas ignorados ({errMapas.length}):</p>
+                            <div className="max-h-40 overflow-y-auto rounded border border-destructive/30 p-2 bg-destructive/5">
+                              <table className="w-full">
+                                <thead><tr className="text-left">
+                                  <th className="pr-2">Mapa</th><th className="pr-2">Data</th><th>Motivo</th>
+                                </tr></thead>
+                                <tbody>
+                                  {errMapas.slice(0, 200).map((e, i) => (
+                                    <tr key={i}><td className="pr-2 font-mono">{e.mapa}</td><td className="pr-2">{e.data}</td><td>{e.motivo}</td></tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {errMapas.length > 200 && <p className="mt-1 italic">… +{errMapas.length - 200} adicionais</p>}
+                            </div>
+                          </div>
+                        )}
+                        {errUsers.length > 0 && (
+                          <div>
+                            <p className="font-semibold mb-1">Usuários com problema ({errUsers.length}):</p>
+                            <div className="max-h-40 overflow-y-auto rounded border border-destructive/30 p-2 bg-destructive/5">
+                              {errUsers.map((u, i) => (
+                                <div key={i} className="font-mono">{u.user_id} — {u.motivo}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {errIns.length > 0 && (
+                          <div>
+                            <p className="font-semibold mb-1">Falhas ao gravar ({errIns.length}):</p>
+                            <div className="max-h-40 overflow-y-auto rounded border border-destructive/30 p-2 bg-destructive/5">
+                              {errIns.map((u, i) => (
+                                <div key={i}>{u.nome ?? u.user_id} — <span className="font-mono">{u.motivo}</span></div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                );
+              })()}
               <DataTable
                 columns={columns}
                 data={rows}
