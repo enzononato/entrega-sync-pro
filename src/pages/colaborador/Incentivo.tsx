@@ -468,9 +468,6 @@ export default function IncentivoColaborador() {
         </div>
       )}
 
-      {historico.length > 0 && (
-        null
-      )}
     </div>
   );
 }
