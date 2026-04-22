@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column } from '@/components/shared/DataTable';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   useCaixasBatidasRule, useUpdateCaixasBatidasRule, useRecalcCaixasBatidas,
   useCaixasBatidasAdminMes,
@@ -43,6 +44,7 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
   const recalc = useRecalcCaixasBatidas();
   const { data: rows = [], isLoading: loadingRows } = useCaixasBatidasAdminMes(mes);
   const [detail, setDetail] = useState<RowDetalhe | null>(null);
+  const [report, setReport] = useState<any | null>(null);
 
   const [form, setForm] = useState({
     fator_mot_0: '', fator_mot_1: '', fator_mot_2: '',
@@ -66,6 +68,7 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
 
   const handleSave = async () => {
     if (!rule) return;
+    setReport(null);
     try {
       await update.mutateAsync({
         id: rule.id,
@@ -80,8 +83,10 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
       toast.success('Configuração salva. Recalculando...');
       try {
         const result: any = await recalc.mutateAsync(mes);
+        setReport(result);
         toast.success(`Recalculado: ${result?.processados ?? 0} colaboradores em ${result?.qtd_mapas ?? 0} mapas`);
       } catch (e: any) {
+        setReport({ error: e?.message ?? String(e), context: e });
         toast.error('Salvou, mas falhou ao recalcular: ' + e.message);
       }
     } catch (e: any) {
@@ -90,10 +95,13 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
   };
 
   const handleRecalc = async () => {
+    setReport(null);
     try {
       const result: any = await recalc.mutateAsync(mes);
+      setReport(result);
       toast.success(`Recalculado: ${result?.processados ?? 0} colaboradores em ${result?.qtd_mapas ?? 0} mapas`);
     } catch (e: any) {
+      setReport({ error: e?.message ?? String(e) });
       toast.error('Erro ao recalcular: ' + e.message);
     }
   };
