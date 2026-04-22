@@ -16,9 +16,10 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Pencil, Power, Trash2, Loader2, BarChart3, Clock, Gem, Zap, Truck,
-  DollarSign, Heart, Timer, ChevronRight, Search, Plus, Layers,
+  DollarSign, Heart, Timer, ChevronRight, Search, Plus, Layers, Package, Settings2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CaixasBatidasDialog } from '@/components/admin/CaixasBatidasDialog';
 
 const CATEGORIAS = ['Tempo', 'Qualidade', 'Eficiência', 'Operação', 'Financeiro', 'Satisfação', 'Jornada'];
 
@@ -56,6 +57,7 @@ export default function Indicadores() {
   const [toggleTarget, setToggleTarget] = useState<IndicatorRow | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<IndicatorRow | null>(null);
+  const [caixasBatidasOpen, setCaixasBatidasOpen] = useState(false);
 
   const filtered = useMemo(() => {
     return indicators.filter(i => {
@@ -80,6 +82,10 @@ export default function Indicadores() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (i: IndicatorRow) => {
+    if (i.codigo === 'CX_BATIDAS') {
+      setCaixasBatidasOpen(true);
+      return;
+    }
     setEditing(i);
     setForm({ codigo: i.codigo, nome: i.nome, categoria: i.categoria, descricao: i.descricao, applies_to_worker_types: i.applies_to_worker_type.split(',').filter(Boolean), ativo: i.ativo });
     setDialogOpen(true);
@@ -269,9 +275,15 @@ export default function Indicadores() {
                     {/* Actions */}
                     <Separator />
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(ind)}>
-                        <Pencil className="h-3.5 w-3.5" /> Editar
-                      </Button>
+                      {ind.codigo === 'CX_BATIDAS' ? (
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={() => openEdit(ind)}>
+                          <Settings2 className="h-3.5 w-3.5" /> Configurar incentivo
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(ind)}>
+                          <Pencil className="h-3.5 w-3.5" /> Editar
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}>
                         <Power className="h-3.5 w-3.5" /> {ind.ativo ? 'Inativar' : 'Ativar'}
                       </Button>
@@ -375,6 +387,8 @@ export default function Indicadores() {
         description={`Tem certeza que deseja excluir permanentemente "${deleteTarget?.nome}"? Todos os lançamentos, metas, regras de incentivo e registros de causa raiz vinculados a este indicador também serão removidos. Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir" onConfirm={confirmDelete}
         onCancel={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }} loading={deleteMut.isPending} />
+
+      <CaixasBatidasDialog open={caixasBatidasOpen} onOpenChange={setCaixasBatidasOpen} />
     </div>
   );
 }

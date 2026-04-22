@@ -24,7 +24,6 @@ import RankingAdmin from '@/pages/admin/Ranking';
 import UsuariosAdmin from '@/pages/admin/Usuarios';
 import HistoricoMapasAdmin from '@/pages/admin/HistoricoMapas';
 import ImportacoesAdmin from '@/pages/admin/Importacoes';
-import IncentivosAdmin from '@/pages/admin/Incentivos';
 import ColaboradorHome from '@/pages/colaborador/Home';
 import IncentivoColaborador from '@/pages/colaborador/Incentivo';
 import PlanosDeAcaoColaborador from '@/pages/colaborador/PlanosDeAcao';
@@ -65,7 +64,6 @@ export default function AppRoutes() {
         <Route path="usuarios" element={<UsuariosAdmin />} />
         <Route path="historico-mapas" element={<HistoricoMapasAdmin />} />
         <Route path="importacoes" element={<ImportacoesAdmin />} />
-        <Route path="incentivos" element={<IncentivosAdmin />} />
       </Route>
 
       <Route path="/colaborador" element={<ProtectedRoute allowedRole="colaborador"><ColaboradorLayout /></ProtectedRoute>}>
