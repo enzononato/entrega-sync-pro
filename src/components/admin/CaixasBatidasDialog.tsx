@@ -77,7 +77,13 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
         teto_motorista: parseFloat(form.teto_motorista) || 0,
         teto_ajudante: parseFloat(form.teto_ajudante) || 0,
       });
-      toast.success('Configuração salva');
+      toast.success('Configuração salva. Recalculando...');
+      try {
+        const result: any = await recalc.mutateAsync(mes);
+        toast.success(`Recalculado: ${result?.processados ?? 0} colaboradores em ${result?.qtd_mapas ?? 0} mapas`);
+      } catch (e: any) {
+        toast.error('Salvou, mas falhou ao recalcular: ' + e.message);
+      }
     } catch (e: any) {
       toast.error('Erro ao salvar: ' + e.message);
     }
