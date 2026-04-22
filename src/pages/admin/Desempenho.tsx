@@ -191,6 +191,34 @@ export default function Desempenho() {
               indicators: { nome: ind.nome, codigo: ind.codigo },
             } as DesempenhoRow);
           }
+
+          // Injeta linha CX_BATIDAS (caixas batidas neste mapa) se houver dados
+          const cxInfo = cxBatidasLookup.get(`${entry.userId}|${mapaKey}`);
+          const cxInd = indicatorByCode.get('CX_BATIDAS');
+          if (cxInfo && cxInd) {
+            rows.push({
+              id: `cxbatidas-${entry.userId}-${mapaKey}`,
+              user_id: entry.userId,
+              indicator_id: cxInd.id,
+              data_referencia: cxInfo.data ?? rows[0]?.data_referencia ?? '',
+              valor: Number(cxInfo.caixas) || 0,
+              meta: null,
+              desafio: null,
+              percentual_atingimento: null,
+              status: 'dentro_meta',
+              status_desafio: null,
+              origem_dado: 'caixas_batidas',
+              created_at: '',
+              updated_at: '',
+              mapa_numero: mapaKey,
+              users: entry.user,
+              indicators: { nome: cxInd.nome, codigo: cxInd.codigo },
+              valor_financeiro: Number(cxInfo.valor) || 0,
+              fator: cxInfo.fator,
+              valor_caixa: cxInfo.valor_caixa,
+              role_cx: cxInfo.role,
+            } as DesempenhoRow & { fator?: number; valor_caixa?: number; role_cx?: string });
+          }
         }
 
         const dedupedRows = Array.from(
