@@ -468,42 +468,6 @@ export default function IncentivoColaborador() {
         </div>
       )}
 
-      {historico.length > 0 && (
-        <div className="card-elevated rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-primary" />
-            <span className="text-sm font-bold text-foreground">Histórico Diário</span>
-          </div>
-          <div className="divide-y divide-border/40">
-            {historico.slice(0, 7).map(h => {
-              const val = h.valor_fechado ?? h.valor_estimado;
-              const isFechado = h.status === 'fechado';
-              return (
-                <div key={h.id} className="px-4 py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className={cn(
-                      'h-7 w-7 rounded-lg flex items-center justify-center shrink-0',
-                      isFechado ? 'bg-success/10' : 'bg-primary/10'
-                    )}>
-                      {isFechado
-                        ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                        : <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                      }
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-foreground">
-                        {format(new Date(h.data_referencia + 'T00:00:00'), "dd 'de' MMM", { locale: ptBR })}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground capitalize">{h.status === 'fechado' ? 'Fechado' : 'Estimado'}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-foreground">{fmtBRL(val)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
