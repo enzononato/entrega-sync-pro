@@ -107,6 +107,27 @@ export default function ColaboradorHome() {
   const { data: metas = [] } = useMetas({ vigentes: true });
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
+  // Caixas batidas (busca todos os meses dentro do período selecionado)
+  const mesesPeriodo = useMemo(() => {
+    const out = new Set<string>();
+    const start = new Date(dateRange.start + 'T00:00:00');
+    const end = new Date(dateRange.end + 'T00:00:00');
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cur <= end) {
+      out.add(format(cur, 'yyyy-MM'));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return Array.from(out);
+  }, [dateRange.start, dateRange.end]);
+  const { data: cxBatidasMapas = [] } = useCaixasBatidasColaboradorPeriodo(user?.id, mesesPeriodo);
+  const cxBatidasByMapa = useMemo(() => {
+    const m = new Map<string, typeof cxBatidasMapas[number]>();
+    for (const mp of cxBatidasMapas) {
+      if (mp.mapa) m.set(mp.mapa, mp);
+    }
+    return m;
+  }, [cxBatidasMapas]);
+
   // Build meta lookup from goals table
   const getMetaConfig = useMemo(() => {
     const m = new Map<string, { meta: number; desafio: number }>();
