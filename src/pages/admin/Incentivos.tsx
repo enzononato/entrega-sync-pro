@@ -77,6 +77,30 @@ export default function IncentivosAdmin() {
     },
     { key: 'qtd_mapas', label: 'Mapas', render: (r) => r.detalhes.qtd_mapas },
     { key: 'caixas', label: 'Caixas', render: (r) => r.detalhes.total_caixas.toLocaleString('pt-BR') },
+    {
+      key: 'cx_f0',
+      label: 'Cx Fator 0',
+      render: (r) => (r.detalhes.mapas ?? [])
+        .filter((m) => m.fator === 0)
+        .reduce((s, m) => s + (m.caixas || 0), 0)
+        .toLocaleString('pt-BR'),
+    },
+    {
+      key: 'cx_f1',
+      label: 'Cx Fator 1',
+      render: (r) => (r.detalhes.mapas ?? [])
+        .filter((m) => m.fator === 1)
+        .reduce((s, m) => s + (m.caixas || 0), 0)
+        .toLocaleString('pt-BR'),
+    },
+    {
+      key: 'cx_f2',
+      label: 'Cx Fator 2',
+      render: (r) => (r.detalhes.mapas ?? [])
+        .filter((m) => m.fator === 2)
+        .reduce((s, m) => s + (m.caixas || 0), 0)
+        .toLocaleString('pt-BR'),
+    },
     { key: 'bruto', label: 'Bruto', render: (r) => fmtBRL(r.detalhes.valor_bruto) },
     {
       key: 'cortado',
