@@ -63,6 +63,8 @@ Deno.serve(async (req) => {
       mapas: Array<{ mapa: string; data: string; fator: number; valor_caixa: number; caixas: number; valor: number; role: string }>;
     };
     const agg = new Map<string, UserAgg>();
+    const mapaErrors: Array<{ mapa: string; data: string; motivo: string }> = [];
+    const userErrors: Array<{ user_id: string; nome?: string; motivo: string }> = [];
 
     const addToUser = (userId: string, info: any) => {
       if (!agg.has(userId)) agg.set(userId, { bruto: 0, total_caixas: 0, qtd_mapas: 0, mapas: [] });
@@ -74,31 +76,56 @@ Deno.serve(async (req) => {
     };
 
     for (const m of mapas ?? []) {
-      const cx = Number(m.cx_entreg ?? 0);
-      if (cx <= 0) continue;
-      const ajudantes = [m.aju1_user_id, m.aju2_user_id].filter(Boolean);
-      const numAju = ajudantes.length;
-      const fatorMot = numAju === 0 ? fatorMot0 : numAju === 1 ? fatorMot1 : fatorMot2;
-      const fatorAju = numAju === 1 ? fatorAju1 : numAju === 2 ? fatorAju2 : 0;
-      const baseMapa = { mapa: m.mapa, data: m.data_operacao, fator: numAju, caixas: cx };
+      try {
+        const cx = Number(m.cx_entreg ?? 0);
+        if (cx <= 0) {
+          mapaErrors.push({ mapa: m.mapa, data: m.data_operacao, motivo: 'cx_entreg = 0 (mapa ignorado)' });
+          continue;
+        }
+        const ajudantes = [m.aju1_user_id, m.aju2_user_id].filter(Boolean);
+        const numAju = ajudantes.length;
+        const fatorMot = numAju === 0 ? fatorMot0 : numAju === 1 ? fatorMot1 : fatorMot2;
+        const fatorAju = numAju === 1 ? fatorAju1 : numAju === 2 ? fatorAju2 : 0;
+        const baseMapa = { mapa: m.mapa, data: m.data_operacao, fator: numAju, caixas: cx };
 
-      if (m.mot_user_id) {
-        addToUser(m.mot_user_id, { ...baseMapa, valor_caixa: fatorMot, valor: cx * fatorMot, role: 'motorista' });
-      }
-      for (const aju of ajudantes) {
-        addToUser(aju as string, { ...baseMapa, valor_caixa: fatorAju, valor: cx * fatorAju, role: 'ajudante' });
+        if (!m.mot_user_id && ajudantes.length === 0) {
+          mapaErrors.push({ mapa: m.mapa, data: m.data_operacao, motivo: 'sem motorista nem ajudantes vinculados' });
+          continue;
+        }
+        if (!m.mot_user_id) {
+          mapaErrors.push({ mapa: m.mapa, data: m.data_operacao, motivo: 'sem motorista vinculado' });
+        }
+
+        if (m.mot_user_id) {
+          addToUser(m.mot_user_id, { ...baseMapa, valor_caixa: fatorMot, valor: cx * fatorMot, role: 'motorista' });
+        }
+        for (const aju of ajudantes) {
+          addToUser(aju as string, { ...baseMapa, valor_caixa: fatorAju, valor: cx * fatorAju, role: 'ajudante' });
+        }
+      } catch (e: any) {
+        mapaErrors.push({ mapa: m.mapa, data: m.data_operacao, motivo: 'erro ao processar: ' + (e?.message ?? String(e)) });
       }
     }
 
     // 4. Get worker_types
     const userIds = Array.from(agg.keys());
     const userTypes = new Map<string, string>();
+    const userNames = new Map<string, string>();
     if (userIds.length > 0) {
       const { data: usersData } = await supabase
         .from('users')
-        .select('id, worker_type')
+        .select('id, worker_type, nome')
         .in('id', userIds);
-      usersData?.forEach((u: any) => userTypes.set(u.id, u.worker_type ?? 'motorista'));
+      usersData?.forEach((u: any) => {
+        userTypes.set(u.id, u.worker_type ?? 'motorista');
+        userNames.set(u.id, u.nome ?? '');
+      });
+      // detect users referenced but not found
+      for (const uid of userIds) {
+        if (!userTypes.has(uid)) {
+          userErrors.push({ user_id: uid, motivo: 'usuário referenciado em mapa não encontrado em public.users' });
+        }
+      }
     }
 
     // 5. Delete previous caixas_batidas records for this month
@@ -112,13 +139,14 @@ Deno.serve(async (req) => {
     }
 
     // 6. Insert new records with cap applied
-    const inserts = Array.from(agg.entries()).map(([userId, a]) => {
+    const inserts: any[] = [];
+    for (const [userId, a] of agg.entries()) {
       const wt = userTypes.get(userId) ?? 'motorista';
       const teto = wt === 'ajudante' ? tetoAju : tetoMot;
       const valor_final = Math.min(a.bruto, teto);
       const valor_cortado = Math.max(0, a.bruto - teto);
       const teto_atingido = a.bruto > teto;
-      return {
+      inserts.push({
         user_id: userId,
         data_referencia: firstDay,
         valor_estimado: valor_final,
@@ -135,16 +163,41 @@ Deno.serve(async (req) => {
           qtd_mapas: a.qtd_mapas,
           mapas: a.mapas,
         },
-      };
-    });
+      });
+    }
 
+    const insertErrors: Array<{ user_id: string; nome?: string; motivo: string }> = [];
     if (inserts.length > 0) {
-      const { error: insErr } = await supabase.from('user_incentives_daily').insert(inserts);
-      if (insErr) throw insErr;
+      // insert one-by-one to capture per-user errors
+      const { error: bulkErr } = await supabase.from('user_incentives_daily').insert(inserts);
+      if (bulkErr) {
+        // fallback: try individually so we know which ones failed
+        for (const row of inserts) {
+          const { error: rowErr } = await supabase.from('user_incentives_daily').insert(row);
+          if (rowErr) {
+            insertErrors.push({
+              user_id: row.user_id,
+              nome: userNames.get(row.user_id),
+              motivo: rowErr.message,
+            });
+          }
+        }
+      }
     }
 
     return new Response(
-      JSON.stringify({ success: true, mes, processados: inserts.length, qtd_mapas: mapas?.length ?? 0 }),
+      JSON.stringify({
+        success: true,
+        mes,
+        processados: inserts.length - insertErrors.length,
+        qtd_mapas: mapas?.length ?? 0,
+        mapas_ignorados: mapaErrors.length,
+        erros: {
+          mapas: mapaErrors,
+          usuarios: userErrors,
+          insercoes: insertErrors,
+        },
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err: any) {
