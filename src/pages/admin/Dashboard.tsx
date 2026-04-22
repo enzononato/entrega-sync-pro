@@ -38,6 +38,18 @@ function getGreeting() {
 
 const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+// Indicator UUIDs (must match supabase/functions/calculate-monthly-bonus/index.ts)
+const INDICATOR_IDS = {
+  TML: '11496dac-52b6-4331-80f0-f9687e9fd1b7',
+  TR: 'd99beda1-c397-42f1-84e0-4eb60ae7af99',
+  TI: '27fff464-bc98-4e5f-864d-b3b2b6aad46e',
+  JL: 'e1393945-535e-4506-8ef7-e8c28e4788b6',
+  TX_DEVOLUCAO: 'c4fdd7a6-27f3-4d46-a378-1242bdb556aa',
+  DISP_TEMPO: '488d1de9-9d88-42f2-bf3b-625752c0db02',
+  TX_REPOSICAO: 'c4c40e3e-f23b-46ce-a576-885c610f2df7',
+} as const;
+const SUM_INDICATORS = new Set<string>([INDICATOR_IDS.TX_REPOSICAO]);
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -68,39 +80,81 @@ export default function Dashboard() {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
     if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
 
-    // Aggregate per user+indicator: average of daily values (sum for TX_REPOSICAO)
-    const SUM_CODES = new Set(['TX_REPOSICAO']);
-    const aggMap = new Map<string, { sum: number; count: number; userId: string; indicatorId: string }>();
+    // Mirror logic from supabase/functions/calculate-monthly-bonus/index.ts
+    // 1) Active collaborators only (matches edge function user filter)
+    const activeCollaborators = usuarios.filter(
+      u => u.ativo && u.role === 'colaborador' && u.worker_type,
+    );
+    if (activeCollaborators.length === 0) return 0;
+
+    // 2) Goal lookup with worker_type priority + default fallback
+    const goalLookup = new Map<string, typeof goalsComBonus[number]>();
+    for (const g of goalsComBonus) {
+      const wt = g.worker_type || 'default';
+      goalLookup.set(`${g.indicator_id}|${wt}`, g);
+      if (!goalLookup.has(`${g.indicator_id}|default`)) {
+        goalLookup.set(`${g.indicator_id}|default`, g);
+      }
+    }
+    const findGoal = (indicatorId: string, workerType: string) =>
+      goalLookup.get(`${indicatorId}|${workerType}`) ?? goalLookup.get(`${indicatorId}|default`);
+
+    const goalIndicatorIds = [...new Set(goalsComBonus.map(g => g.indicator_id))];
+
+    // 3) Aggregate: for SUM indicators -> total sum; otherwise -> average of daily averages
+    const dailyMap = new Map<string, Map<string, { sum: number; count: number }>>();
+    const sumMap = new Map<string, number>();
     for (const d of desempenhoMes) {
+      if (!goalIndicatorIds.includes(d.indicator_id)) continue;
       const key = `${d.user_id}|${d.indicator_id}`;
-      const entry = aggMap.get(key);
       const val = Number(d.valor) || 0;
-      if (entry) {
-        entry.sum += val;
-        entry.count += 1;
+      if (SUM_INDICATORS.has(d.indicator_id)) {
+        sumMap.set(key, (sumMap.get(key) || 0) + val);
       } else {
-        aggMap.set(key, { sum: val, count: 1, userId: d.user_id, indicatorId: d.indicator_id });
+        let dayMap = dailyMap.get(key);
+        if (!dayMap) {
+          dayMap = new Map();
+          dailyMap.set(key, dayMap);
+        }
+        const dayEntry = dayMap.get(d.data_referencia);
+        if (dayEntry) {
+          dayEntry.sum += val;
+          dayEntry.count += 1;
+        } else {
+          dayMap.set(d.data_referencia, { sum: val, count: 1 });
+        }
       }
     }
 
+    // 4) Iterate over ALL active collaborators and compute bonus
     let total = 0;
-    for (const [, agg] of aggMap) {
-      const u = usuarios.find(u => u.id === agg.userId);
-      const goal = goalsComBonus.find(g => {
-        if (g.indicator_id !== agg.indicatorId) return false;
-        if (g.user_id === agg.userId) return true;
-        if (!g.user_id && g.worker_type === u?.worker_type) return true;
-        if (!g.user_id && !g.worker_type) return true;
-        return false;
-      });
-      if (!goal) continue;
+    for (const user of activeCollaborators) {
+      for (const indId of goalIndicatorIds) {
+        const goal = findGoal(indId, user.worker_type!);
+        if (!goal || Number(goal.valor_bonificacao) <= 0) continue;
 
-      const indCode = (goal as any).indicators?.codigo?.toUpperCase() ?? '';
-      const valorAgregado = SUM_CODES.has(indCode) ? agg.sum : agg.sum / agg.count;
-      const metaVal = Number(goal.valor_meta);
-      const atingiu = valorAgregado <= metaVal;
+        const key = `${user.id}|${indId}`;
+        let valorAgregado: number | null = null;
 
-      if (atingiu) {
+        if (SUM_INDICATORS.has(indId)) {
+          if (sumMap.has(key)) {
+            valorAgregado = Math.round((sumMap.get(key) || 0) * 100) / 100;
+          }
+        } else {
+          const dayMap = dailyMap.get(key);
+          if (dayMap && dayMap.size > 0) {
+            let sumOfDailyAvgs = 0;
+            for (const [, day] of dayMap) sumOfDailyAvgs += day.sum / day.count;
+            valorAgregado = Math.round((sumOfDailyAvgs / dayMap.size) * 100) / 100;
+          }
+        }
+
+        if (valorAgregado === null) continue;
+
+        const metaVal = Number(goal.valor_meta);
+        const atingiu = valorAgregado <= metaVal;
+        if (!atingiu) continue;
+
         total += Number(goal.valor_bonificacao);
         const desafioVal = Number(goal.valor_desafio) || 0;
         if (desafioVal > 0 && valorAgregado <= desafioVal) {
