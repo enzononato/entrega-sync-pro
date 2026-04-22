@@ -354,7 +354,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
           <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} />
-          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusMes)} label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`} sub="Acumulado do mês até hoje" isSmall />
+          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusTotalMes)} label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`} sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`} isSmall />
           <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
       </div>
