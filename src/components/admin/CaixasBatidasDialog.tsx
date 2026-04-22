@@ -219,10 +219,67 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
                 data={rows}
                 loading={loadingRows}
                 emptyMessage="Nenhum cálculo encontrado para este mês. Clique em Recalcular."
+                onRowClick={(r) => setDetail(r)}
               />
             </CardContent>
           </Card>
         </div>
+
+        <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                Detalhamento por mapa — {detail?.nome}
+              </DialogTitle>
+              <DialogDescription>
+                Matrícula {detail?.matricula} · {detail?.worker_type} · {format(new Date(mes + '-01T00:00:00'), "MMMM 'de' yyyy", { locale: ptBR })}
+              </DialogDescription>
+            </DialogHeader>
+
+            {detail && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Mapas</p>
+                    <p className="text-lg font-bold">{detail.detalhes.qtd_mapas}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Total caixas</p>
+                    <p className="text-lg font-bold">{detail.detalhes.total_caixas.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Bruto</p>
+                    <p className="text-lg font-bold">{fmtBRL(detail.detalhes.valor_bruto)}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Final</p>
+                    <p className="text-lg font-bold text-primary">{fmtBRL(detail.valor_final)}</p>
+                    {detail.detalhes.teto_atingido && (
+                      <Badge variant="outline" className="mt-1 text-warning border-warning/50 text-[10px]">
+                        <AlertTriangle className="h-3 w-3 mr-1" /> Teto atingido
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                <DataTable
+                  columns={[
+                    { key: 'mapa', label: 'Mapa' },
+                    { key: 'data', label: 'Data', render: (m) => format(new Date(m.data + 'T00:00:00'), 'dd/MM/yyyy') },
+                    { key: 'role', label: 'Função', render: (m) => <Badge variant="outline" className="capitalize">{m.role}</Badge> },
+                    { key: 'fator', label: 'Fator', render: (m) => `${m.fator} (${fatorLabel(m.fator)})` },
+                    { key: 'caixas', label: 'Caixas', render: (m) => m.caixas.toLocaleString('pt-BR') },
+                    { key: 'valor_caixa', label: 'R$/cx', render: (m) => fmtBRL(m.valor_caixa) },
+                    { key: 'valor', label: 'Valor', render: (m) => <span className="font-semibold">{fmtBRL(m.valor)}</span> },
+                  ]}
+                  data={detail.detalhes.mapas ?? []}
+                  emptyMessage="Sem mapas no período."
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
