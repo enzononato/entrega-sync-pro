@@ -27,9 +27,11 @@ export type CaixasBatidasDetalhes = {
 
 export type CaixasBatidasRule = {
   id: string;
-  fator_0: number;
-  fator_1: number;
-  fator_2: number;
+  fator_mot_0: number;
+  fator_mot_1: number;
+  fator_mot_2: number;
+  fator_aju_1: number;
+  fator_aju_2: number;
   teto_motorista: number;
   teto_ajudante: number;
 };
@@ -126,9 +128,11 @@ export function useCaixasBatidasRule() {
       const cfg = rule.regra_json as any;
       return {
         id: rule.id,
-        fator_0: Number(cfg.fator_0 ?? 0.19),
-        fator_1: Number(cfg.fator_1 ?? 0.18),
-        fator_2: Number(cfg.fator_2 ?? 0.06),
+        fator_mot_0: Number(cfg.fator_mot_0 ?? cfg.fator_0 ?? 0.19),
+        fator_mot_1: Number(cfg.fator_mot_1 ?? cfg.fator_1 ?? 0.18),
+        fator_mot_2: Number(cfg.fator_mot_2 ?? cfg.fator_2 ?? 0.06),
+        fator_aju_1: Number(cfg.fator_aju_1 ?? cfg.fator_1 ?? 0.18),
+        fator_aju_2: Number(cfg.fator_aju_2 ?? cfg.fator_2 ?? 0.06),
         teto_motorista: Number(cfg.teto_motorista ?? 624),
         teto_ajudante: Number(cfg.teto_ajudante ?? 416),
       };
@@ -145,9 +149,11 @@ export function useUpdateCaixasBatidasRule() {
         .update({
           regra_json: {
             tipo: 'caixas_batidas',
-            fator_0: cfg.fator_0,
-            fator_1: cfg.fator_1,
-            fator_2: cfg.fator_2,
+            fator_mot_0: cfg.fator_mot_0,
+            fator_mot_1: cfg.fator_mot_1,
+            fator_mot_2: cfg.fator_mot_2,
+            fator_aju_1: cfg.fator_aju_1,
+            fator_aju_2: cfg.fator_aju_2,
             teto_motorista: cfg.teto_motorista,
             teto_ajudante: cfg.teto_ajudante,
           },

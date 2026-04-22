@@ -45,15 +45,19 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
   const [detail, setDetail] = useState<RowDetalhe | null>(null);
 
   const [form, setForm] = useState({
-    fator_0: '', fator_1: '', fator_2: '', teto_motorista: '', teto_ajudante: '',
+    fator_mot_0: '', fator_mot_1: '', fator_mot_2: '',
+    fator_aju_1: '', fator_aju_2: '',
+    teto_motorista: '', teto_ajudante: '',
   });
 
   useEffect(() => {
     if (rule) {
       setForm({
-        fator_0: String(rule.fator_0),
-        fator_1: String(rule.fator_1),
-        fator_2: String(rule.fator_2),
+        fator_mot_0: String(rule.fator_mot_0),
+        fator_mot_1: String(rule.fator_mot_1),
+        fator_mot_2: String(rule.fator_mot_2),
+        fator_aju_1: String(rule.fator_aju_1),
+        fator_aju_2: String(rule.fator_aju_2),
         teto_motorista: String(rule.teto_motorista),
         teto_ajudante: String(rule.teto_ajudante),
       });
@@ -65,9 +69,11 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
     try {
       await update.mutateAsync({
         id: rule.id,
-        fator_0: parseFloat(form.fator_0) || 0,
-        fator_1: parseFloat(form.fator_1) || 0,
-        fator_2: parseFloat(form.fator_2) || 0,
+        fator_mot_0: parseFloat(form.fator_mot_0) || 0,
+        fator_mot_1: parseFloat(form.fator_mot_1) || 0,
+        fator_mot_2: parseFloat(form.fator_mot_2) || 0,
+        fator_aju_1: parseFloat(form.fator_aju_1) || 0,
+        fator_aju_2: parseFloat(form.fator_aju_2) || 0,
         teto_motorista: parseFloat(form.teto_motorista) || 0,
         teto_ajudante: parseFloat(form.teto_ajudante) || 0,
       });
@@ -159,31 +165,53 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
                 <p className="text-sm text-muted-foreground">Regra não configurada.</p>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="f0">Fator 0 — Sem ajudante (R$/cx)</Label>
-                      <Input id="f0" type="number" step="0.01" value={form.fator_0}
-                        onChange={e => setForm(s => ({ ...s, fator_0: e.target.value }))} />
+                      <p className="text-sm font-semibold mb-2">🚛 Motorista — R$/cx</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="fm0">Sem ajudante</Label>
+                          <Input id="fm0" type="number" step="0.01" value={form.fator_mot_0}
+                            onChange={e => setForm(s => ({ ...s, fator_mot_0: e.target.value }))} />
+                        </div>
+                        <div>
+                          <Label htmlFor="fm1">1 ajudante</Label>
+                          <Input id="fm1" type="number" step="0.01" value={form.fator_mot_1}
+                            onChange={e => setForm(s => ({ ...s, fator_mot_1: e.target.value }))} />
+                        </div>
+                        <div>
+                          <Label htmlFor="fm2">2 ajudantes</Label>
+                          <Input id="fm2" type="number" step="0.01" value={form.fator_mot_2}
+                            onChange={e => setForm(s => ({ ...s, fator_mot_2: e.target.value }))} />
+                        </div>
+                      </div>
                     </div>
                     <div>
-                      <Label htmlFor="f1">Fator 1 — 1 ajudante (R$/cx)</Label>
-                      <Input id="f1" type="number" step="0.01" value={form.fator_1}
-                        onChange={e => setForm(s => ({ ...s, fator_1: e.target.value }))} />
+                      <p className="text-sm font-semibold mb-2">📦 Ajudante — R$/cx</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="fa1">1 ajudante no mapa</Label>
+                          <Input id="fa1" type="number" step="0.01" value={form.fator_aju_1}
+                            onChange={e => setForm(s => ({ ...s, fator_aju_1: e.target.value }))} />
+                        </div>
+                        <div>
+                          <Label htmlFor="fa2">2 ajudantes no mapa</Label>
+                          <Input id="fa2" type="number" step="0.01" value={form.fator_aju_2}
+                            onChange={e => setForm(s => ({ ...s, fator_aju_2: e.target.value }))} />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="f2">Fator 2 — 2 ajudantes (R$/cx)</Label>
-                      <Input id="f2" type="number" step="0.01" value={form.fator_2}
-                        onChange={e => setForm(s => ({ ...s, fator_2: e.target.value }))} />
-                    </div>
-                    <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
                       <Label htmlFor="tm">Teto mensal — Motorista (R$)</Label>
                       <Input id="tm" type="number" step="0.01" value={form.teto_motorista}
                         onChange={e => setForm(s => ({ ...s, teto_motorista: e.target.value }))} />
-                    </div>
-                    <div>
-                      <Label htmlFor="ta">Teto mensal — Ajudante (R$)</Label>
-                      <Input id="ta" type="number" step="0.01" value={form.teto_ajudante}
-                        onChange={e => setForm(s => ({ ...s, teto_ajudante: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label htmlFor="ta">Teto mensal — Ajudante (R$)</Label>
+                        <Input id="ta" type="number" step="0.01" value={form.teto_ajudante}
+                          onChange={e => setForm(s => ({ ...s, teto_ajudante: e.target.value }))} />
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">

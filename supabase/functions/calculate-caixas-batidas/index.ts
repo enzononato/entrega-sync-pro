@@ -38,9 +38,12 @@ Deno.serve(async (req) => {
     if (!rule) throw new Error('Regra de Caixas Batidas não configurada');
 
     const cfg = rule.regra_json as any;
-    const fator0 = Number(cfg.fator_0 ?? 0.19);
-    const fator1 = Number(cfg.fator_1 ?? 0.18);
-    const fator2 = Number(cfg.fator_2 ?? 0.06);
+    // Backward-compat: legacy fator_0/1/2 used as MOTORISTA defaults
+    const fatorMot0 = Number(cfg.fator_mot_0 ?? cfg.fator_0 ?? 0.19);
+    const fatorMot1 = Number(cfg.fator_mot_1 ?? cfg.fator_1 ?? 0.18);
+    const fatorMot2 = Number(cfg.fator_mot_2 ?? cfg.fator_2 ?? 0.06);
+    const fatorAju1 = Number(cfg.fator_aju_1 ?? cfg.fator_1 ?? 0.18);
+    const fatorAju2 = Number(cfg.fator_aju_2 ?? cfg.fator_2 ?? 0.06);
     const tetoMot = Number(cfg.teto_motorista ?? 624);
     const tetoAju = Number(cfg.teto_ajudante ?? 416);
 
@@ -75,13 +78,15 @@ Deno.serve(async (req) => {
       if (cx <= 0) continue;
       const ajudantes = [m.aju1_user_id, m.aju2_user_id].filter(Boolean);
       const numAju = ajudantes.length;
-      const fator = numAju === 0 ? fator0 : numAju === 1 ? fator1 : fator2;
-      const valor = cx * fator;
-      const baseInfo = { mapa: m.mapa, data: m.data_operacao, fator: numAju, valor_caixa: fator, caixas: cx, valor };
+      const fatorMot = numAju === 0 ? fatorMot0 : numAju === 1 ? fatorMot1 : fatorMot2;
+      const fatorAju = numAju === 1 ? fatorAju1 : numAju === 2 ? fatorAju2 : 0;
+      const baseMapa = { mapa: m.mapa, data: m.data_operacao, fator: numAju, caixas: cx };
 
-      if (m.mot_user_id) addToUser(m.mot_user_id, { ...baseInfo, role: 'motorista' });
+      if (m.mot_user_id) {
+        addToUser(m.mot_user_id, { ...baseMapa, valor_caixa: fatorMot, valor: cx * fatorMot, role: 'motorista' });
+      }
       for (const aju of ajudantes) {
-        addToUser(aju as string, { ...baseInfo, role: 'ajudante' });
+        addToUser(aju as string, { ...baseMapa, valor_caixa: fatorAju, valor: cx * fatorAju, role: 'ajudante' });
       }
     }
 
