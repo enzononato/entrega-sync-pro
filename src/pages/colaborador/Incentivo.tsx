@@ -429,6 +429,45 @@ export default function IncentivoColaborador() {
       )}
 
       {/* ── Histórico Recente ─────────────────── */}
+      {historicoMensal.length > 0 && (
+        <div className="card-elevated rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold text-foreground">Histórico Mensal</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">Últimos 6 meses</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {historicoMensal.map(m => {
+              const vazio = m.bruto === 0 && m.descontos === 0;
+              return (
+                <div key={m.mes} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-foreground capitalize">{m.label}</span>
+                    <span className={cn(
+                      'text-base font-extrabold',
+                      vazio ? 'text-muted-foreground' : m.liquido > 0 ? 'text-primary' : 'text-destructive'
+                    )}>
+                      {fmtBRL(m.liquido)}
+                    </span>
+                  </div>
+                  {!vazio && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                      {m.caixas > 0 && <span>📦 Caixas: <b className="text-foreground">{fmtBRL(m.caixas)}</b></span>}
+                      {m.bonusMensal > 0 && <span>🏆 Bônus: <b className="text-foreground">{fmtBRL(m.bonusMensal)}</b></span>}
+                      {m.diario > 0 && <span>📅 Diário: <b className="text-foreground">{fmtBRL(m.diario)}</b></span>}
+                      {m.descontos > 0 && <span className="text-destructive">− Descontos: <b>{fmtBRL(m.descontos)}</b></span>}
+                    </div>
+                  )}
+                  {vazio && (
+                    <p className="text-[10px] text-muted-foreground italic">Sem registros</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {historico.length > 0 && (
         <div className="card-elevated rounded-2xl overflow-hidden">
           <div className="px-4 py-3 flex items-center gap-2">
