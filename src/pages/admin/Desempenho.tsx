@@ -11,7 +11,7 @@ import { useIndicadores } from '@/hooks/useIndicadores';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useMetas } from '@/hooks/useMetas';
-import { useCaixasBatidasAdminMes, type CaixasBatidasMapa } from '@/hooks/useCaixasBatidas';
+import { useCaixasBatidasAdminPeriodo, type CaixasBatidasMapa } from '@/hooks/useCaixasBatidas';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,22 +60,18 @@ export default function Desempenho() {
     return Array.from(out);
   }, [dateStart, dateEnd]);
 
-  const cxBatidasQueries = mesesPeriodo.map(m => useCaixasBatidasAdminMes(m));
+  const { data: cxBatidasRows = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
   const cxBatidasLookup = useMemo(() => {
-    // key: user_id|mapa => { caixas, valor, fator, valor_caixa, role }
+    // key: user_id|mapa => mapa info (caixas, valor, fator, etc.)
     const m = new Map<string, CaixasBatidasMapa>();
-    for (const q of cxBatidasQueries) {
-      const rows = q.data ?? [];
-      for (const r of rows) {
-        for (const mp of r.detalhes?.mapas ?? []) {
-          if (!mp.mapa) continue;
-          m.set(`${r.user_id}|${mp.mapa}`, mp);
-        }
+    for (const r of cxBatidasRows) {
+      for (const mp of r.detalhes?.mapas ?? []) {
+        if (!mp.mapa) continue;
+        m.set(`${r.user_id}|${mp.mapa}`, mp);
       }
     }
     return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cxBatidasQueries.map(q => q.dataUpdatedAt).join(',')]);
+  }, [cxBatidasRows]);
 
   const [detailRow, setDetailRow] = useState<DesempenhoRow | null>(null);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
