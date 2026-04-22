@@ -1,85 +1,43 @@
 
 
-## Implementar Incentivo "Caixas Batidas"
+## Mudanças no Dashboard Administrativo
 
-Novo incentivo mensal acumulativo calculado automaticamente a partir dos mapas, com configuração editável e teto que corta + sinaliza.
+### 1. Remover o card "Incentivo Período"
+No grid de KPIs principais (`src/pages/admin/Dashboard.tsx`, linhas ~405–410), removo o card que exibia `incentivoTotal` (soma de `user_incentives_daily.valor_estimado` do dia atual). Também removo os hooks/variáveis que ficam órfãos:
+- `useIncentivoDiarioAdmin` (import e chamada)
+- `incentivos`, `filteredIncentivos`, `incentivoTotal`
 
-### Regras
+### 2. Renomear e ajustar a área "Bônus Mês" para refletir o estimado do mês atual
 
-Por mapa em `mapa_historico`:
-- 0 ajudantes (Fator 0): R$ 0,19 × `cx_entreg`
-- 1 ajudante (Fator 1): R$ 0,18 × `cx_entreg`
-- 2 ajudantes (Fator 2): R$ 0,06 × `cx_entreg`
+Hoje o `bonusMes` (linhas 69–114) já calcula a estimativa dos bônus do **mês corrente** agregando `desempenhoMes` (do dia 01 ao último dia do mês) contra as metas ativas com `valor_bonificacao > 0`. Ele já é exatamente "o quanto está estimado para o mês atual".
 
-Cada pessoa do mapa (motorista + ajudante(s)) recebe o valor calculado.
-Acumula no mês com tetos: motorista R$ 624,00 | ajudante R$ 416,00. Quando atinge o teto, o valor é cortado e o quanto foi cortado fica visível.
+Ajustes para deixar isso claro ao usuário:
+- Trocar o label do `HeroStat` de **"Bônus Mês"** para **"Bônus Estimado · {mês atual}"** (ex: "Bônus Estimado · Abril").
+- Adicionar um `sub` ao `HeroStat` indicando "Acumulado do mês até hoje" para evidenciar que é uma projeção em tempo real, não um valor fechado.
+- Garantir que o cálculo **não dependa dos filtros de unidade/perfil** do topo (hoje `desempenhoMes` herda os filtros via `useDesempenhoDiario`). Para representar fielmente "o estimado do mês", o cálculo deve sempre considerar todos os colaboradores ativos — vou remover os filtros do hook que alimenta `desempenhoMes` (passando sem `unidade_id` / `worker_type`), mantendo os filtros apenas para os outros widgets do dashboard.
 
-### Banco de dados
+### 3. Reorganizar o grid de KPIs
+Após remover "Incentivo Período", o grid de KPIs (atualmente 4 colunas) é re-balanceado para 3 cards principais, mantendo o layout responsivo (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`).
 
-Migration:
-- Inserir em `indicators`: `codigo='CX_BATIDAS'`, `nome='Caixas Batidas'`, `categoria='incentivo'`, `applies_to_worker_type='ambos'`
-- Inserir em `incentive_rules` uma regra padrão para `CX_BATIDAS` com `regra_json`:
-  ```json
-  {
-    "tipo": "caixas_batidas",
-    "fator_0": 0.19,
-    "fator_1": 0.18,
-    "fator_2": 0.06,
-    "teto_motorista": 624,
-    "teto_ajudante": 416
-  }
-  ```
-- Os campos `meta`, `valor_minimo`, `valor_maximo` ficam = 0 (não usados nesse tipo).
+### Detalhes técnicos
+- Arquivo único alterado: `src/pages/admin/Dashboard.tsx`
+- Nenhuma mudança de banco, edge function ou tipos.
+- Lógica de `bonusMes` permanece (aggregate por usuário+indicador, média para indicadores normais, soma para `TX_REPOSICAO`, soma de `valor_bonificacao` + `valor_bonificacao_desafio` quando atinge).
+- Remoção de imports não utilizados (`useIncentivoDiarioAdmin`).
 
-### Edge Function: `calculate-caixas-batidas`
+### Resultado visual
 
-Input: `{ mes?: 'YYYY-MM' }` (default = mês atual). `verify_jwt = false`, valida admin via `has_role` no código.
+```text
+[Hero gradient header com filtros]
+┌──────────────┬──────────────┬───────────────────────────┬──────────────┐
+│ Colaborad.   │ Metas Ating. │ Bônus Estimado · Abril    │ Desafio Met. │
+│ 42           │ 78%          │ R$ 12.480,00              │ 35%          │
+│ 30 mot·12 aj │ 234 de 300   │ Acumulado do mês até hoje │ 21/60 metas  │
+└──────────────┴──────────────┴───────────────────────────┴──────────────┘
 
-Lógica:
-1. Lê configuração ativa em `incentive_rules` (filtro pelo indicator `CX_BATIDAS`).
-2. Lê todos `mapa_historico` do mês.
-3. Para cada mapa:
-   - Conta ajudantes presentes → escolhe fator
-   - `bonus_mapa = cx_entreg × valor_caixa`
-   - Distribui esse valor para `mot_user_id` e `aju*_user_id`
-4. Agrega por colaborador e busca `worker_type` de cada um para aplicar o teto correto.
-5. UPSERT em `user_incentives_daily` (`onConflict: user_id,data_referencia`):
-   - `data_referencia = primeiro dia do mês`
-   - `valor_estimado = min(bruto, teto)`
-   - `detalhes_json = { tipo: 'caixas_batidas', mes, valor_bruto, teto, valor_cortado, total_caixas, qtd_mapas, mapas: [...] }`
-   - `status = 'estimado'`
-
-Acionada:
-- Manualmente pelo admin via botão "Recalcular Caixas Batidas"
-- Automaticamente ao final de `Import031805` (após inserir os mapas, chamar `supabase.functions.invoke('calculate-caixas-batidas')`)
-
-### Frontend
-
-**Admin** — nova página `src/pages/admin/Incentivos.tsx` (rota `/admin/incentivos`):
-- Card "Configuração Caixas Batidas": inputs editáveis para fator_0, fator_1, fator_2, teto_motorista, teto_ajudante (salva no `regra_json` da `incentive_rules`)
-- Botão "Recalcular mês atual"
-- Tabela de resultado por colaborador (mês selecionável): nome, worker_type, qtd mapas, total caixas, valor bruto, **valor cortado**, valor final, badge "Teto atingido" quando aplicável
-
-**Colaborador** — `src/pages/colaborador/Incentivo.tsx`:
-- Novo card "📦 Caixas Batidas":
-  - Valor acumulado / Teto + barra de progresso
-  - Quantidade de mapas e total de caixas no mês
-  - Se teto atingido: badge laranja "Teto atingido — R$ X,XX cortado"
-  - Lista expansível dos mapas (data, mapa, fator aplicado, valor gerado)
-- Somar `valor_estimado` desse registro ao "Bônus acumulado no mês" do Hero
-
-### Arquivos
-
-**Criar**:
-- `supabase/functions/calculate-caixas-batidas/index.ts`
-- `src/hooks/useCaixasBatidas.ts`
-- `src/components/colaborador/CaixasBatidasCard.tsx`
-- `src/pages/admin/Incentivos.tsx`
-
-**Editar**:
-- `supabase/config.toml` — registrar `calculate-caixas-batidas` com `verify_jwt = false`
-- `src/components/admin/Sidebar.tsx` — adicionar item "Incentivos"
-- `src/routes/AppRoutes.tsx` — registrar rota `/admin/incentivos`
-- `src/components/admin/Import031805.tsx` — disparar `calculate-caixas-batidas` após importar
-- `src/pages/colaborador/Incentivo.tsx` — incluir `CaixasBatidasCard` e somar no acumulado
+KPIs principais (sem mais "Incentivo Período"):
+┌──────────────┬──────────────┬──────────────┐
+│ Feedbacks    │ Planos Ação  │ Outro KPI    │
+└──────────────┴──────────────┴──────────────┘
+```
 
