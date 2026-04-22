@@ -11,6 +11,7 @@ import { useIndicadores } from '@/hooks/useIndicadores';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useMetas } from '@/hooks/useMetas';
+import { useCaixasBatidasAdminPeriodo, type CaixasBatidasMapa } from '@/hooks/useCaixasBatidas';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,6 +46,32 @@ export default function Desempenho() {
   const { allowedUnits } = useAllowedUnits();
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const { data: metas = [] } = useMetas({ vigentes: true });
+
+  // Caixas batidas: busca para todos os meses dentro do período selecionado
+  const mesesPeriodo = useMemo(() => {
+    const out = new Set<string>();
+    const start = new Date(dateStart + 'T00:00:00');
+    const end = new Date(dateEnd + 'T00:00:00');
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cur <= end) {
+      out.add(format(cur, 'yyyy-MM'));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return Array.from(out);
+  }, [dateStart, dateEnd]);
+
+  const { data: cxBatidasRows = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
+  const cxBatidasLookup = useMemo(() => {
+    // key: user_id|mapa => mapa info (caixas, valor, fator, etc.)
+    const m = new Map<string, CaixasBatidasMapa>();
+    for (const r of cxBatidasRows) {
+      for (const mp of r.detalhes?.mapas ?? []) {
+        if (!mp.mapa) continue;
+        m.set(`${r.user_id}|${mp.mapa}`, mp);
+      }
+    }
+    return m;
+  }, [cxBatidasRows]);
 
   const [detailRow, setDetailRow] = useState<DesempenhoRow | null>(null);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
@@ -164,6 +191,34 @@ export default function Desempenho() {
               indicators: { nome: ind.nome, codigo: ind.codigo },
             } as DesempenhoRow);
           }
+
+          // Injeta linha CX_BATIDAS (caixas batidas neste mapa) se houver dados
+          const cxInfo = cxBatidasLookup.get(`${entry.userId}|${mapaKey}`);
+          const cxInd = indicatorByCode.get('CX_BATIDAS');
+          if (cxInfo && cxInd) {
+            rows.push({
+              id: `cxbatidas-${entry.userId}-${mapaKey}`,
+              user_id: entry.userId,
+              indicator_id: cxInd.id,
+              data_referencia: cxInfo.data ?? rows[0]?.data_referencia ?? '',
+              valor: Number(cxInfo.caixas) || 0,
+              meta: null,
+              desafio: null,
+              percentual_atingimento: null,
+              status: 'dentro_meta',
+              status_desafio: null,
+              origem_dado: 'caixas_batidas',
+              created_at: '',
+              updated_at: '',
+              mapa_numero: mapaKey,
+              users: entry.user,
+              indicators: { nome: cxInd.nome, codigo: cxInd.codigo },
+              valor_financeiro: Number(cxInfo.valor) || 0,
+              fator: cxInfo.fator,
+              valor_caixa: cxInfo.valor_caixa,
+              role_cx: cxInfo.role,
+            } as DesempenhoRow & { fator?: number; valor_caixa?: number; role_cx?: string });
+          }
         }
 
         const dedupedRows = Array.from(
@@ -185,7 +240,7 @@ export default function Desempenho() {
     }
 
     return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
-  }, [desempenho, indicatorByCode, metaLookup]);
+  }, [desempenho, indicatorByCode, metaLookup, cxBatidasLookup]);
 
   const toggleUser = (uid: string) => {
     setExpandedUsers(prev => {
@@ -396,7 +451,7 @@ export default function Desempenho() {
             {pg.paginatedItems.map(group => {
               const isMot = group.user?.worker_type === 'motorista';
               const allRows = Array.from(group.mapas.values()).flat();
-              const realRows = allRows.filter(r => r.status !== 'sem_dados');
+              const realRows = allRows.filter(r => r.status !== 'sem_dados' && r.indicators?.codigo?.toUpperCase() !== 'CX_BATIDAS');
               const metasAtingidas = realRows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
               const totalMetasUser = realRows.length;
               const isExpanded = expandedUsers.has(group.userId);
@@ -448,6 +503,7 @@ export default function Desempenho() {
                               const code = d.indicators?.codigo?.toUpperCase();
                               const isPct = isPercentIndicator(code);
                               const isTime = isTimeIndicator(code);
+                              const isCx = code === 'CX_BATIDAS';
                               const valStr = isPct ? `${d.valor}%` : isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isPct ? `${d.meta}%` : isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
                               const wt = group.user?.worker_type ?? 'motorista';
@@ -459,6 +515,38 @@ export default function Desempenho() {
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
                               const atingiuDesafio = d.status_desafio === 'atingiu' || atingiuDesafioFromGoal;
+
+                              if (isCx) {
+                                const cxAny = d as any;
+                                const valorRs = Number(cxAny.valor_financeiro ?? 0);
+                                const caixas = Number(d.valor) || 0;
+                                const valorCx = Number(cxAny.valor_caixa ?? 0);
+                                const fator = Number(cxAny.fator ?? 0);
+                                const fatorLabel = fator === 0 ? 'sem ajudante' : fator === 1 ? '1 ajudante' : `${fator} ajudantes`;
+                                return (
+                                  <div
+                                    key={d.id}
+                                    className="w-full flex items-center gap-3 px-5 py-2.5 pl-10 text-left bg-amber-50/40 dark:bg-amber-950/10"
+                                  >
+                                    <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 font-mono shrink-0">
+                                      CX_BATIDAS
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-xs text-muted-foreground truncate">
+                                        Caixas Batidas <span className="hidden sm:inline">• {fatorLabel} • R$ {valorCx.toFixed(2)}/cx</span>
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-auto shrink-0 flex-wrap justify-end">
+                                      <span className="text-xs text-muted-foreground">
+                                        <strong className="text-foreground">{caixas.toLocaleString('pt-BR')}</strong> cx
+                                      </span>
+                                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                        R$ {valorRs.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <button

@@ -80,6 +80,32 @@ export function useCaixasBatidasAdminMes(mes: string) {
   });
 }
 
+export function useCaixasBatidasAdminPeriodo(meses: string[]) {
+  const key = meses.join(',');
+  return useQuery({
+    queryKey: ['caixas_batidas_admin_periodo', key],
+    queryFn: async () => {
+      if (meses.length === 0) return [];
+      const datas = meses.map(firstDayOf);
+      const { data, error } = await supabase
+        .from('user_incentives_daily')
+        .select('*, users:user_id(nome, matricula, worker_type)')
+        .in('data_referencia', datas);
+      if (error) throw error;
+      return (data ?? [])
+        .filter((r: any) => (r.detalhes_json as any)?.tipo === 'caixas_batidas')
+        .map((r: any) => ({
+          user_id: r.user_id,
+          nome: r.users?.nome ?? '—',
+          matricula: r.users?.matricula ?? '',
+          worker_type: r.users?.worker_type ?? '—',
+          valor_final: Number(r.valor_estimado),
+          detalhes: r.detalhes_json as CaixasBatidasDetalhes,
+        }));
+    },
+  });
+}
+
 export function useCaixasBatidasRule() {
   return useQuery({
     queryKey: ['caixas_batidas_rule'],
