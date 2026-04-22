@@ -275,9 +275,15 @@ export default function Indicadores() {
                     {/* Actions */}
                     <Separator />
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(ind)}>
-                        <Pencil className="h-3.5 w-3.5" /> Editar
-                      </Button>
+                      {ind.codigo === 'CX_BATIDAS' ? (
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={() => openEdit(ind)}>
+                          <Settings2 className="h-3.5 w-3.5" /> Configurar incentivo
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => openEdit(ind)}>
+                          <Pencil className="h-3.5 w-3.5" /> Editar
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setToggleTarget(ind); setConfirmOpen(true); }}>
                         <Power className="h-3.5 w-3.5" /> {ind.ativo ? 'Inativar' : 'Ativar'}
                       </Button>
