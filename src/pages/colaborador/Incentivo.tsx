@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico } from '@/hooks/useIncentivoDiario';
@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   DollarSign, Loader2, TrendingDown, TrendingUp,
   AlertTriangle, Info, ChevronDown, ChevronUp, Sparkles,
-  CheckCircle2, XCircle, Minus, Award,
+  CheckCircle2, XCircle, Minus, Award, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
