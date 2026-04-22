@@ -503,6 +503,7 @@ export default function Desempenho() {
                               const code = d.indicators?.codigo?.toUpperCase();
                               const isPct = isPercentIndicator(code);
                               const isTime = isTimeIndicator(code);
+                              const isCx = code === 'CX_BATIDAS';
                               const valStr = isPct ? `${d.valor}%` : isTime ? formatMinutesHHMM(d.valor) : String(d.valor);
                               const metaStr = d.meta != null ? (isPct ? `${d.meta}%` : isTime ? formatMinutesHHMM(d.meta) : String(d.meta)) : '—';
                               const wt = group.user?.worker_type ?? 'motorista';
@@ -514,6 +515,38 @@ export default function Desempenho() {
                               const isSemDados = d.status === 'sem_dados';
                               const atingiu = d.status === 'dentro_meta' || d.status === 'acima_meta';
                               const atingiuDesafio = d.status_desafio === 'atingiu' || atingiuDesafioFromGoal;
+
+                              if (isCx) {
+                                const cxAny = d as any;
+                                const valorRs = Number(cxAny.valor_financeiro ?? 0);
+                                const caixas = Number(d.valor) || 0;
+                                const valorCx = Number(cxAny.valor_caixa ?? 0);
+                                const fator = Number(cxAny.fator ?? 0);
+                                const fatorLabel = fator === 0 ? 'sem ajudante' : fator === 1 ? '1 ajudante' : `${fator} ajudantes`;
+                                return (
+                                  <div
+                                    key={d.id}
+                                    className="w-full flex items-center gap-3 px-5 py-2.5 pl-10 text-left bg-amber-50/40 dark:bg-amber-950/10"
+                                  >
+                                    <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 font-mono shrink-0">
+                                      CX_BATIDAS
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-xs text-muted-foreground truncate">
+                                        Caixas Batidas <span className="hidden sm:inline">• {fatorLabel} • R$ {valorCx.toFixed(2)}/cx</span>
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-auto shrink-0 flex-wrap justify-end">
+                                      <span className="text-xs text-muted-foreground">
+                                        <strong className="text-foreground">{caixas.toLocaleString('pt-BR')}</strong> cx
+                                      </span>
+                                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                        R$ {valorRs.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <button
