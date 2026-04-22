@@ -9,6 +9,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetas } from '@/hooks/useMetas';
+import { useCaixasBatidasAdminMes } from '@/hooks/useCaixasBatidas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -61,6 +62,7 @@ export default function Dashboard() {
   const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
   // Bônus Estimado do mês atual: independe dos filtros do topo (unidade/perfil)
   const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
+  const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminMes(mesAtual);
 
   const bonusMes = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
@@ -108,6 +110,15 @@ export default function Dashboard() {
     }
     return total;
   }, [metasAtivas, desempenhoMes, usuarios]);
+
+  // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
+  const caixasBatidasTotal = useMemo(
+    () => caixasBatidasMes.reduce((s, c) => s + Number(c.valor_final || 0), 0),
+    [caixasBatidasMes],
+  );
+
+  // Total geral estimado para pagamento aos colaboradores no mês
+  const bonusTotalMes = bonusMes + caixasBatidasTotal;
 
   // Desafio stats (período filtrado): % das metas atingidas que também atingiram desafio
   const desafioStats = useMemo(() => {
