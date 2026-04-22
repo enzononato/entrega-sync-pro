@@ -14,9 +14,22 @@ import {
   useCaixasBatidasRule, useUpdateCaixasBatidasRule, useRecalcCaixasBatidas,
   useCaixasBatidasAdminMes,
 } from '@/hooks/useCaixasBatidas';
+import type { CaixasBatidasDetalhes } from '@/hooks/useCaixasBatidas';
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+const fatorLabel = (f: number) =>
+  f === 0 ? 'Sem ajudante' : f === 1 ? '1 ajudante' : f === 2 ? '2 ajudantes' : `Fator ${f}`;
+
+type RowDetalhe = {
+  user_id: string;
+  nome: string;
+  matricula: string;
+  worker_type: string;
+  valor_final: number;
+  detalhes: CaixasBatidasDetalhes;
+};
 
 interface CaixasBatidasDialogProps {
   open: boolean;
@@ -29,6 +42,7 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
   const update = useUpdateCaixasBatidasRule();
   const recalc = useRecalcCaixasBatidas();
   const { data: rows = [], isLoading: loadingRows } = useCaixasBatidasAdminMes(mes);
+  const [detail, setDetail] = useState<RowDetalhe | null>(null);
 
   const [form, setForm] = useState({
     fator_0: '', fator_1: '', fator_2: '', teto_motorista: '', teto_ajudante: '',
