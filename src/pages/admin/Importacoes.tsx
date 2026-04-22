@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Upload, RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import Import031805 from '@/components/admin/Import031805';
+import Import031134 from '@/components/admin/Import031134';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -48,15 +47,7 @@ export default function Importacoes() {
         </TabsContent>
 
         <TabsContent value="03.11.34.05">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Importação 03.11.34.05</CardTitle>
-              <CardDescription>Importe os dados da tabela 03.11.34.05</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState titulo="Nenhuma importação realizada" descricao="Em breve você poderá importar dados aqui." icon={<Upload className="h-10 w-10" />} />
-            </CardContent>
-          </Card>
+          <Import031134 />
         </TabsContent>
       </Tabs>
     </div>
