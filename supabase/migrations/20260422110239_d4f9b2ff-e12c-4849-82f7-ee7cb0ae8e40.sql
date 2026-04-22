@@ -1,0 +1,2 @@
+ALTER TABLE public.user_incentives_daily
+  DROP CONSTRAINT IF EXISTS user_incentives_daily_user_id_data_referencia_key;
