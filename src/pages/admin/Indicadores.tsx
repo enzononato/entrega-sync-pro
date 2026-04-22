@@ -16,9 +16,10 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Pencil, Power, Trash2, Loader2, BarChart3, Clock, Gem, Zap, Truck,
-  DollarSign, Heart, Timer, ChevronRight, Search, Plus, Layers,
+  DollarSign, Heart, Timer, ChevronRight, Search, Plus, Layers, Package, Settings2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CaixasBatidasDialog } from '@/components/admin/CaixasBatidasDialog';
 
 const CATEGORIAS = ['Tempo', 'Qualidade', 'Eficiência', 'Operação', 'Financeiro', 'Satisfação', 'Jornada'];
 
@@ -56,6 +57,7 @@ export default function Indicadores() {
   const [toggleTarget, setToggleTarget] = useState<IndicatorRow | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<IndicatorRow | null>(null);
+  const [caixasBatidasOpen, setCaixasBatidasOpen] = useState(false);
 
   const filtered = useMemo(() => {
     return indicators.filter(i => {
