@@ -7,7 +7,6 @@ import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
-import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetas } from '@/hooks/useMetas';
 
@@ -54,17 +53,14 @@ export default function Dashboard() {
     unidade_id: unidadeFilter || undefined,
     worker_type: tipoFilter || undefined,
   });
-  const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFrom);
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
   const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
 
   const mesAtual = format(new Date(), 'yyyy-MM');
   const mesInicio = mesAtual + '-01';
   const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim, {
-    unidade_id: unidadeFilter || undefined,
-    worker_type: tipoFilter || undefined,
-  });
+  // Bônus Estimado do mês atual: independe dos filtros do topo (unidade/perfil)
+  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
 
   const bonusMes = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
@@ -138,11 +134,6 @@ export default function Dashboard() {
 
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
   const filteredDesempenho = desempenho;
-
-  const filteredIncentivos = useMemo(() => {
-    if (!unidadeFilter) return incentivos;
-    return incentivos.filter(i => filteredUserIds.has(i.user_id));
-  }, [incentivos, unidadeFilter, filteredUserIds]);
 
   const filteredFeedbacks = feedbacks;
   const filteredPlanos = useMemo(() => {
@@ -259,8 +250,6 @@ export default function Dashboard() {
   const planosPendentes = filteredPlanos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
   const planosAtrasados = filteredPlanos.filter(p => p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status)).length;
 
-  const incentivoTotal = useMemo(() => filteredIncentivos.reduce((s, i) => s + (i.valor_estimado ?? 0), 0), [filteredIncentivos]);
-
   const dentroMeta = filteredDesempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
   const abaixoMeta = filteredDesempenho.filter(d => d.status === 'abaixo_meta').length;
   const totalMetasDash = dentroMeta + abaixoMeta;
@@ -354,7 +343,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
           <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} />
-          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusMes)} label="Bônus Mês" isSmall />
+          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusMes)} label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`} sub="Acumulado do mês até hoje" isSmall />
           <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
       </div>
@@ -372,7 +361,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Quick Action Cards ───────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <QuickCard
           onClick={() => navigate('/admin/desempenho')}
           icon={<Target className="h-5 w-5" />}
@@ -399,15 +388,6 @@ export default function Dashboard() {
           label="Planos Pendentes"
           accent={planosAtrasados > 0 ? 'border-l-destructive' : 'border-l-primary'}
           badge={planosAtrasados > 0 ? <span className="text-[9px] font-bold text-destructive bg-destructive/10 rounded-full px-1.5 py-0.5">{planosAtrasados} atrasados</span> : undefined}
-        />
-        <QuickCard
-          onClick={() => navigate('/admin/metas')}
-          icon={<DollarSign className="h-5 w-5" />}
-          iconClass="bg-success/10 text-success"
-          value={fmtBRL(incentivoTotal)}
-          label="Incentivo Período"
-          accent="border-l-success"
-          isText
         />
       </div>
 
