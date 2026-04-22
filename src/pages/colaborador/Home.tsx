@@ -9,6 +9,7 @@ import { useMetas } from '@/hooks/useMetas';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { useCausaRaizPorColaborador, type CausaRaizRow } from '@/hooks/useCausaRaiz';
+import { useCaixasBatidasColaboradorPeriodo } from '@/hooks/useCaixasBatidas';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
 import { ReportCausaRaizSheet } from '@/components/colaborador/ReportCausaRaizSheet';
@@ -105,6 +106,27 @@ export default function ColaboradorHome() {
   const { data: causasRaiz = [] } = useCausaRaizPorColaborador(user?.id);
   const { data: metas = [] } = useMetas({ vigentes: true });
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+
+  // Caixas batidas (busca todos os meses dentro do período selecionado)
+  const mesesPeriodo = useMemo(() => {
+    const out = new Set<string>();
+    const start = new Date(dateRange.start + 'T00:00:00');
+    const end = new Date(dateRange.end + 'T00:00:00');
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cur <= end) {
+      out.add(format(cur, 'yyyy-MM'));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return Array.from(out);
+  }, [dateRange.start, dateRange.end]);
+  const { data: cxBatidasMapas = [] } = useCaixasBatidasColaboradorPeriodo(user?.id, mesesPeriodo);
+  const cxBatidasByMapa = useMemo(() => {
+    const m = new Map<string, typeof cxBatidasMapas[number]>();
+    for (const mp of cxBatidasMapas) {
+      if (mp.mapa) m.set(mp.mapa, mp);
+    }
+    return m;
+  }, [cxBatidasMapas]);
 
   // Build meta lookup from goals table
   const getMetaConfig = useMemo(() => {
@@ -495,6 +517,32 @@ export default function ColaboradorHome() {
                           </div>
                         );
                       })}
+                      {(() => {
+                        const cxInfo = mapaKey !== 'manual' ? cxBatidasByMapa.get(mapaKey) : undefined;
+                        if (!cxInfo) return null;
+                        return (
+                          <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/10">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-500/10">
+                                  <span className="text-base">📦</span>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">Caixas Batidas</p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    {cxInfo.caixas} cx × {fmtBRL(Number(cxInfo.valor_caixa) || 0)} ({cxInfo.role})
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                  {fmtBRL(Number(cxInfo.valor) || 0)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

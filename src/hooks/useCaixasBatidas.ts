@@ -108,6 +108,33 @@ export function useCaixasBatidasAdminPeriodo(meses: string[]) {
   });
 }
 
+export function useCaixasBatidasColaboradorPeriodo(userId: string | undefined, meses: string[]) {
+  const key = meses.join(',');
+  return useQuery({
+    queryKey: ['caixas_batidas_colab_periodo', userId, key],
+    queryFn: async () => {
+      if (!userId || meses.length === 0) return [] as Array<CaixasBatidasMapa & { mes: string; valor_estimado: number; detalhes: CaixasBatidasDetalhes }>;
+      const datas = meses.map(firstDayOf);
+      const { data, error } = await supabase
+        .from('user_incentives_daily')
+        .select('*')
+        .eq('user_id', userId)
+        .in('data_referencia', datas);
+      if (error) throw error;
+      const out: Array<CaixasBatidasMapa & { mes: string; valor_estimado: number; detalhes: CaixasBatidasDetalhes }> = [];
+      for (const r of data ?? []) {
+        const det = (r as any).detalhes_json as CaixasBatidasDetalhes;
+        if (det?.tipo !== 'caixas_batidas') continue;
+        for (const mp of det.mapas ?? []) {
+          out.push({ ...mp, mes: det.mes, valor_estimado: Number((r as any).valor_estimado), detalhes: det });
+        }
+      }
+      return out;
+    },
+    enabled: !!userId,
+  });
+}
+
 export function useCaixasBatidasRule() {
   return useQuery({
     queryKey: ['caixas_batidas_rule'],
