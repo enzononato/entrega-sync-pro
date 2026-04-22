@@ -38,6 +38,18 @@ function getGreeting() {
 
 const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+// Indicator UUIDs (must match supabase/functions/calculate-monthly-bonus/index.ts)
+const INDICATOR_IDS = {
+  TML: '11496dac-52b6-4331-80f0-f9687e9fd1b7',
+  TR: 'd99beda1-c397-42f1-84e0-4eb60ae7af99',
+  TI: '27fff464-bc98-4e5f-864d-b3b2b6aad46e',
+  JL: 'e1393945-535e-4506-8ef7-e8c28e4788b6',
+  TX_DEVOLUCAO: 'c4fdd7a6-27f3-4d46-a378-1242bdb556aa',
+  DISP_TEMPO: '488d1de9-9d88-42f2-bf3b-625752c0db02',
+  TX_REPOSICAO: 'c4c40e3e-f23b-46ce-a576-885c610f2df7',
+} as const;
+const SUM_INDICATORS = new Set<string>([INDICATOR_IDS.TX_REPOSICAO]);
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
