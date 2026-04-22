@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico } from '@/hooks/useIncentivoDiario';
@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   DollarSign, Loader2, TrendingDown, TrendingUp,
   AlertTriangle, Info, ChevronDown, ChevronUp, Sparkles,
-  CheckCircle2, XCircle, Minus, Award,
+  CheckCircle2, XCircle, Minus, Award, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -54,6 +54,79 @@ export default function IncentivoColaborador() {
   });
 
   const { data: caixasBatidas } = useCaixasBatidasColaborador(user?.id, mesAtual);
+
+  // ── Histórico mensal (últimos 6 meses) ───
+  const meses6 = useMemo(() => {
+    const arr: { value: string; label: string; firstDay: string }[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = startOfMonth(subMonths(new Date(), i));
+      arr.push({
+        value: format(d, 'yyyy-MM'),
+        label: format(d, "MMM/yy", { locale: ptBR }),
+        firstDay: format(d, 'yyyy-MM-dd'),
+      });
+    }
+    return arr;
+  }, []);
+
+  const { data: historicoMensal = [] } = useQuery({
+    queryKey: ['incentivo_historico_mensal', user?.id, meses6.map(m => m.value).join(',')],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const firstDays = meses6.map(m => m.firstDay);
+      // Aggregated rows (caixas_batidas + bonus_mensal stored on first day of month)
+      const { data: aggRows } = await (supabase
+        .from('user_incentives_daily' as any) as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .in('data_referencia', firstDays);
+
+      // Daily incentives across the whole 6-month range
+      const startStr = meses6[meses6.length - 1].firstDay;
+      const { data: dailyRows } = await (supabase
+        .from('user_incentives_daily' as any) as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('data_referencia', startStr);
+
+      // Descontos no período
+      const { data: descRows } = await (supabase
+        .from('incentive_deductions' as any) as any)
+        .select('valor_desconto, data_referencia')
+        .eq('user_id', user.id)
+        .gte('data_referencia', startStr);
+
+      return meses6.map(m => {
+        const cx = (aggRows ?? []).find((r: any) => r.data_referencia === m.firstDay && (r.detalhes_json as any)?.tipo === 'caixas_batidas');
+        const bm = (aggRows ?? []).find((r: any) => r.data_referencia === m.firstDay && (r.detalhes_json as any)?.tipo === 'bonus_mensal');
+        const diarios = (dailyRows ?? []).filter((r: any) => {
+          if (!r.data_referencia.startsWith(m.value)) return false;
+          const tipo = (r.detalhes_json as any)?.tipo;
+          // Skip aggregated rows (those go on day 01)
+          if (tipo === 'caixas_batidas' || tipo === 'bonus_mensal') return false;
+          return true;
+        });
+        const valorCx = cx ? Number(cx.valor_estimado) : 0;
+        const valorBm = bm ? Number(bm.valor_estimado) : 0;
+        const valorDiario = diarios.reduce((s: number, r: any) => s + Number(r.valor_fechado ?? r.valor_estimado ?? 0), 0);
+        const totalDesc = (descRows ?? [])
+          .filter((d: any) => d.data_referencia.startsWith(m.value))
+          .reduce((s: number, d: any) => s + Number(d.valor_desconto ?? 0), 0);
+        const bruto = valorCx + valorBm + valorDiario;
+        return {
+          mes: m.value,
+          label: m.label,
+          caixas: valorCx,
+          bonusMensal: valorBm,
+          diario: valorDiario,
+          bruto,
+          descontos: totalDesc,
+          liquido: bruto - totalDesc,
+        };
+      });
+    },
+    enabled: !!user?.id,
+  });
 
   // Monthly goals with bonificacao > 0 for this user's worker_type
   const metasMensais = useMemo(() => {
@@ -356,6 +429,45 @@ export default function IncentivoColaborador() {
       )}
 
       {/* ── Histórico Recente ─────────────────── */}
+      {historicoMensal.length > 0 && (
+        <div className="card-elevated rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold text-foreground">Histórico Mensal</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">Últimos 6 meses</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {historicoMensal.map(m => {
+              const vazio = m.bruto === 0 && m.descontos === 0;
+              return (
+                <div key={m.mes} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-foreground capitalize">{m.label}</span>
+                    <span className={cn(
+                      'text-base font-extrabold',
+                      vazio ? 'text-muted-foreground' : m.liquido > 0 ? 'text-primary' : 'text-destructive'
+                    )}>
+                      {fmtBRL(m.liquido)}
+                    </span>
+                  </div>
+                  {!vazio && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                      {m.caixas > 0 && <span>📦 Caixas: <b className="text-foreground">{fmtBRL(m.caixas)}</b></span>}
+                      {m.bonusMensal > 0 && <span>🏆 Bônus: <b className="text-foreground">{fmtBRL(m.bonusMensal)}</b></span>}
+                      {m.diario > 0 && <span>📅 Diário: <b className="text-foreground">{fmtBRL(m.diario)}</b></span>}
+                      {m.descontos > 0 && <span className="text-destructive">− Descontos: <b>{fmtBRL(m.descontos)}</b></span>}
+                    </div>
+                  )}
+                  {vazio && (
+                    <p className="text-[10px] text-muted-foreground italic">Sem registros</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {historico.length > 0 && (
         <div className="card-elevated rounded-2xl overflow-hidden">
           <div className="px-4 py-3 flex items-center gap-2">
