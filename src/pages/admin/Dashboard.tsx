@@ -361,7 +361,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Quick Action Cards ───────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <QuickCard
           onClick={() => navigate('/admin/desempenho')}
           icon={<Target className="h-5 w-5" />}
@@ -388,15 +388,6 @@ export default function Dashboard() {
           label="Planos Pendentes"
           accent={planosAtrasados > 0 ? 'border-l-destructive' : 'border-l-primary'}
           badge={planosAtrasados > 0 ? <span className="text-[9px] font-bold text-destructive bg-destructive/10 rounded-full px-1.5 py-0.5">{planosAtrasados} atrasados</span> : undefined}
-        />
-        <QuickCard
-          onClick={() => navigate('/admin/metas')}
-          icon={<DollarSign className="h-5 w-5" />}
-          iconClass="bg-success/10 text-success"
-          value={fmtBRL(incentivoTotal)}
-          label="Incentivo Período"
-          accent="border-l-success"
-          isText
         />
       </div>
 
