@@ -608,6 +608,132 @@ export type Database = {
           },
         ]
       }
+      refugo_031134: {
+        Row: {
+          aju1_user_id: string | null
+          aju2_user_id: string | null
+          bicada_concorrente: number | null
+          bicada_externa: number | null
+          bicada_interna: number | null
+          cod_ajudante: string | null
+          cod_conferente: string | null
+          cod_motorista: string | null
+          cor_fora_padrao: number | null
+          created_at: string
+          data_operacao: string
+          descricao_item: string | null
+          faltante: number | null
+          id: string
+          imported_by: string | null
+          item: string | null
+          logomarca_estranha: number | null
+          mapa: string
+          mot_user_id: string | null
+          nome_ajudante: string | null
+          nome_conferente: string | null
+          nome_motorista: string | null
+          outros: number | null
+          pct_incidencia_veiculo: number | null
+          pct_nao_aferido: number | null
+          pct_refugo: number
+          placa: string | null
+          qt_boa: number | null
+          quebrada: number | null
+          rotulo_plastico: number | null
+          segunda: number | null
+          sujidade_externa: number | null
+          sujidade_interna: number | null
+          tampada: number | null
+          tipo_sorteio: string | null
+          total_aferido: number | null
+          transportadora: string | null
+          trincada: number | null
+          veiculo: string | null
+        }
+        Insert: {
+          aju1_user_id?: string | null
+          aju2_user_id?: string | null
+          bicada_concorrente?: number | null
+          bicada_externa?: number | null
+          bicada_interna?: number | null
+          cod_ajudante?: string | null
+          cod_conferente?: string | null
+          cod_motorista?: string | null
+          cor_fora_padrao?: number | null
+          created_at?: string
+          data_operacao: string
+          descricao_item?: string | null
+          faltante?: number | null
+          id?: string
+          imported_by?: string | null
+          item?: string | null
+          logomarca_estranha?: number | null
+          mapa: string
+          mot_user_id?: string | null
+          nome_ajudante?: string | null
+          nome_conferente?: string | null
+          nome_motorista?: string | null
+          outros?: number | null
+          pct_incidencia_veiculo?: number | null
+          pct_nao_aferido?: number | null
+          pct_refugo?: number
+          placa?: string | null
+          qt_boa?: number | null
+          quebrada?: number | null
+          rotulo_plastico?: number | null
+          segunda?: number | null
+          sujidade_externa?: number | null
+          sujidade_interna?: number | null
+          tampada?: number | null
+          tipo_sorteio?: string | null
+          total_aferido?: number | null
+          transportadora?: string | null
+          trincada?: number | null
+          veiculo?: string | null
+        }
+        Update: {
+          aju1_user_id?: string | null
+          aju2_user_id?: string | null
+          bicada_concorrente?: number | null
+          bicada_externa?: number | null
+          bicada_interna?: number | null
+          cod_ajudante?: string | null
+          cod_conferente?: string | null
+          cod_motorista?: string | null
+          cor_fora_padrao?: number | null
+          created_at?: string
+          data_operacao?: string
+          descricao_item?: string | null
+          faltante?: number | null
+          id?: string
+          imported_by?: string | null
+          item?: string | null
+          logomarca_estranha?: number | null
+          mapa?: string
+          mot_user_id?: string | null
+          nome_ajudante?: string | null
+          nome_conferente?: string | null
+          nome_motorista?: string | null
+          outros?: number | null
+          pct_incidencia_veiculo?: number | null
+          pct_nao_aferido?: number | null
+          pct_refugo?: number
+          placa?: string | null
+          qt_boa?: number | null
+          quebrada?: number | null
+          rotulo_plastico?: number | null
+          segunda?: number | null
+          sujidade_externa?: number | null
+          sujidade_interna?: number | null
+          tampada?: number | null
+          tipo_sorteio?: string | null
+          total_aferido?: number | null
+          transportadora?: string | null
+          trincada?: number | null
+          veiculo?: string | null
+        }
+        Relationships: []
+      }
       reposicao_031805: {
         Row: {
           aju_user_id: string | null
