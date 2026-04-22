@@ -9,6 +9,7 @@ import { useMetas } from '@/hooks/useMetas';
 import { usePlanosDoColaborador } from '@/hooks/usePlanosDeAcao';
 import { usePendingMandatoryFeedback } from '@/hooks/useMandatoryFeedback';
 import { useCausaRaizPorColaborador, type CausaRaizRow } from '@/hooks/useCausaRaiz';
+import { useCaixasBatidasColaboradorPeriodo } from '@/hooks/useCaixasBatidas';
 import { MandatoryFeedbackModal } from '@/components/colaborador/MandatoryFeedbackModal';
 import { EvolutionCharts } from '@/components/colaborador/EvolutionCharts';
 import { ReportCausaRaizSheet } from '@/components/colaborador/ReportCausaRaizSheet';
