@@ -1,0 +1,1 @@
+ALTER TABLE public.user_incentives_daily DROP CONSTRAINT IF EXISTS user_incentives_daily_unique_entry;
