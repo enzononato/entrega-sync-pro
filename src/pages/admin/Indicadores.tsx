@@ -82,6 +82,10 @@ export default function Indicadores() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (i: IndicatorRow) => {
+    if (i.codigo === 'CX_BATIDAS') {
+      setCaixasBatidasOpen(true);
+      return;
+    }
     setEditing(i);
     setForm({ codigo: i.codigo, nome: i.nome, categoria: i.categoria, descricao: i.descricao, applies_to_worker_types: i.applies_to_worker_type.split(',').filter(Boolean), ativo: i.ativo });
     setDialogOpen(true);
