@@ -45,15 +45,19 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
   const [detail, setDetail] = useState<RowDetalhe | null>(null);
 
   const [form, setForm] = useState({
-    fator_0: '', fator_1: '', fator_2: '', teto_motorista: '', teto_ajudante: '',
+    fator_mot_0: '', fator_mot_1: '', fator_mot_2: '',
+    fator_aju_1: '', fator_aju_2: '',
+    teto_motorista: '', teto_ajudante: '',
   });
 
   useEffect(() => {
     if (rule) {
       setForm({
-        fator_0: String(rule.fator_0),
-        fator_1: String(rule.fator_1),
-        fator_2: String(rule.fator_2),
+        fator_mot_0: String(rule.fator_mot_0),
+        fator_mot_1: String(rule.fator_mot_1),
+        fator_mot_2: String(rule.fator_mot_2),
+        fator_aju_1: String(rule.fator_aju_1),
+        fator_aju_2: String(rule.fator_aju_2),
         teto_motorista: String(rule.teto_motorista),
         teto_ajudante: String(rule.teto_ajudante),
       });
@@ -65,9 +69,11 @@ export function CaixasBatidasDialog({ open, onOpenChange }: CaixasBatidasDialogP
     try {
       await update.mutateAsync({
         id: rule.id,
-        fator_0: parseFloat(form.fator_0) || 0,
-        fator_1: parseFloat(form.fator_1) || 0,
-        fator_2: parseFloat(form.fator_2) || 0,
+        fator_mot_0: parseFloat(form.fator_mot_0) || 0,
+        fator_mot_1: parseFloat(form.fator_mot_1) || 0,
+        fator_mot_2: parseFloat(form.fator_mot_2) || 0,
+        fator_aju_1: parseFloat(form.fator_aju_1) || 0,
+        fator_aju_2: parseFloat(form.fator_aju_2) || 0,
         teto_motorista: parseFloat(form.teto_motorista) || 0,
         teto_ajudante: parseFloat(form.teto_ajudante) || 0,
       });
