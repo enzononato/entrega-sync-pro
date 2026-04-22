@@ -47,6 +47,36 @@ export default function Desempenho() {
   const { data: usuarios = [] } = useUsuarios({ ativo: 'true' });
   const { data: metas = [] } = useMetas({ vigentes: true });
 
+  // Caixas batidas: busca para todos os meses dentro do período selecionado
+  const mesesPeriodo = useMemo(() => {
+    const out = new Set<string>();
+    const start = new Date(dateStart + 'T00:00:00');
+    const end = new Date(dateEnd + 'T00:00:00');
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cur <= end) {
+      out.add(format(cur, 'yyyy-MM'));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return Array.from(out);
+  }, [dateStart, dateEnd]);
+
+  const cxBatidasQueries = mesesPeriodo.map(m => useCaixasBatidasAdminMes(m));
+  const cxBatidasLookup = useMemo(() => {
+    // key: user_id|mapa => { caixas, valor, fator, valor_caixa, role }
+    const m = new Map<string, CaixasBatidasMapa>();
+    for (const q of cxBatidasQueries) {
+      const rows = q.data ?? [];
+      for (const r of rows) {
+        for (const mp of r.detalhes?.mapas ?? []) {
+          if (!mp.mapa) continue;
+          m.set(`${r.user_id}|${mp.mapa}`, mp);
+        }
+      }
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cxBatidasQueries.map(q => q.dataUpdatedAt).join(',')]);
+
   const [detailRow, setDetailRow] = useState<DesempenhoRow | null>(null);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [calcLoading, setCalcLoading] = useState(false);
