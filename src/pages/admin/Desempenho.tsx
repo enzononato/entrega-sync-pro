@@ -240,7 +240,7 @@ export default function Desempenho() {
     }
 
     return Array.from(map.values()).sort((a, b) => (a.user?.nome ?? '').localeCompare(b.user?.nome ?? ''));
-  }, [desempenho, indicatorByCode, metaLookup]);
+  }, [desempenho, indicatorByCode, metaLookup, cxBatidasLookup]);
 
   const toggleUser = (uid: string) => {
     setExpandedUsers(prev => {
