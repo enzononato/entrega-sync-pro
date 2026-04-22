@@ -381,6 +381,8 @@ export default function Indicadores() {
         description={`Tem certeza que deseja excluir permanentemente "${deleteTarget?.nome}"? Todos os lançamentos, metas, regras de incentivo e registros de causa raiz vinculados a este indicador também serão removidos. Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir" onConfirm={confirmDelete}
         onCancel={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }} loading={deleteMut.isPending} />
+
+      <CaixasBatidasDialog open={caixasBatidasOpen} onOpenChange={setCaixasBatidasOpen} />
     </div>
   );
 }
