@@ -9,6 +9,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetas } from '@/hooks/useMetas';
+import { useCaixasBatidasAdminMes } from '@/hooks/useCaixasBatidas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -61,6 +62,7 @@ export default function Dashboard() {
   const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
   // Bônus Estimado do mês atual: independe dos filtros do topo (unidade/perfil)
   const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
+  const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminMes(mesAtual);
 
   const bonusMes = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
@@ -108,6 +110,15 @@ export default function Dashboard() {
     }
     return total;
   }, [metasAtivas, desempenhoMes, usuarios]);
+
+  // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
+  const caixasBatidasTotal = useMemo(
+    () => caixasBatidasMes.reduce((s, c) => s + Number(c.valor_final || 0), 0),
+    [caixasBatidasMes],
+  );
+
+  // Total geral estimado para pagamento aos colaboradores no mês
+  const bonusTotalMes = bonusMes + caixasBatidasTotal;
 
   // Desafio stats (período filtrado): % das metas atingidas que também atingiram desafio
   const desafioStats = useMemo(() => {
@@ -343,7 +354,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
           <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} />
-          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusMes)} label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`} sub="Acumulado do mês até hoje" isSmall />
+          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusTotalMes)} label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`} sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`} isSmall />
           <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
       </div>
