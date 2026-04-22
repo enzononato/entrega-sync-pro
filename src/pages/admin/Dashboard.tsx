@@ -135,11 +135,6 @@ export default function Dashboard() {
   const filteredUserIds = useMemo(() => new Set(filteredUsers.map(u => u.id)), [filteredUsers]);
   const filteredDesempenho = desempenho;
 
-  const filteredIncentivos = useMemo(() => {
-    if (!unidadeFilter) return incentivos;
-    return incentivos.filter(i => filteredUserIds.has(i.user_id));
-  }, [incentivos, unidadeFilter, filteredUserIds]);
-
   const filteredFeedbacks = feedbacks;
   const filteredPlanos = useMemo(() => {
     if (!unidadeFilter) return planos;
