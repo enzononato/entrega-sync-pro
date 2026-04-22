@@ -7,7 +7,6 @@ import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
-import { useIncentivoDiarioAdmin } from '@/hooks/useIncentivoDiario';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetas } from '@/hooks/useMetas';
 
@@ -54,17 +53,14 @@ export default function Dashboard() {
     unidade_id: unidadeFilter || undefined,
     worker_type: tipoFilter || undefined,
   });
-  const { data: incentivos = [] } = useIncentivoDiarioAdmin(dateFrom);
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
   const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
 
   const mesAtual = format(new Date(), 'yyyy-MM');
   const mesInicio = mesAtual + '-01';
   const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim, {
-    unidade_id: unidadeFilter || undefined,
-    worker_type: tipoFilter || undefined,
-  });
+  // Bônus Estimado do mês atual: independe dos filtros do topo (unidade/perfil)
+  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
 
   const bonusMes = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
