@@ -13,10 +13,11 @@ const INDICATOR_IDS: Record<string, string> = {
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
   DISP_TEMPO: "488d1de9-9d88-42f2-bf3b-625752c0db02",
   TX_REPOSICAO: "c4c40e3e-f23b-46ce-a576-885c610f2df7",
+  REFUGO: "f5ded347-5b60-4b87-a2bb-d4d79d4f8e2a",
 };
 
 const DEFAULT_METAS: Record<string, number> = {
-  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 15, TX_REPOSICAO: 49.8,
+  TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 15, TX_REPOSICAO: 49.8, REFUGO: 0.5,
 };
 
 // FIX Problema 2: TX_DEVOLUCAO added to MOTORISTA_ONLY
@@ -398,6 +399,99 @@ Deno.serve(async (req) => {
     }
     totalInserted += repoUpserts.length;
     console.log(`Done: ${totalInserted} records, ${dates.length} dates`);
+
+    // ── REFUGO from refugo_031134 (apenas ajudantes) ──
+    const REFUGO_ID = INDICATOR_IDS["REFUGO"];
+    const refugoMeta = getMetaForWorker(metas, "REFUGO", "ajudante");
+
+    let allRefugoRows: { mapa: string; data_operacao: string; pct_refugo: number }[] = [];
+    {
+      let offset = 0;
+      while (true) {
+        const { data: chunk, error: rErr } = await supabase.from("refugo_031134")
+          .select("mapa, data_operacao, pct_refugo")
+          .range(offset, offset + PAGE - 1);
+        if (rErr) throw rErr;
+        if (!chunk || chunk.length === 0) break;
+        for (const r of chunk) {
+          if (r.mapa && r.data_operacao) {
+            allRefugoRows.push({
+              mapa: r.mapa,
+              data_operacao: r.data_operacao,
+              pct_refugo: Number(r.pct_refugo) || 0,
+            });
+          }
+        }
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
+      }
+    }
+
+    // Filter by requested dates
+    if (dates.length > 0) {
+      const dateSet = new Set(dates);
+      allRefugoRows = allRefugoRows.filter(r => dateSet.has(r.data_operacao));
+    }
+
+    // Lookup ajudantes do mapa em mapa_historico
+    const refugoMapas = [...new Set(allRefugoRows.map(r => r.mapa))];
+    const mapaAjudantes = new Map<string, { aju1: string | null; aju2: string | null }>();
+    if (refugoMapas.length > 0) {
+      for (let i = 0; i < refugoMapas.length; i += 200) {
+        const batch = refugoMapas.slice(i, i + 200);
+        const { data: chunk } = await supabase
+          .from("mapa_historico").select("mapa, aju1_user_id, aju2_user_id")
+          .in("mapa", batch);
+        if (chunk) {
+          for (const r of chunk) {
+            mapaAjudantes.set(r.mapa, { aju1: r.aju1_user_id, aju2: r.aju2_user_id });
+          }
+        }
+      }
+    }
+
+    const refugoUpserts: any[] = [];
+    const refugoAffectedUsers = new Set<string>();
+    const refugoAffectedDates = new Set<string>();
+
+    for (const row of allRefugoRows) {
+      const ajudantes = mapaAjudantes.get(row.mapa);
+      if (!ajudantes) continue;
+      const userIds = [ajudantes.aju1, ajudantes.aju2].filter((u): u is string => !!u);
+      const valor = Math.round(row.pct_refugo * 100) / 100;
+      const withinTarget = valor <= refugoMeta.meta;
+      for (const userId of userIds) {
+        refugoAffectedUsers.add(userId);
+        refugoAffectedDates.add(row.data_operacao);
+        refugoUpserts.push({
+          user_id: userId, indicator_id: REFUGO_ID, data_referencia: row.data_operacao,
+          valor, meta: refugoMeta.meta, desafio: null,
+          percentual_atingimento: withinTarget ? 100 : 0,
+          status: withinTarget ? "dentro_meta" : "abaixo_meta",
+          status_desafio: null,
+          origem_dado: "refugo_031134", mapa_numero: row.mapa,
+        });
+      }
+    }
+
+    const refugoUserArr = Array.from(refugoAffectedUsers);
+    const refugoDatesArr = Array.from(refugoAffectedDates);
+    if (refugoUserArr.length > 0 && refugoDatesArr.length > 0) {
+      for (let i = 0; i < refugoUserArr.length; i += 50) {
+        const batch = refugoUserArr.slice(i, i + 50);
+        await supabase.from("user_indicator_daily").delete()
+          .in("user_id", batch).eq("indicator_id", REFUGO_ID)
+          .eq("origem_dado", "refugo_031134")
+          .in("data_referencia", refugoDatesArr);
+      }
+      for (let i = 0; i < refugoUpserts.length; i += 500) {
+        const batch = refugoUpserts.slice(i, i + 500);
+        const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
+        if (insertErr) throw insertErr;
+      }
+      totalInserted += refugoUpserts.length;
+    }
+    console.log(`REFUGO: ${refugoUpserts.length} records`);
 
     return new Response(
       JSON.stringify({ success: true, total_inserted: totalInserted, dates_processed: dates.length }),
