@@ -1,43 +1,47 @@
 
 
-## Mudanças no Dashboard Administrativo
+## Análise: o cálculo do Bônus Estimado está incompleto
 
-### 1. Remover o card "Incentivo Período"
-No grid de KPIs principais (`src/pages/admin/Dashboard.tsx`, linhas ~405–410), removo o card que exibia `incentivoTotal` (soma de `user_incentives_daily.valor_estimado` do dia atual). Também removo os hooks/variáveis que ficam órfãos:
-- `useIncentivoDiarioAdmin` (import e chamada)
-- `incentivos`, `filteredIncentivos`, `incentivoTotal`
+Comparando o cálculo atual em `Dashboard.tsx` (linhas 67-121) com a edge function oficial `calculate-monthly-bonus`, **NÃO** estão sendo contabilizados todos os motoristas e ajudantes corretamente. Existem 4 problemas:
 
-### 2. Renomear e ajustar a área "Bônus Mês" para refletir o estimado do mês atual
+### Problemas identificados
 
-Hoje o `bonusMes` (linhas 69–114) já calcula a estimativa dos bônus do **mês corrente** agregando `desempenhoMes` (do dia 01 ao último dia do mês) contra as metas ativas com `valor_bonificacao > 0`. Ele já é exatamente "o quanto está estimado para o mês atual".
+1. **Colaboradores sem lançamento no mês ficam de fora**
+   O cálculo só itera sobre quem aparece em `desempenhoMes`. Se um motorista/ajudante ativo não teve nenhum lançamento ainda no mês, ele não é considerado — isso está correto (não há base para estimar bônus dele), mas **não é o que o usuário pediu**. O usuário quer "todos motoristas e ajudantes" sendo contabilizados.
 
-Ajustes para deixar isso claro ao usuário:
-- Trocar o label do `HeroStat` de **"Bônus Mês"** para **"Bônus Estimado · {mês atual}"** (ex: "Bônus Estimado · Abril").
-- Adicionar um `sub` ao `HeroStat` indicando "Acumulado do mês até hoje" para evidenciar que é uma projeção em tempo real, não um valor fechado.
-- Garantir que o cálculo **não dependa dos filtros de unidade/perfil** do topo (hoje `desempenhoMes` herda os filtros via `useDesempenhoDiario`). Para representar fielmente "o estimado do mês", o cálculo deve sempre considerar todos os colaboradores ativos — vou remover os filtros do hook que alimenta `desempenhoMes` (passando sem `unidade_id` / `worker_type`), mantendo os filtros apenas para os outros widgets do dashboard.
+2. **Agregação errada para indicadores não-soma (TML, TR, TI, JL, TX_DEVOLUCAO, DISP_TEMPO)**
+   Hoje: `agg.sum / agg.count` (média simples sobre todas as linhas).
+   Edge function oficial: **média das médias diárias** (agrupa por dia → média por dia → média entre dias). Isso evita distorção quando um colaborador tem múltiplos mapas em um mesmo dia.
 
-### 3. Reorganizar o grid de KPIs
-Após remover "Incentivo Período", o grid de KPIs (atualmente 4 colunas) é re-balanceado para 3 cards principais, mantendo o layout responsivo (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`).
+3. **Identificação de indicador SUM por código (frágil)**
+   Hoje: `SUM_CODES = new Set(['TX_REPOSICAO'])` comparando contra `goal.indicators?.codigo`. A edge function usa o **UUID** do indicador (`c4c40e3e-f23b-46ce-a576-885c610f2df7`), que é mais confiável.
 
-### Detalhes técnicos
-- Arquivo único alterado: `src/pages/admin/Dashboard.tsx`
-- Nenhuma mudança de banco, edge function ou tipos.
-- Lógica de `bonusMes` permanece (aggregate por usuário+indicador, média para indicadores normais, soma para `TX_REPOSICAO`, soma de `valor_bonificacao` + `valor_bonificacao_desafio` quando atinge).
-- Remoção de imports não utilizados (`useIncentivoDiarioAdmin`).
+4. **Inclui colaboradores inativos / não-colaboradores**
+   `usuarios` traz todos os usuários. A edge function filtra `ativo = true AND role = 'colaborador' AND worker_type IS NOT NULL`. Isso pode inflar o total se houver lançamentos antigos de usuários desativados.
 
-### Resultado visual
+5. **Não respeita prioridade de meta**
+   Hoje: `find()` retorna a primeira meta que casa (pode pegar a meta `default` antes da meta específica do `worker_type`).
+   Edge function: prioriza `worker_type` específico → fallback para `default`.
 
-```text
-[Hero gradient header com filtros]
-┌──────────────┬──────────────┬───────────────────────────┬──────────────┐
-│ Colaborad.   │ Metas Ating. │ Bônus Estimado · Abril    │ Desafio Met. │
-│ 42           │ 78%          │ R$ 12.480,00              │ 35%          │
-│ 30 mot·12 aj │ 234 de 300   │ Acumulado do mês até hoje │ 21/60 metas  │
-└──────────────┴──────────────┴───────────────────────────┴──────────────┘
+### Solução: unificar a lógica com a edge function
 
-KPIs principais (sem mais "Incentivo Período"):
-┌──────────────┬──────────────┬──────────────┐
-│ Feedbacks    │ Planos Ação  │ Outro KPI    │
-└──────────────┴──────────────┴──────────────┘
-```
+Reescrever o `useMemo` do `bonusMes` em `src/pages/admin/Dashboard.tsx` (linhas 67-112) replicando exatamente a lógica de `supabase/functions/calculate-monthly-bonus/index.ts`:
+
+- **Filtrar usuários**: `usuarios.filter(u => u.ativo && u.role === 'colaborador' && u.worker_type)` antes de iterar.
+- **Lookup de metas com prioridade**: construir um `Map<indicator_id|worker_type, goal>` com fallback para `default`, igual à edge function.
+- **Agregação correta**:
+  - `TX_REPOSICAO` (por UUID): soma de todos os valores no mês.
+  - Demais indicadores: agrupar por dia (`Map<date, {sum, count}>`), tirar média de cada dia, depois média entre dias.
+- **Iterar sobre TODOS os colaboradores ativos** (não apenas os que têm lançamento), pulando combinações sem dados (mas mantendo o universo completo de usuários no loop, como faz a edge function).
+- **Constante de UUIDs** dos indicadores no topo do componente (mesmas do `INDICATOR_IDS` da edge function), para identificar SUM via UUID em vez de código.
+
+### Resultado esperado
+
+O valor exibido em "Bônus Estimado · {mês}" passa a ser idêntico ao que a edge function `calculate-monthly-bonus` gravaria se rodasse agora — somando os bônus mensais (metas + desafios) de **todos os colaboradores ativos** com base agregada do mês corrente, e mais as Caixas Batidas do mês (que já está correto).
+
+### Arquivo alterado
+
+- `src/pages/admin/Dashboard.tsx` (apenas o `useMemo` do `bonusMes`, ~50 linhas)
+
+Sem mudanças em banco, edge functions ou outros componentes.
 
