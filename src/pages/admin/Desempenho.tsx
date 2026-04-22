@@ -11,6 +11,7 @@ import { useIndicadores } from '@/hooks/useIndicadores';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useMetas } from '@/hooks/useMetas';
+import { useCaixasBatidasAdminMes, type CaixasBatidasMapa } from '@/hooks/useCaixasBatidas';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
