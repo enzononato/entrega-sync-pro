@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { format, formatDistanceToNow, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
