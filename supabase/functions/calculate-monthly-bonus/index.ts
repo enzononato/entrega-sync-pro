@@ -68,20 +68,25 @@ Deno.serve(async (req) => {
     //  - Meta com worker_type=null só vale como universal SE indicator.applies_to_worker_type='ambos'.
     //  - Em qualquer caso, o indicador também precisa aplicar-se ao worker_type do colaborador.
     const findGoal = (indicatorId: string, workerType: string) => {
+      // Aceita applies_to_worker_type como 'ambos', único worker_type, ou
+      // lista separada por vírgula (defesa contra dados sujos no banco).
+      const matchesApplies = (applies: string | undefined | null) => {
+        const a = (applies ?? "ambos").toString().toLowerCase();
+        if (a === "ambos") return true;
+        return a.split(",").map((s) => s.trim()).includes(workerType);
+      };
       const exact = goals.find(
         (g) => g.indicator_id === indicatorId && g.worker_type === workerType,
       );
       if (exact) {
-        const applies = (exact as any).indicators?.applies_to_worker_type ?? "ambos";
-        if (applies !== "ambos" && applies !== workerType) return undefined;
+        if (!matchesApplies((exact as any).indicators?.applies_to_worker_type)) return undefined;
         return exact;
       }
       const universal = goals.find(
         (g) => g.indicator_id === indicatorId && g.worker_type === null,
       );
       if (universal) {
-        const applies = (universal as any).indicators?.applies_to_worker_type ?? "ambos";
-        if (applies !== "ambos") return undefined;
+        if (!matchesApplies((universal as any).indicators?.applies_to_worker_type)) return undefined;
         return universal;
       }
       return undefined;
