@@ -2,34 +2,20 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const isPreviewOrIframe = (() => {
-  if (typeof window === "undefined") return false;
-
-  const hostname = window.location.hostname;
-  const isPreviewHost =
-    hostname.includes("id-preview--") ||
-    hostname.includes("lovable.app") ||
-    hostname.includes("lovableproject.com");
-
-  try {
-    return isPreviewHost || window.self !== window.top;
-  } catch {
-    return true;
+// In dev/preview, ensure no stale Service Worker keeps serving old assets.
+// We unregister once per session (not on every load) to avoid fighting Vite HMR.
+if (import.meta.env.DEV && "serviceWorker" in navigator) {
+  const FLAG = "__sw_cleared_v1";
+  if (!sessionStorage.getItem(FLAG)) {
+    sessionStorage.setItem(FLAG, "1");
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      if (registrations.length === 0) return;
+      Promise.all(registrations.map((r) => r.unregister()))
+        .then(() => caches?.keys?.() ?? [])
+        .then((cacheNames) => Promise.all((cacheNames as string[]).map((n) => caches.delete(n))))
+        .then(() => window.location.reload());
+    });
   }
-})();
-
-if (isPreviewOrIframe && "serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((registration) => {
-      void registration.unregister();
-    });
-  });
-
-  void caches.keys().then((cacheNames) => {
-    cacheNames.forEach((cacheName) => {
-      void caches.delete(cacheName);
-    });
-  });
 }
 
 // Capacitor plugins initialization
