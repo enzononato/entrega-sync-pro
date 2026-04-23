@@ -236,27 +236,51 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 6. Upsert results into user_incentives_daily ──
-    for (const result of results) {
-      await supabase
+    // ── 6. Replace existing bonus_mensal rows for this month ──
+    // Delete-then-insert é mais seguro do que upsert porque:
+    //  - A unique constraint precisa considerar o `tipo` (que vive no JSON)
+    //  - Garante que usuários que não atingiram nenhuma meta neste mês não fiquem
+    //    com valores antigos pendurados na linha.
+    const userIds = results.map((r) => r.user_id);
+    if (userIds.length > 0) {
+      const { error: delErr } = await supabase
         .from("user_incentives_daily")
-        .upsert(
-          {
-            user_id: result.user_id,
-            data_referencia: startDate,
-            valor_estimado: result.total_bonus,
-            status: "estimado",
-            detalhes_json: {
-              tipo: "bonus_mensal",
-              mes: month,
-              indicadores: result.details,
-            },
-          },
-          { onConflict: "user_id,data_referencia" },
-        );
+        .delete()
+        .eq("data_referencia", startDate)
+        .in("user_id", userIds)
+        .filter("detalhes_json->>tipo", "eq", "bonus_mensal");
+      if (delErr) throw new Error(`delete bonus_mensal: ${delErr.message}`);
     }
 
-    console.log(`Processed ${results.length} users, upserted monthly bonus records`);
+    // Também limpa registros bonus_mensal de usuários que NÃO entraram nesse cálculo
+    // (ex.: colaborador que era beneficiário antes mas não atingiu mais nenhuma meta agora).
+    const { error: delAllErr } = await supabase
+      .from("user_incentives_daily")
+      .delete()
+      .eq("data_referencia", startDate)
+      .filter("detalhes_json->>tipo", "eq", "bonus_mensal")
+      .filter("detalhes_json->>mes", "eq", month);
+    if (delAllErr) throw new Error(`delete stale bonus_mensal: ${delAllErr.message}`);
+
+    if (results.length > 0) {
+      const rows = results.map((result) => ({
+        user_id: result.user_id,
+        data_referencia: startDate,
+        valor_estimado: result.total_bonus,
+        status: "estimado",
+        detalhes_json: {
+          tipo: "bonus_mensal",
+          mes: month,
+          indicadores: result.details,
+        },
+      }));
+      const { error: insErr } = await supabase
+        .from("user_incentives_daily")
+        .insert(rows);
+      if (insErr) throw new Error(`insert bonus_mensal: ${insErr.message}`);
+    }
+
+    console.log(`Processed ${results.length} users, replaced monthly bonus records`);
 
     return new Response(
       JSON.stringify({
