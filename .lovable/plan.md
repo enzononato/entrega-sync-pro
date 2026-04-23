@@ -1,43 +1,65 @@
 
 
-## Tornar o indicador Refugo um cidadão de primeira classe
+## Análise: o cálculo está quase completo, mas tem um problema concreto
 
-O dado de Refugo já está sendo gravado em `user_indicator_daily` com `mapa_numero` para os ajudantes corretos (verifiquei no banco: 88 registros, 45 ajudantes). Tecnicamente ele já aparece no dashboard do ajudante, mas falta tratá-lo como os demais indicadores em vários pontos do sistema. Os ajustes abaixo garantem visibilidade, ordenação correta, contabilização no bônus e exibição correta da unidade.
+Conferindo as metas ativas no banco contra o que o `useMemo` do `bonusMes` percorre, **5 das 6 bonificações configuradas estão sendo contabilizadas corretamente**, mas **1 não está**.
 
-### O que será alterado
+### Bonificações ativas no banco (todas com `valor_bonificacao = R$ 52,50`)
 
-**1. `src/lib/indicatorOrder.ts`** — adicionar `REFUGO` à ordem canônica dos indicadores (ao final da lista, depois de `TX_REPOSICAO`), para que apareça em uma posição estável e previsível, e não jogado ao fim alfabeticamente.
+| Indicador | worker_type | Bônus meta | Bônus desafio | Entra no cálculo? |
+|---|---|---|---|---|
+| DISP_TEMPO | motorista | 52,50 | 10,00 | ✅ |
+| DISP_TEMPO | ajudante | 52,50 | 10,00 | ✅ |
+| TX_DEVOLUCAO | ajudante | 52,50 | 0 | ✅ |
+| TX_DEVOLUCAO | `null` (default) | 52,50 | 10,00 | ⚠️ entra como fallback de motorista |
+| TX_REPOSICAO | motorista | 52,50 | 10,00 | ✅ |
+| REFUGO | ajudante | 52,50 | 0 | ❌ **não entra** |
 
-**2. `src/pages/admin/Desempenho.tsx`** — incluir `REFUGO` em `MAPA_INDICATORS_AJU` (linha 101). Hoje só `['TML','TR','TI','JL','TX_DEVOLUCAO']` são esperados para ajudante, então quando o admin abre o desempenho de um ajudante e o mapa não tem refugo, nem aparece placeholder. Após a mudança, o admin vai ver o Refugo listado em cada mapa do ajudante (com valor real ou zero quando ausente).
+### Por que Refugo (e potencialmente outros) ficam de fora
 
-**3. `src/pages/admin/Dashboard.tsx`** — adicionar `REFUGO: 'f5ded347-5b60-4b87-a2bb-d4d79d4f8e2a'` ao mapa `INDICATOR_IDS` (linhas 42-50). Hoje, mesmo com `valor_bonificacao` configurado para Refugo, o card "Bônus Estimado" do mês não inclui esse indicador no cálculo porque a lógica filtra por `goalIndicatorIds` que vem das metas, mas o `findGoal` precisa estar alinhado. Na prática a constante já não bloqueia (o cálculo itera sobre `goalIndicatorIds` derivado das metas), mas adicionar a constante deixa o código consistente e documentado. (Refugo entra automaticamente no bônus quando a goal tiver `valor_bonificacao > 0`, tratado como indicador de média de médias diárias — não é SUM.)
+A função filtra colaboradores com:
+```ts
+const activeCollaborators = usuarios.filter(
+  u => u.ativo && u.role === 'colaborador' && u.worker_type
+);
+```
 
-**4. `supabase/functions/calculate-monthly-bonus/index.ts`** — adicionar `REFUGO: 'f5ded347-...'` ao `INDICATOR_IDS` (linhas 11-18). Mesma justificativa: garante que o cálculo persistido em `user_incentives_daily` reconheça Refugo. Refugo NÃO entra em `SUM_INDICATORS` — ele agrega como média de médias diárias (cada mapa daquele dia → média do dia → média entre dias), exatamente como TML/TR/TI/JL/TX_DEVOLUCAO.
+Mas o hook `useUsuarios()` por padrão retorna **só os ativos da unidade do admin logado**, e em alguns casos não traz `worker_type` populado para todos. Pior: o filtro avalia ajudantes contra metas de motorista (e vice-versa) usando o `findGoal(indId, workerType)` que cai no fallback `default` quando não acha o `worker_type` específico — isso causa **dois efeitos colaterais**:
 
-**5. `src/pages/colaborador/Incentivo.tsx`** — a linha 295/302 atualmente faz `m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'`. Refugo é `%`, então já cai no caminho correto. **Sem alteração.**
+1. **TX_REPOSICAO (só motorista)** está sendo testado contra ajudantes via fallback `default`, podendo somar bônus indevido para ajudantes que tenham qualquer registro.
+2. **REFUGO (só ajudante)** não tem fallback `default` no banco, então quando um ajudante tem dado de refugo, o cálculo passa — mas se um motorista tiver algum dado errado lançado, ele também seria avaliado contra a meta de ajudante via fallback.
 
-**6. `src/pages/colaborador/Home.tsx`** — o filtro nas linhas 167-169 já permite Refugo para ajudantes (`'refugo'` não contém `'repos'`). Vou apenas reforçar a checagem usando código exato (`code === 'TX_REPOSICAO'` para esconder de ajudantes; `code === 'REFUGO'` para esconder de motoristas) em vez de `String.includes`, que é frágil. Comportamento final idêntico, código mais robusto.
+Além disso, o card **"Bônus Estimado · {mês}"** soma `bonusMes + caixasBatidasTotal`, então:
+- ✅ Caixas Batidas do mês: somando corretamente.
+- ✅ DISP_TEMPO, TX_DEVOLUCAO, TX_REPOSICAO: somando corretamente para o `worker_type` correspondente.
+- ⚠️ REFUGO: depende do estado do hook `useUsuarios` no momento — geralmente entra, mas pode falhar se o ajudante não estiver na unidade visível ao admin.
+- ❌ A lógica não **respeita o campo `applies_to_worker_type` do indicador**, então metas com `worker_type: null` viram fallback universal e podem contar para perfis que não deveriam.
 
-### Como Refugo será tratado (resumo final)
+### Correções propostas
 
-| Aspecto | Comportamento |
-|---|---|
-| Quem vê | Só ajudantes (motoristas filtrados) |
-| Onde aparece | KPIs por Mapa do ajudante, agrupado pelo número do mapa |
-| Status | Binário: `dentro_meta` se ≤ 0,50%; `abaixo_meta` se > 0,50% |
-| Desafio | Não tem (sempre `null`) |
-| Bônus mensal | Agrega como média de médias diárias do mês; paga `valor_bonificacao` da goal se aggregate ≤ 0,50% |
-| Reportar causa raiz | Botão "Reportar" disponível quando `abaixo_meta`, igual aos outros |
-| Ranking | Já entra automaticamente via `useRanking` (genérico, não hardcoded por código) |
-| Ordem na lista | Após TX_REPOSICAO, no final da sequência canônica |
+**1. Respeitar `applies_to_worker_type` da tabela `indicators`**
+   Ao iterar, pular o indicador se `indicator.applies_to_worker_type` for diferente de `'ambos'` e diferente do `worker_type` do colaborador. Isso elimina o risco de TX_REPOSICAO ser avaliado para ajudante e REFUGO para motorista.
+
+**2. Eliminar o fallback `default` quando a meta tem `worker_type` específico**
+   A meta de TX_DEVOLUCAO com `worker_type: null` deve ser tratada como meta universal (vale para os dois perfis) **somente** se o indicador também for `applies_to_worker_type = 'ambos'`. Caso contrário, ignorar.
+
+**3. Garantir que o `useUsuarios()` traga TODOS os colaboradores ativos do sistema** (não apenas da unidade do admin) para esse cálculo, já que o card "Bônus Estimado" representa o total estimado a pagar no mês — independente do filtro de unidade do topo.
+   Trocar por uma query dedicada no `useMemo` (ou novo hook `useAllActiveCollaborators()`) que busca direto da tabela `users` sem aplicar o filtro de unidade.
+
+**4. Replicar exatamente as mesmas correções na edge function `calculate-monthly-bonus/index.ts`** para que o valor exibido no dashboard seja idêntico ao que será gravado em `user_incentives_daily`.
+
+### Resultado esperado
+
+Após o ajuste, o card "Bônus Estimado · {mês}" vai mostrar:
+- Soma de R$ 52,50 (+ R$ 10,00 desafio quando houver) por colaborador que atinja cada meta com bonificação configurada,
+- Considerando **somente o perfil correto** para cada indicador (motorista para TX_REPOSICAO, ajudante para REFUGO, ambos para DISP_TEMPO e TX_DEVOLUCAO),
+- Para **todos os colaboradores ativos do sistema** (não só os da unidade visível),
+- Mais a soma de Caixas Batidas do mês (já correto).
 
 ### Arquivos alterados
 
-- `src/lib/indicatorOrder.ts`
-- `src/pages/admin/Desempenho.tsx`
-- `src/pages/admin/Dashboard.tsx`
-- `src/pages/colaborador/Home.tsx`
-- `supabase/functions/calculate-monthly-bonus/index.ts`
+- `src/pages/admin/Dashboard.tsx` — `useMemo` do `bonusMes` (filtro por `applies_to_worker_type`, sem fallback indevido, lista completa de colaboradores)
+- `supabase/functions/calculate-monthly-bonus/index.ts` — mesmas regras de matching meta↔colaborador
 
-Sem mudanças em banco, sem mudanças em outras edge functions, sem novos componentes.
+Sem mudanças em banco, sem novos componentes.
 
