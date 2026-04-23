@@ -590,6 +590,7 @@ export default function Dashboard() {
             sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`}
             isSmall
             onClick={() => setBonusDetailOpen(true)}
+            loading={isFetchingBonus}
           />
           <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
