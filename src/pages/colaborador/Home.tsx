@@ -164,9 +164,9 @@ export default function ColaboradorHome() {
     const wt = user?.worker_type ?? 'motorista';
     return desempenho.filter(d => {
       if (!user?.worker_type || !d.indicators) return true;
-      const cat = d.indicators.codigo?.toLowerCase() ?? '';
-      if (user.worker_type === 'motorista' && cat.includes('refugo')) return false;
-      if (user.worker_type === 'ajudante' && cat.includes('repos')) return false;
+      const code = d.indicators.codigo?.toUpperCase() ?? '';
+      if (user.worker_type === 'motorista' && code === 'REFUGO') return false;
+      if (user.worker_type === 'ajudante' && code === 'TX_REPOSICAO') return false;
       return true;
     }).map(d => {
       const code = d.indicators?.codigo?.toUpperCase();

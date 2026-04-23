@@ -98,7 +98,7 @@ export default function Desempenho() {
   const colabs = usuarios.filter(u => u.role === 'colaborador');
 
   const MAPA_INDICATORS_MOT = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO', 'DISP_TEMPO'];
-  const MAPA_INDICATORS_AJU = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO'];
+  const MAPA_INDICATORS_AJU = ['TML', 'TR', 'TI', 'JL', 'TX_DEVOLUCAO', 'REFUGO'];
 
   const indicatorByCode = useMemo(() => {
     const m = new Map<string, { id: string; nome: string; codigo: string }>();
