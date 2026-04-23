@@ -414,6 +414,8 @@ export default function ColaboradorHome() {
             {groupedByMapa.map(([mapaKey, rows]) => {
               const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
               const isMapaExpanded = expandedMapas.has(mapaKey) || groupedByMapa.length === 1;
+              const mapaData = rows[0]?.data_referencia;
+              const mapaDataFmt = mapaData ? format(new Date(mapaData + 'T00:00:00'), 'dd/MM/yyyy') : null;
 
               return (
                 <div key={mapaKey} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -423,9 +425,16 @@ export default function ColaboradorHome() {
                   >
                     <MapPin className="h-4 w-4 text-primary shrink-0" />
                     <div className="flex-1 text-left">
-                      <span className="text-sm font-bold text-foreground">
-                        {mapaKey === 'manual' ? 'Lançamento Manual' : `Mapa ${mapaKey}`}
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-bold text-foreground">
+                          {mapaKey === 'manual' ? 'Lançamento Manual' : `Mapa ${mapaKey}`}
+                        </span>
+                        {mapaDataFmt && (
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            · {mapaDataFmt}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className={cn(
                       'text-xs font-bold',
