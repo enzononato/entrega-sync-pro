@@ -924,10 +924,13 @@ export default function Dashboard() {
 
 /* ── Sub-components ────────────────────────────────── */
 
-function HeroStat({ icon, value, label, sub, isSmall, onClick }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean; onClick?: () => void }) {
+function HeroStat({ icon, value, label, sub, isSmall, onClick, loading }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean; onClick?: () => void; loading?: boolean }) {
   const content = (
     <>
-      <div className="flex items-center justify-center text-white/40 mb-1.5">{icon}</div>
+      <div className="flex items-center justify-center gap-1 text-white/40 mb-1.5">
+        {icon}
+        {loading && <Loader2 className="h-3 w-3 animate-spin text-white/60" />}
+      </div>
       <p className={cn('font-extrabold text-white leading-none', isSmall ? 'text-base' : 'text-xl')}>{value}</p>
       <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider mt-1">{label}</p>
       {sub && <p className="text-[10px] text-white/40 mt-0.5">{sub}</p>}
