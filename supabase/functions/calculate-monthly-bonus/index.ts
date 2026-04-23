@@ -236,27 +236,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 6. Upsert results into user_incentives_daily ──
-    for (const result of results) {
-      await supabase
+    // ── 6. Replace existing bonus_mensal rows for this month ──
+    // Delete-then-insert é mais robusto que upsert: a unique constraint envolve
+    // `tipo` (dentro do JSON) e queremos garantir que usuários que deixaram de
+    // atingir metas não fiquem com valores antigos pendurados.
+    const { error: delErr } = await supabase
+      .from("user_incentives_daily")
+      .delete()
+      .eq("data_referencia", startDate)
+      .filter("detalhes_json->>tipo", "eq", "bonus_mensal");
+    if (delErr) throw new Error(`delete bonus_mensal: ${delErr.message}`);
+
+    if (results.length > 0) {
+      const rows = results.map((result) => ({
+        user_id: result.user_id,
+        data_referencia: startDate,
+        valor_estimado: result.total_bonus,
+        status: "estimado",
+        detalhes_json: {
+          tipo: "bonus_mensal",
+          mes: month,
+          indicadores: result.details,
+        },
+      }));
+      const { error: insErr } = await supabase
         .from("user_incentives_daily")
-        .upsert(
-          {
-            user_id: result.user_id,
-            data_referencia: startDate,
-            valor_estimado: result.total_bonus,
-            status: "estimado",
-            detalhes_json: {
-              tipo: "bonus_mensal",
-              mes: month,
-              indicadores: result.details,
-            },
-          },
-          { onConflict: "user_id,data_referencia" },
-        );
+        .insert(rows);
+      if (insErr) throw new Error(`insert bonus_mensal: ${insErr.message}`);
     }
 
-    console.log(`Processed ${results.length} users, upserted monthly bonus records`);
+    console.log(`Processed ${results.length} users, replaced monthly bonus records`);
 
     return new Response(
       JSON.stringify({
