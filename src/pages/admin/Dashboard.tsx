@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { format, formatDistanceToNow, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Users, MessageSquare, ClipboardList, DollarSign, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
-  UserCheck, Zap, Clock, ArrowUpRight, MapPin, Package, Trophy, Flame,
+  UserCheck, Zap, Clock, ArrowUpRight, MapPin, Package, Trophy, Flame, Loader2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
