@@ -1,65 +1,60 @@
 
 
-## Análise: o cálculo está quase completo, mas tem um problema concreto
+## Auditoria do "Bônus Estimado" — não, R$ 21.481,48 não está totalmente correto
 
-Conferindo as metas ativas no banco contra o que o `useMemo` do `bonusMes` percorre, **5 das 6 bonificações configuradas estão sendo contabilizadas corretamente**, mas **1 não está**.
+Rodei o cálculo direto no banco replicando a lógica do dashboard. O valor real deveria ser **R$ 21.428,96**, não R$ 21.481,48 (diferença pequena, possivelmente arredondamento), e ainda assim **3 problemas estruturais** estão escondendo bônus que deveriam aparecer.
 
-### Bonificações ativas no banco (todas com `valor_bonificacao = R$ 52,50`)
+### Decomposição do mês atual (abril/2026)
 
-| Indicador | worker_type | Bônus meta | Bônus desafio | Entra no cálculo? |
-|---|---|---|---|---|
-| DISP_TEMPO | motorista | 52,50 | 10,00 | ✅ |
-| DISP_TEMPO | ajudante | 52,50 | 10,00 | ✅ |
-| TX_DEVOLUCAO | ajudante | 52,50 | 0 | ✅ |
-| TX_DEVOLUCAO | `null` (default) | 52,50 | 10,00 | ⚠️ entra como fallback de motorista |
-| TX_REPOSICAO | motorista | 52,50 | 10,00 | ✅ |
-| REFUGO | ajudante | 52,50 | 0 | ❌ **não entra** |
+| Bloco | Valor | Observação |
+|---|---|---|
+| DISP_TEMPO motorista — meta (24 atingiram) | R$ 1.260,00 | ✅ correto |
+| DISP_TEMPO motorista — desafio (21 atingiram) | R$ 210,00 | ✅ correto |
+| DISP_TEMPO ajudante — meta | **R$ 0,00** | ❌ **bug 1** — não há dados de DISP_TEMPO para ajudantes no mês |
+| REFUGO ajudante — meta (37 atingiram) | R$ 1.942,50 | ✅ correto, agora entra |
+| TX_DEVOLUCAO ajudante — meta | **R$ 0,00** | ❌ **bug 2** — `users_com_dado=0`, ajudantes não estão recebendo TX_DEVOLUCAO |
+| TX_DEVOLUCAO motorista — meta | n/a | ⚠️ **bug 3** — sem meta específica de motorista, e fallback universal foi bloqueado (ver abaixo) |
+| TX_REPOSICAO motorista — meta (12 atingiram) | R$ 630,00 | ✅ correto |
+| TX_REPOSICAO motorista — desafio (7 atingiram) | R$ 70,00 | ✅ correto |
+| Caixas Batidas (mês) | R$ 17.316,46 | ✅ correto |
+| **Total esperado** | **R$ 21.428,96** | |
+| **Exibido no card** | R$ 21.481,48 | diferença de ~R$ 52,50 (1 bonificação) |
 
-### Por que Refugo (e potencialmente outros) ficam de fora
+### Os 3 bugs encontrados
 
-A função filtra colaboradores com:
-```ts
-const activeCollaborators = usuarios.filter(
-  u => u.ativo && u.role === 'colaborador' && u.worker_type
-);
-```
+**Bug 1 — DISP_TEMPO está marcado como `applies_to_worker_type = 'motorista'` no indicator**, mas existe meta cadastrada para ajudante. A lógica nova (que respeita `applies_to_worker_type`) está corretamente bloqueando essa meta de ajudante porque o indicador diz "só motorista". Ou o cadastro do indicador está errado (deveria ser `ambos`), ou a meta de ajudante não deveria existir. **Decisão necessária do usuário.**
 
-Mas o hook `useUsuarios()` por padrão retorna **só os ativos da unidade do admin logado**, e em alguns casos não traz `worker_type` populado para todos. Pior: o filtro avalia ajudantes contra metas de motorista (e vice-versa) usando o `findGoal(indId, workerType)` que cai no fallback `default` quando não acha o `worker_type` específico — isso causa **dois efeitos colaterais**:
+**Bug 2 — TX_DEVOLUCAO tem `applies_to_worker_type = 'motorista,ajudante'`** (string com vírgula), e o `findGoal` checa `applies !== 'ambos' && applies !== workerType`. Como `'motorista,ajudante' !== 'ajudante'`, **a meta é descartada**. Por isso TX_DEVOLUCAO ajudante mostra zero. O valor correto de `applies_to_worker_type` para indicadores que valem para os dois é `'ambos'`, não `'motorista,ajudante'`.
 
-1. **TX_REPOSICAO (só motorista)** está sendo testado contra ajudantes via fallback `default`, podendo somar bônus indevido para ajudantes que tenham qualquer registro.
-2. **REFUGO (só ajudante)** não tem fallback `default` no banco, então quando um ajudante tem dado de refugo, o cálculo passa — mas se um motorista tiver algum dado errado lançado, ele também seria avaliado contra a meta de ajudante via fallback.
+**Bug 3 — A meta universal de TX_DEVOLUCAO** (worker_type = null) com `valor_bonificacao_desafio = 10` está sendo descartada para motoristas porque a lógica nova só aceita fallback universal se o indicador for `'ambos'` (e ele é `'motorista,ajudante'`, não `'ambos'`). Isso fechou o buraco anterior, mas agora motoristas perdem bônus de TX_DEVOLUCAO porque não existe meta específica `worker_type='motorista'`.
 
-Além disso, o card **"Bônus Estimado · {mês}"** soma `bonusMes + caixasBatidasTotal`, então:
-- ✅ Caixas Batidas do mês: somando corretamente.
-- ✅ DISP_TEMPO, TX_DEVOLUCAO, TX_REPOSICAO: somando corretamente para o `worker_type` correspondente.
-- ⚠️ REFUGO: depende do estado do hook `useUsuarios` no momento — geralmente entra, mas pode falhar se o ajudante não estiver na unidade visível ao admin.
-- ❌ A lógica não **respeita o campo `applies_to_worker_type` do indicador**, então metas com `worker_type: null` viram fallback universal e podem contar para perfis que não deveriam.
+### Plano de correção
 
-### Correções propostas
+**Etapa A — corrigir os dados (migração SQL):**
+1. Atualizar `indicators.applies_to_worker_type`:
+   - DISP_TEMPO: `'motorista'` → `'ambos'` (afeta motoristas e ajudantes)
+   - TX_DEVOLUCAO: `'motorista,ajudante'` → `'ambos'` (corrige a string fora do padrão)
+2. Confirmar com o usuário se REFUGO deve continuar `'ajudante'` (correto) e TX_REPOSICAO `'motorista'` (correto).
 
-**1. Respeitar `applies_to_worker_type` da tabela `indicators`**
-   Ao iterar, pular o indicador se `indicator.applies_to_worker_type` for diferente de `'ambos'` e diferente do `worker_type` do colaborador. Isso elimina o risco de TX_REPOSICAO ser avaliado para ajudante e REFUGO para motorista.
+**Etapa B — robustecer o `findGoal` no código** (defesa contra dados sujos no futuro):
+- Tratar `applies_to_worker_type` contendo vírgula como lista: `applies.split(',').map(s=>s.trim()).includes(workerType)` ou igual a `'ambos'`. Sem isso, qualquer cadastro errado volta a quebrar silenciosamente.
+- Aplicar em `src/pages/admin/Dashboard.tsx` e `supabase/functions/calculate-monthly-bonus/index.ts` (mesma função `findGoal`).
 
-**2. Eliminar o fallback `default` quando a meta tem `worker_type` específico**
-   A meta de TX_DEVOLUCAO com `worker_type: null` deve ser tratada como meta universal (vale para os dois perfis) **somente** se o indicador também for `applies_to_worker_type = 'ambos'`. Caso contrário, ignorar.
+**Etapa C — investigar por que ajudantes não têm DISP_TEMPO nem TX_DEVOLUCAO no mês:**
+- Possível causa: `calculate-daily-indicators` não está distribuindo esses indicadores para `aju1_user_id`/`aju2_user_id` do mapa. Vou ler a edge function antes de propor fix.
 
-**3. Garantir que o `useUsuarios()` traga TODOS os colaboradores ativos do sistema** (não apenas da unidade do admin) para esse cálculo, já que o card "Bônus Estimado" representa o total estimado a pagar no mês — independente do filtro de unidade do topo.
-   Trocar por uma query dedicada no `useMemo` (ou novo hook `useAllActiveCollaborators()`) que busca direto da tabela `users` sem aplicar o filtro de unidade.
+### Resultado esperado depois da correção
 
-**4. Replicar exatamente as mesmas correções na edge function `calculate-monthly-bonus/index.ts`** para que o valor exibido no dashboard seja idêntico ao que será gravado em `user_incentives_daily`.
+| Bloco | Antes | Depois |
+|---|---|---|
+| DISP_TEMPO ajudante | R$ 0 | provavelmente +R$ 1.000~2.000 (se etapa C confirmar dados) |
+| TX_DEVOLUCAO motorista + ajudante | R$ 0 | + R$ 500~1.500 |
+| Total bônus + caixas | ~R$ 21.428,96 | **estimado R$ 23.000~25.000** |
 
-### Resultado esperado
+### Arquivos / artefatos alterados
 
-Após o ajuste, o card "Bônus Estimado · {mês}" vai mostrar:
-- Soma de R$ 52,50 (+ R$ 10,00 desafio quando houver) por colaborador que atinja cada meta com bonificação configurada,
-- Considerando **somente o perfil correto** para cada indicador (motorista para TX_REPOSICAO, ajudante para REFUGO, ambos para DISP_TEMPO e TX_DEVOLUCAO),
-- Para **todos os colaboradores ativos do sistema** (não só os da unidade visível),
-- Mais a soma de Caixas Batidas do mês (já correto).
-
-### Arquivos alterados
-
-- `src/pages/admin/Dashboard.tsx` — `useMemo` do `bonusMes` (filtro por `applies_to_worker_type`, sem fallback indevido, lista completa de colaboradores)
-- `supabase/functions/calculate-monthly-bonus/index.ts` — mesmas regras de matching meta↔colaborador
-
-Sem mudanças em banco, sem novos componentes.
+- **Migração SQL** — UPDATE em `indicators.applies_to_worker_type` para DISP_TEMPO e TX_DEVOLUCAO
+- `src/pages/admin/Dashboard.tsx` — `findGoal` aceita `applies_to_worker_type` como lista separada por vírgula
+- `supabase/functions/calculate-monthly-bonus/index.ts` — mesma alteração no `findGoal`
+- `supabase/functions/calculate-daily-indicators/index.ts` — investigação e possível fix se ajudantes não estão recebendo DISP_TEMPO/TX_DEVOLUCAO (etapa C, depois de confirmar)
 
