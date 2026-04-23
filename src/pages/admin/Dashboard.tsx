@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [dateTo, setDateTo] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
+  const [bonusDetailOpen, setBonusDetailOpen] = useState(false);
 
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
