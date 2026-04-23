@@ -734,6 +734,92 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Bônus Estimado — detalhamento */}
+      <Dialog open={bonusDetailOpen} onOpenChange={setBonusDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bônus Estimado · {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}</DialogTitle>
+            <DialogDescription>
+              Total previsto: <span className="font-semibold text-foreground">{fmtBRL(bonusTotalMes)}</span>
+              {' · '}Considera todos os colaboradores ativos do sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Resumo dos dois componentes */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Bônus por Meta</p>
+                <p className="text-lg font-bold text-foreground mt-0.5">{fmtBRL(bonusMes)}</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Caixas Batidas</p>
+                <p className="text-lg font-bold text-foreground mt-0.5">{fmtBRL(caixasBatidasTotal)}</p>
+              </div>
+            </div>
+
+            {/* Breakdown por indicador */}
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Bônus por Meta — detalhamento por indicador
+              </h4>
+              {bonusMesData.breakdown.length === 0 ? (
+                <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma meta atingida no mês até o momento.
+                </div>
+              ) : (
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr className="text-left">
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs">Indicador</th>
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs text-right">Beneficiários</th>
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs text-right">Desafios</th>
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {bonusMesData.breakdown.map(row => (
+                        <tr key={row.indicator_id} className="hover:bg-muted/30">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-foreground">{row.codigo}</div>
+                            <div className="text-xs text-muted-foreground">{row.nome}</div>
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">{row.beneficiarios}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {row.desafiosAtingidos > 0 ? row.desafiosAtingidos : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
+                            {fmtBRL(row.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/40 font-semibold">
+                      <tr>
+                        <td className="px-3 py-2 text-foreground">Total Bônus por Meta</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                          {bonusMesData.breakdown.reduce((s, r) => s + r.beneficiarios, 0)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                          {bonusMesData.breakdown.reduce((s, r) => s + r.desafiosAtingidos, 0)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">{fmtBRL(bonusMes)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Cálculo baseado nas metas mensais ativas, agregando o desempenho do mês por colaborador.
+              Para cada meta atingida, soma-se o valor de bonificação; quando o desafio também é atingido, soma-se o bônus de desafio.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
