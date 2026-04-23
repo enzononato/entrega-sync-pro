@@ -1,60 +1,70 @@
 
 
-## Auditoria do "Bônus Estimado" — não, R$ 21.481,48 não está totalmente correto
+## Por que o "Bônus Estimado" demora a atualizar
 
-Rodei o cálculo direto no banco replicando a lógica do dashboard. O valor real deveria ser **R$ 21.428,96**, não R$ 21.481,48 (diferença pequena, possivelmente arredondamento), e ainda assim **3 problemas estruturais** estão escondendo bônus que deveriam aparecer.
+A demora não é bug aleatório — tem 3 causas concretas, e duas delas são facilmente corrigíveis.
 
-### Decomposição do mês atual (abril/2026)
+### O que acontece hoje quando a página abre
 
-| Bloco | Valor | Observação |
-|---|---|---|
-| DISP_TEMPO motorista — meta (24 atingiram) | R$ 1.260,00 | ✅ correto |
-| DISP_TEMPO motorista — desafio (21 atingiram) | R$ 210,00 | ✅ correto |
-| DISP_TEMPO ajudante — meta | **R$ 0,00** | ❌ **bug 1** — não há dados de DISP_TEMPO para ajudantes no mês |
-| REFUGO ajudante — meta (37 atingiram) | R$ 1.942,50 | ✅ correto, agora entra |
-| TX_DEVOLUCAO ajudante — meta | **R$ 0,00** | ❌ **bug 2** — `users_com_dado=0`, ajudantes não estão recebendo TX_DEVOLUCAO |
-| TX_DEVOLUCAO motorista — meta | n/a | ⚠️ **bug 3** — sem meta específica de motorista, e fallback universal foi bloqueado (ver abaixo) |
-| TX_REPOSICAO motorista — meta (12 atingiram) | R$ 630,00 | ✅ correto |
-| TX_REPOSICAO motorista — desafio (7 atingiram) | R$ 70,00 | ✅ correto |
-| Caixas Batidas (mês) | R$ 17.316,46 | ✅ correto |
-| **Total esperado** | **R$ 21.428,96** | |
-| **Exibido no card** | R$ 21.481,48 | diferença de ~R$ 52,50 (1 bonificação) |
+1. O Dashboard chama `useDesempenhoDiario(mesInicio, mesFim)` para o mês inteiro.
+2. Esse hook faz `select('*, users(...), indicators(...)') from user_indicator_daily` paginado de 1.000 em 1.000 linhas.
+3. Para abril/2026 são **6.159 linhas** (foram reprocessadas agora). Cada linha traz JOIN com `users` e `indicators` — payload de vários MB.
+4. Só depois que TODAS as páginas chegam o `useMemo` do `bonusMesData` roda e o card atualiza.
+5. Em paralelo, `useCaixasBatidasAdminMes` faz outra varredura grande. O card só fica "certo" quando os dois terminam.
 
-### Os 3 bugs encontrados
+Resultado: dependendo da rede dá **3 a 10 segundos** de "valor antigo na tela" até virar o número correto.
 
-**Bug 1 — DISP_TEMPO está marcado como `applies_to_worker_type = 'motorista'` no indicator**, mas existe meta cadastrada para ajudante. A lógica nova (que respeita `applies_to_worker_type`) está corretamente bloqueando essa meta de ajudante porque o indicador diz "só motorista". Ou o cadastro do indicador está errado (deveria ser `ambos`), ou a meta de ajudante não deveria existir. **Decisão necessária do usuário.**
+### As 3 causas
 
-**Bug 2 — TX_DEVOLUCAO tem `applies_to_worker_type = 'motorista,ajudante'`** (string com vírgula), e o `findGoal` checa `applies !== 'ambos' && applies !== workerType`. Como `'motorista,ajudante' !== 'ajudante'`, **a meta é descartada**. Por isso TX_DEVOLUCAO ajudante mostra zero. O valor correto de `applies_to_worker_type` para indicadores que valem para os dois é `'ambos'`, não `'motorista,ajudante'`.
+**Causa 1 — Cálculo pesado feito no cliente.** O front baixa 6k+ linhas só para somar bônus por colaborador. A edge function `calculate-monthly-bonus` já faz exatamente esse cálculo no servidor e grava em `user_incentives_daily`, mas o Dashboard ignora esse resultado e refaz tudo do zero no navegador.
 
-**Bug 3 — A meta universal de TX_DEVOLUCAO** (worker_type = null) com `valor_bonificacao_desafio = 10` está sendo descartada para motoristas porque a lógica nova só aceita fallback universal se o indicador for `'ambos'` (e ele é `'motorista,ajudante'`, não `'ambos'`). Isso fechou o buraco anterior, mas agora motoristas perdem bônus de TX_DEVOLUCAO porque não existe meta específica `worker_type='motorista'`.
+**Causa 2 — Sem cache entre navegações.** O `useQuery` do `useDesempenhoDiario` não tem `staleTime`. Cada vez que você sai e volta para o Dashboard ele refaz a query gigante, mesmo que os dados não tenham mudado.
+
+**Causa 3 — Sem placeholder enquanto carrega.** O card mostra `R$ 0,00` (ou o valor do render anterior) até o cálculo terminar, sem indicação de "atualizando". Dá a sensação de que o número está errado.
 
 ### Plano de correção
 
-**Etapa A — corrigir os dados (migração SQL):**
-1. Atualizar `indicators.applies_to_worker_type`:
-   - DISP_TEMPO: `'motorista'` → `'ambos'` (afeta motoristas e ajudantes)
-   - TX_DEVOLUCAO: `'motorista,ajudante'` → `'ambos'` (corrige a string fora do padrão)
-2. Confirmar com o usuário se REFUGO deve continuar `'ajudante'` (correto) e TX_REPOSICAO `'motorista'` (correto).
+**A. Ler bônus pré-calculado em vez de recalcular no front (ganho principal)**
 
-**Etapa B — robustecer o `findGoal` no código** (defesa contra dados sujos no futuro):
-- Tratar `applies_to_worker_type` contendo vírgula como lista: `applies.split(',').map(s=>s.trim()).includes(workerType)` ou igual a `'ambos'`. Sem isso, qualquer cadastro errado volta a quebrar silenciosamente.
-- Aplicar em `src/pages/admin/Dashboard.tsx` e `supabase/functions/calculate-monthly-bonus/index.ts` (mesma função `findGoal`).
+Trocar a fonte do `bonusMes` no Dashboard por uma query simples em `user_incentives_daily` filtrando `data_referencia = primeiro dia do mês` e `detalhes_json->>'tipo' = 'bonus_mensal'`:
 
-**Etapa C — investigar por que ajudantes não têm DISP_TEMPO nem TX_DEVOLUCAO no mês:**
-- Possível causa: `calculate-daily-indicators` não está distribuindo esses indicadores para `aju1_user_id`/`aju2_user_id` do mapa. Vou ler a edge function antes de propor fix.
+```ts
+const { data: bonusMensalRows } = useQuery({
+  queryKey: ['bonus-mensal', mesInicio],
+  queryFn: () => supabase
+    .from('user_incentives_daily')
+    .select('user_id, valor_estimado, detalhes_json')
+    .eq('data_referencia', mesInicio),
+  staleTime: 60_000,
+});
+```
 
-### Resultado esperado depois da correção
+Soma direta de `valor_estimado` = total de bônus por meta. O `breakdown` (por indicador) sai de `detalhes_json.indicadores` que a edge function já grava. Custo: ~100 linhas em vez de 6k+.
 
-| Bloco | Antes | Depois |
-|---|---|---|
-| DISP_TEMPO ajudante | R$ 0 | provavelmente +R$ 1.000~2.000 (se etapa C confirmar dados) |
-| TX_DEVOLUCAO motorista + ajudante | R$ 0 | + R$ 500~1.500 |
-| Total bônus + caixas | ~R$ 21.428,96 | **estimado R$ 23.000~25.000** |
+O `useMemo` antigo continua existindo como fallback se `user_incentives_daily` estiver vazio (primeira execução do mês), mas em uso normal nem dispara.
 
-### Arquivos / artefatos alterados
+**B. Disparar `calculate-monthly-bonus` automaticamente quando ficar desatualizado**
 
-- **Migração SQL** — UPDATE em `indicators.applies_to_worker_type` para DISP_TEMPO e TX_DEVOLUCAO
-- `src/pages/admin/Dashboard.tsx` — `findGoal` aceita `applies_to_worker_type` como lista separada por vírgula
-- `supabase/functions/calculate-monthly-bonus/index.ts` — mesma alteração no `findGoal`
-- `supabase/functions/calculate-daily-indicators/index.ts` — investigação e possível fix se ajudantes não estão recebendo DISP_TEMPO/TX_DEVOLUCAO (etapa C, depois de confirmar)
+Adicionar um `useEffect` que, ao montar o Dashboard, verifica se o registro mais recente em `user_incentives_daily` para o mês é mais antigo que X minutos (ex.: 15min) e, se for, chama a edge function em background. Assim o valor vai estar fresco sem o usuário precisar esperar reprocessamento manual.
+
+**C. Cache + indicador visual**
+
+- Adicionar `staleTime: 5 * 60_000` nas queries do Dashboard (`useDesempenhoDiario` do mês, `useCaixasBatidasAdminMes`, nova query de bônus mensal). Re-entrar na página vira instantâneo.
+- Mostrar um pequeno spinner ou esqueleto no card "Bônus Estimado" enquanto `isFetching` for true, para o usuário entender que está atualizando.
+
+### Resultado esperado
+
+| Antes | Depois |
+|---|---|
+| 3–10s baixando 6k linhas, cálculo no cliente | <500ms lendo ~100 linhas pré-agregadas |
+| Re-entrar refaz tudo | Re-entrar usa cache (5min) |
+| Sem feedback visual | Spinner discreto enquanto atualiza |
+| Recalcular = botão manual em /admin/importacoes | Reprocessamento automático em background quando dado fica velho |
+
+### Arquivos alterados
+
+- `src/pages/admin/Dashboard.tsx` — nova query `bonus-mensal`, `useMemo` lê `user_incentives_daily.detalhes_json` em vez de recalcular, `staleTime` nas queries do mês, indicador visual de carregamento, `useEffect` de auto-refresh
+- `src/hooks/useDesempenho.ts` — `staleTime` padrão (defesa)
+
+Sem mudanças em banco, sem alteração nas edge functions, sem novos componentes.
 
