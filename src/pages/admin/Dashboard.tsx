@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { format, formatDistanceToNow, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
@@ -77,28 +79,56 @@ export default function Dashboard() {
   const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminMes(mesAtual);
 
+  // ALL active collaborators system-wide (independente de unidade visível ao admin)
+  const { data: allCollaborators = [] } = useQuery({
+    queryKey: ['all-active-collaborators-bonus'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, worker_type, ativo, role')
+        .eq('ativo', true)
+        .eq('role', 'colaborador')
+        .not('worker_type', 'is', null);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+
   const bonusMes = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
     if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
 
     // Mirror logic from supabase/functions/calculate-monthly-bonus/index.ts
-    // 1) Active collaborators only (matches edge function user filter)
-    const activeCollaborators = usuarios.filter(
-      u => u.ativo && u.role === 'colaborador' && u.worker_type,
-    );
+    // 1) ALL active collaborators system-wide (não usar `usuarios` que pode estar filtrado por unidade)
+    const activeCollaborators = allCollaborators;
     if (activeCollaborators.length === 0) return 0;
 
-    // 2) Goal lookup with worker_type priority + default fallback
-    const goalLookup = new Map<string, typeof goalsComBonus[number]>();
-    for (const g of goalsComBonus) {
-      const wt = g.worker_type || 'default';
-      goalLookup.set(`${g.indicator_id}|${wt}`, g);
-      if (!goalLookup.has(`${g.indicator_id}|default`)) {
-        goalLookup.set(`${g.indicator_id}|default`, g);
+    // 2) Goal lookup respeitando applies_to_worker_type do indicador.
+    //    Regra: meta com worker_type específico só vale para esse worker_type.
+    //    Meta com worker_type=null só vale como universal SE indicator.applies_to_worker_type='ambos'.
+    //    Em qualquer caso, o indicador também precisa aplicar-se ao worker_type do colaborador.
+    const findGoal = (indicatorId: string, workerType: string) => {
+      // Procura match exato por worker_type
+      const exact = goalsComBonus.find(
+        g => g.indicator_id === indicatorId && g.worker_type === workerType,
+      );
+      if (exact) {
+        const applies = exact.indicators?.applies_to_worker_type ?? 'ambos';
+        if (applies !== 'ambos' && applies !== workerType) return undefined;
+        return exact;
       }
-    }
-    const findGoal = (indicatorId: string, workerType: string) =>
-      goalLookup.get(`${indicatorId}|${workerType}`) ?? goalLookup.get(`${indicatorId}|default`);
+      // Fallback universal apenas se o indicador for 'ambos'
+      const universal = goalsComBonus.find(
+        g => g.indicator_id === indicatorId && g.worker_type === null,
+      );
+      if (universal) {
+        const applies = universal.indicators?.applies_to_worker_type ?? 'ambos';
+        if (applies !== 'ambos') return undefined;
+        return universal;
+      }
+      return undefined;
+    };
 
     const goalIndicatorIds = [...new Set(goalsComBonus.map(g => g.indicator_id))];
 
@@ -164,7 +194,7 @@ export default function Dashboard() {
       }
     }
     return total;
-  }, [metasAtivas, desempenhoMes, usuarios]);
+  }, [metasAtivas, desempenhoMes, allCollaborators]);
 
   // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
   const caixasBatidasTotal = useMemo(
