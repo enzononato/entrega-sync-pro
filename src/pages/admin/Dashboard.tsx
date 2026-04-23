@@ -740,15 +740,26 @@ export default function Dashboard() {
 
 /* ── Sub-components ────────────────────────────────── */
 
-function HeroStat({ icon, value, label, sub, isSmall }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean }) {
-  return (
-    <div className="py-4 px-4 text-center">
+function HeroStat({ icon, value, label, sub, isSmall, onClick }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean; onClick?: () => void }) {
+  const content = (
+    <>
       <div className="flex items-center justify-center text-white/40 mb-1.5">{icon}</div>
       <p className={cn('font-extrabold text-white leading-none', isSmall ? 'text-base' : 'text-xl')}>{value}</p>
       <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider mt-1">{label}</p>
       {sub && <p className="text-[10px] text-white/40 mt-0.5">{sub}</p>}
-    </div>
+    </>
   );
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className="py-4 px-4 text-center transition-colors hover:bg-white/5 active:bg-white/10 cursor-pointer"
+      >
+        {content}
+      </button>
+    );
+  }
+  return <div className="py-4 px-4 text-center">{content}</div>;
 }
 
 function QuickCard({ onClick, icon, iconClass, value, label, accent, badge, isText }: {
