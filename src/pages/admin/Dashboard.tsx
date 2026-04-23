@@ -97,14 +97,25 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const bonusMes = useMemo(() => {
+  const bonusMesData = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
-    if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
+    type Breakdown = {
+      indicator_id: string;
+      codigo: string;
+      nome: string;
+      total: number;
+      beneficiarios: number;
+      bonusUnit: number;
+      bonusDesafio: number;
+      desafiosAtingidos: number;
+    };
+    const empty = { total: 0, breakdown: [] as Breakdown[] };
+    if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return empty;
 
     // Mirror logic from supabase/functions/calculate-monthly-bonus/index.ts
     // 1) ALL active collaborators system-wide (não usar `usuarios` que pode estar filtrado por unidade)
     const activeCollaborators = allCollaborators;
-    if (activeCollaborators.length === 0) return 0;
+    if (activeCollaborators.length === 0) return empty;
 
     // 2) Goal lookup respeitando applies_to_worker_type do indicador.
     //    Regra: meta com worker_type específico só vale para esse worker_type.
@@ -167,6 +178,24 @@ export default function Dashboard() {
 
     // 4) Iterate over ALL active collaborators and compute bonus
     let total = 0;
+    const breakdownMap = new Map<string, Breakdown>();
+    const ensureRow = (indId: string, goal: typeof goalsComBonus[number]): Breakdown => {
+      let row = breakdownMap.get(indId);
+      if (!row) {
+        row = {
+          indicator_id: indId,
+          codigo: goal.indicators?.codigo ?? '—',
+          nome: goal.indicators?.nome ?? indId,
+          total: 0,
+          beneficiarios: 0,
+          bonusUnit: Number(goal.valor_bonificacao) || 0,
+          bonusDesafio: Number(goal.valor_bonificacao_desafio) || 0,
+          desafiosAtingidos: 0,
+        };
+        breakdownMap.set(indId, row);
+      }
+      return row;
+    };
     for (const user of activeCollaborators) {
       for (const indId of goalIndicatorIds) {
         const goal = findGoal(indId, user.worker_type!);
@@ -194,15 +223,25 @@ export default function Dashboard() {
         const atingiu = valorAgregado <= metaVal;
         if (!atingiu) continue;
 
-        total += Number(goal.valor_bonificacao);
+        const row = ensureRow(indId, goal);
+        const bMeta = Number(goal.valor_bonificacao);
+        total += bMeta;
+        row.total += bMeta;
+        row.beneficiarios += 1;
         const desafioVal = Number(goal.valor_desafio) || 0;
         if (desafioVal > 0 && valorAgregado <= desafioVal) {
-          total += Number(goal.valor_bonificacao_desafio) || 0;
+          const bDes = Number(goal.valor_bonificacao_desafio) || 0;
+          total += bDes;
+          row.total += bDes;
+          row.desafiosAtingidos += 1;
         }
       }
     }
-    return total;
+    const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
+    return { total, breakdown };
   }, [metasAtivas, desempenhoMes, allCollaborators]);
+
+  const bonusMes = bonusMesData.total;
 
   // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
   const caixasBatidasTotal = useMemo(
