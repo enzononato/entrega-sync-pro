@@ -237,30 +237,15 @@ Deno.serve(async (req) => {
     }
 
     // ── 6. Replace existing bonus_mensal rows for this month ──
-    // Delete-then-insert é mais seguro do que upsert porque:
-    //  - A unique constraint precisa considerar o `tipo` (que vive no JSON)
-    //  - Garante que usuários que não atingiram nenhuma meta neste mês não fiquem
-    //    com valores antigos pendurados na linha.
-    const userIds = results.map((r) => r.user_id);
-    if (userIds.length > 0) {
-      const { error: delErr } = await supabase
-        .from("user_incentives_daily")
-        .delete()
-        .eq("data_referencia", startDate)
-        .in("user_id", userIds)
-        .filter("detalhes_json->>tipo", "eq", "bonus_mensal");
-      if (delErr) throw new Error(`delete bonus_mensal: ${delErr.message}`);
-    }
-
-    // Também limpa registros bonus_mensal de usuários que NÃO entraram nesse cálculo
-    // (ex.: colaborador que era beneficiário antes mas não atingiu mais nenhuma meta agora).
-    const { error: delAllErr } = await supabase
+    // Delete-then-insert é mais robusto que upsert: a unique constraint envolve
+    // `tipo` (dentro do JSON) e queremos garantir que usuários que deixaram de
+    // atingir metas não fiquem com valores antigos pendurados.
+    const { error: delErr } = await supabase
       .from("user_incentives_daily")
       .delete()
       .eq("data_referencia", startDate)
-      .filter("detalhes_json->>tipo", "eq", "bonus_mensal")
-      .filter("detalhes_json->>mes", "eq", month);
-    if (delAllErr) throw new Error(`delete stale bonus_mensal: ${delAllErr.message}`);
+      .filter("detalhes_json->>tipo", "eq", "bonus_mensal");
+    if (delErr) throw new Error(`delete bonus_mensal: ${delErr.message}`);
 
     if (results.length > 0) {
       const rows = results.map((result) => ({
