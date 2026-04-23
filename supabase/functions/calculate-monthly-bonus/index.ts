@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // ── 1. Load ALL active goals that have bonificacao > 0 ──
     const { data: goals, error: goalsErr } = await supabase
       .from("goals")
-      .select("indicator_id, worker_type, valor_meta, valor_bonificacao, valor_desafio, valor_bonificacao_desafio, indicators(codigo)")
+      .select("indicator_id, worker_type, valor_meta, valor_bonificacao, valor_desafio, valor_bonificacao_desafio, indicators(codigo, applies_to_worker_type)")
       .eq("ativo", true)
       .gt("valor_bonificacao", 0);
 
@@ -62,18 +62,30 @@ Deno.serve(async (req) => {
     // Build a set of indicator IDs that have bonificacao
     const goalIndicatorIds = [...new Set(goals.map(g => g.indicator_id))];
 
-    // Goal lookup: indicator_id|worker_type -> goal
-    const goalLookup = new Map<string, typeof goals[0]>();
-    for (const g of goals) {
-      const wt = g.worker_type || "default";
-      goalLookup.set(`${g.indicator_id}|${wt}`, g);
-      if (!goalLookup.has(`${g.indicator_id}|default`)) {
-        goalLookup.set(`${g.indicator_id}|default`, g);
+    // Goal lookup respeitando applies_to_worker_type do indicador.
+    // Regra:
+    //  - Meta com worker_type específico só vale para colaboradores desse worker_type.
+    //  - Meta com worker_type=null só vale como universal SE indicator.applies_to_worker_type='ambos'.
+    //  - Em qualquer caso, o indicador também precisa aplicar-se ao worker_type do colaborador.
+    const findGoal = (indicatorId: string, workerType: string) => {
+      const exact = goals.find(
+        (g) => g.indicator_id === indicatorId && g.worker_type === workerType,
+      );
+      if (exact) {
+        const applies = (exact as any).indicators?.applies_to_worker_type ?? "ambos";
+        if (applies !== "ambos" && applies !== workerType) return undefined;
+        return exact;
       }
-    }
-
-    const findGoal = (indicatorId: string, workerType: string) =>
-      goalLookup.get(`${indicatorId}|${workerType}`) ?? goalLookup.get(`${indicatorId}|default`);
+      const universal = goals.find(
+        (g) => g.indicator_id === indicatorId && g.worker_type === null,
+      );
+      if (universal) {
+        const applies = (universal as any).indicators?.applies_to_worker_type ?? "ambos";
+        if (applies !== "ambos") return undefined;
+        return universal;
+      }
+      return undefined;
+    };
 
     // ── 2. Load all active workers ──
     const { data: users, error: usersErr } = await supabase
