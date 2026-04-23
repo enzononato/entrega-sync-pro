@@ -164,6 +164,49 @@ export default function Dashboard() {
       desafiosAtingidos: number;
     };
     const empty = { total: 0, breakdown: [] as Breakdown[] };
+
+    // ── Caminho rápido: usa o que a edge function já calculou (user_incentives_daily) ──
+    if (bonusMensalRows.length > 0) {
+      const indMeta = new Map<string, { codigo: string; nome: string }>();
+      for (const g of goalsComBonus) {
+        if (g.indicator_id && g.indicators) {
+          indMeta.set(g.indicator_id, {
+            codigo: g.indicators.codigo ?? '—',
+            nome: g.indicators.nome ?? g.indicator_id,
+          });
+        }
+      }
+      const breakdownMap = new Map<string, Breakdown>();
+      let total = 0;
+      for (const row of bonusMensalRows) {
+        total += Number(row.valor_estimado) || 0;
+        for (const det of row.detalhes_json?.indicadores ?? []) {
+          if (!det.atingiu) continue;
+          const meta = indMeta.get(det.indicator_id);
+          let br = breakdownMap.get(det.indicator_id);
+          if (!br) {
+            br = {
+              indicator_id: det.indicator_id,
+              codigo: meta?.codigo ?? '—',
+              nome: meta?.nome ?? det.indicator_id,
+              total: 0,
+              beneficiarios: 0,
+              bonusUnit: Number(det.bonus) || 0,
+              bonusDesafio: Number(det.bonus_desafio) || 0,
+              desafiosAtingidos: 0,
+            };
+            breakdownMap.set(det.indicator_id, br);
+          }
+          br.total += (Number(det.bonus) || 0) + (Number(det.bonus_desafio) || 0);
+          br.beneficiarios += 1;
+          if (det.atingiu_desafio) br.desafiosAtingidos += 1;
+        }
+      }
+      const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
+      return { total: Math.round(total * 100) / 100, breakdown };
+    }
+
+    // ── Fallback: recalcula no cliente quando ainda não há dado pré-agregado ──
     if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return empty;
 
     // Mirror logic from supabase/functions/calculate-monthly-bonus/index.ts
@@ -293,7 +336,7 @@ export default function Dashboard() {
     }
     const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
     return { total, breakdown };
-  }, [metasAtivas, desempenhoMes, allCollaborators]);
+  }, [metasAtivas, desempenhoMes, allCollaborators, bonusMensalRows]);
 
   const bonusMes = bonusMesData.total;
 
