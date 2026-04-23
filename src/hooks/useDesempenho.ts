@@ -43,6 +43,7 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
       if (filters?.worker_type) result = result.filter(r => r.users?.worker_type === filters.worker_type);
       return result;
     },
+    staleTime: 5 * 60_000,
   });
 }
 

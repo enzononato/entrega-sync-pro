@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { format, formatDistanceToNow, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Users, MessageSquare, ClipboardList, DollarSign, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
-  UserCheck, Zap, Clock, ArrowUpRight, MapPin, Package, Trophy, Flame,
+  UserCheck, Zap, Clock, ArrowUpRight, MapPin, Package, Trophy, Flame, Loader2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -81,6 +81,60 @@ export default function Dashboard() {
   const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminMes(mesAtual);
 
+  // Bônus mensal pré-calculado pela edge function `calculate-monthly-bonus`.
+  // Evita recalcular 6k+ linhas no cliente; lê apenas ~100 linhas agregadas.
+  type BonusMensalRow = {
+    user_id: string;
+    valor_estimado: number;
+    created_at: string;
+    detalhes_json: {
+      tipo: string;
+      mes: string;
+      indicadores: {
+        indicator_id: string;
+        valor_agregado: number;
+        meta: number;
+        atingiu: boolean;
+        bonus: number;
+        desafio: number;
+        atingiu_desafio: boolean;
+        bonus_desafio: number;
+      }[];
+    };
+  };
+  const { data: bonusMensalRows = [], isFetching: isFetchingBonus, refetch: refetchBonusMensal } = useQuery({
+    queryKey: ['bonus-mensal', mesInicio],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_incentives_daily')
+        .select('user_id, valor_estimado, created_at, detalhes_json')
+        .eq('data_referencia', mesInicio);
+      if (error) throw error;
+      return ((data ?? []) as unknown as BonusMensalRow[])
+        .filter(r => r.detalhes_json?.tipo === 'bonus_mensal');
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  // Auto-refresh: se o último cálculo for mais antigo que 15 min, dispara em background.
+  const autoRefreshFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoRefreshFiredRef.current) return;
+    if (isFetchingBonus) return;
+    const latest = bonusMensalRows.reduce<number>((acc, r) => {
+      const t = new Date(r.created_at).getTime();
+      return t > acc ? t : acc;
+    }, 0);
+    const ageMs = latest > 0 ? Date.now() - latest : Infinity;
+    if (ageMs > 15 * 60_000) {
+      autoRefreshFiredRef.current = true;
+      supabase.functions
+        .invoke('calculate-monthly-bonus', { body: { month: mesAtual } })
+        .then(() => refetchBonusMensal())
+        .catch(() => { /* silencioso: card mostra valor atual */ });
+    }
+  }, [bonusMensalRows, isFetchingBonus, mesAtual, refetchBonusMensal]);
+
   // ALL active collaborators system-wide (independente de unidade visível ao admin)
   const { data: allCollaborators = [] } = useQuery({
     queryKey: ['all-active-collaborators-bonus'],
@@ -110,6 +164,49 @@ export default function Dashboard() {
       desafiosAtingidos: number;
     };
     const empty = { total: 0, breakdown: [] as Breakdown[] };
+
+    // ── Caminho rápido: usa o que a edge function já calculou (user_incentives_daily) ──
+    if (bonusMensalRows.length > 0) {
+      const indMeta = new Map<string, { codigo: string; nome: string }>();
+      for (const g of goalsComBonus) {
+        if (g.indicator_id && g.indicators) {
+          indMeta.set(g.indicator_id, {
+            codigo: g.indicators.codigo ?? '—',
+            nome: g.indicators.nome ?? g.indicator_id,
+          });
+        }
+      }
+      const breakdownMap = new Map<string, Breakdown>();
+      let total = 0;
+      for (const row of bonusMensalRows) {
+        total += Number(row.valor_estimado) || 0;
+        for (const det of row.detalhes_json?.indicadores ?? []) {
+          if (!det.atingiu) continue;
+          const meta = indMeta.get(det.indicator_id);
+          let br = breakdownMap.get(det.indicator_id);
+          if (!br) {
+            br = {
+              indicator_id: det.indicator_id,
+              codigo: meta?.codigo ?? '—',
+              nome: meta?.nome ?? det.indicator_id,
+              total: 0,
+              beneficiarios: 0,
+              bonusUnit: Number(det.bonus) || 0,
+              bonusDesafio: Number(det.bonus_desafio) || 0,
+              desafiosAtingidos: 0,
+            };
+            breakdownMap.set(det.indicator_id, br);
+          }
+          br.total += (Number(det.bonus) || 0) + (Number(det.bonus_desafio) || 0);
+          br.beneficiarios += 1;
+          if (det.atingiu_desafio) br.desafiosAtingidos += 1;
+        }
+      }
+      const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
+      return { total: Math.round(total * 100) / 100, breakdown };
+    }
+
+    // ── Fallback: recalcula no cliente quando ainda não há dado pré-agregado ──
     if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return empty;
 
     // Mirror logic from supabase/functions/calculate-monthly-bonus/index.ts
@@ -239,7 +336,7 @@ export default function Dashboard() {
     }
     const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
     return { total, breakdown };
-  }, [metasAtivas, desempenhoMes, allCollaborators]);
+  }, [metasAtivas, desempenhoMes, allCollaborators, bonusMensalRows]);
 
   const bonusMes = bonusMesData.total;
 
@@ -493,6 +590,7 @@ export default function Dashboard() {
             sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`}
             isSmall
             onClick={() => setBonusDetailOpen(true)}
+            loading={isFetchingBonus}
           />
           <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
@@ -826,10 +924,13 @@ export default function Dashboard() {
 
 /* ── Sub-components ────────────────────────────────── */
 
-function HeroStat({ icon, value, label, sub, isSmall, onClick }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean; onClick?: () => void }) {
+function HeroStat({ icon, value, label, sub, isSmall, onClick, loading }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean; onClick?: () => void; loading?: boolean }) {
   const content = (
     <>
-      <div className="flex items-center justify-center text-white/40 mb-1.5">{icon}</div>
+      <div className="flex items-center justify-center gap-1 text-white/40 mb-1.5">
+        {icon}
+        {loading && <Loader2 className="h-3 w-3 animate-spin text-white/60" />}
+      </div>
       <p className={cn('font-extrabold text-white leading-none', isSmall ? 'text-base' : 'text-xl')}>{value}</p>
       <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider mt-1">{label}</p>
       {sub && <p className="text-[10px] text-white/40 mt-0.5">{sub}</p>}
