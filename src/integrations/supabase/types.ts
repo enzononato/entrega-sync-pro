@@ -414,6 +414,56 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          created_at: string
+          failure_reason: string | null
+          id: string
+          identifier: string
+          identifier_type: string
+          ip_address: string | null
+          success: boolean
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+          user_nome: string | null
+        }
+        Insert: {
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          identifier?: string
+          identifier_type?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_nome?: string | null
+        }
+        Update: {
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          identifier?: string
+          identifier_type?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mapa_historico: {
         Row: {
           aju1_user_id: string | null
