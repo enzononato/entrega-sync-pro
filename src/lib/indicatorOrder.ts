@@ -12,6 +12,7 @@ const ORDER: string[] = [
   'DISP_TEMPO',
   'RATING',
   'TX_REPOSICAO',
+  'REFUGO',
   'DEV_PDV',
   'PDV_CRITICO',
 ];

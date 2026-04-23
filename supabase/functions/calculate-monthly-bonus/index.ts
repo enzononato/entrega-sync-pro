@@ -15,6 +15,7 @@ const INDICATOR_IDS: Record<string, string> = {
   TX_DEVOLUCAO: "c4fdd7a6-27f3-4d46-a378-1242bdb556aa",
   DISP_TEMPO: "488d1de9-9d88-42f2-bf3b-625752c0db02",
   TX_REPOSICAO: "c4c40e3e-f23b-46ce-a576-885c610f2df7",
+  REFUGO: "f5ded347-5b60-4b87-a2bb-d4d79d4f8e2a",
 };
 
 const ALL_INDICATOR_IDS = Object.values(INDICATOR_IDS);
