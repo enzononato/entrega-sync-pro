@@ -1,47 +1,43 @@
 
 
-## Análise: o cálculo do Bônus Estimado está incompleto
+## Tornar o indicador Refugo um cidadão de primeira classe
 
-Comparando o cálculo atual em `Dashboard.tsx` (linhas 67-121) com a edge function oficial `calculate-monthly-bonus`, **NÃO** estão sendo contabilizados todos os motoristas e ajudantes corretamente. Existem 4 problemas:
+O dado de Refugo já está sendo gravado em `user_indicator_daily` com `mapa_numero` para os ajudantes corretos (verifiquei no banco: 88 registros, 45 ajudantes). Tecnicamente ele já aparece no dashboard do ajudante, mas falta tratá-lo como os demais indicadores em vários pontos do sistema. Os ajustes abaixo garantem visibilidade, ordenação correta, contabilização no bônus e exibição correta da unidade.
 
-### Problemas identificados
+### O que será alterado
 
-1. **Colaboradores sem lançamento no mês ficam de fora**
-   O cálculo só itera sobre quem aparece em `desempenhoMes`. Se um motorista/ajudante ativo não teve nenhum lançamento ainda no mês, ele não é considerado — isso está correto (não há base para estimar bônus dele), mas **não é o que o usuário pediu**. O usuário quer "todos motoristas e ajudantes" sendo contabilizados.
+**1. `src/lib/indicatorOrder.ts`** — adicionar `REFUGO` à ordem canônica dos indicadores (ao final da lista, depois de `TX_REPOSICAO`), para que apareça em uma posição estável e previsível, e não jogado ao fim alfabeticamente.
 
-2. **Agregação errada para indicadores não-soma (TML, TR, TI, JL, TX_DEVOLUCAO, DISP_TEMPO)**
-   Hoje: `agg.sum / agg.count` (média simples sobre todas as linhas).
-   Edge function oficial: **média das médias diárias** (agrupa por dia → média por dia → média entre dias). Isso evita distorção quando um colaborador tem múltiplos mapas em um mesmo dia.
+**2. `src/pages/admin/Desempenho.tsx`** — incluir `REFUGO` em `MAPA_INDICATORS_AJU` (linha 101). Hoje só `['TML','TR','TI','JL','TX_DEVOLUCAO']` são esperados para ajudante, então quando o admin abre o desempenho de um ajudante e o mapa não tem refugo, nem aparece placeholder. Após a mudança, o admin vai ver o Refugo listado em cada mapa do ajudante (com valor real ou zero quando ausente).
 
-3. **Identificação de indicador SUM por código (frágil)**
-   Hoje: `SUM_CODES = new Set(['TX_REPOSICAO'])` comparando contra `goal.indicators?.codigo`. A edge function usa o **UUID** do indicador (`c4c40e3e-f23b-46ce-a576-885c610f2df7`), que é mais confiável.
+**3. `src/pages/admin/Dashboard.tsx`** — adicionar `REFUGO: 'f5ded347-5b60-4b87-a2bb-d4d79d4f8e2a'` ao mapa `INDICATOR_IDS` (linhas 42-50). Hoje, mesmo com `valor_bonificacao` configurado para Refugo, o card "Bônus Estimado" do mês não inclui esse indicador no cálculo porque a lógica filtra por `goalIndicatorIds` que vem das metas, mas o `findGoal` precisa estar alinhado. Na prática a constante já não bloqueia (o cálculo itera sobre `goalIndicatorIds` derivado das metas), mas adicionar a constante deixa o código consistente e documentado. (Refugo entra automaticamente no bônus quando a goal tiver `valor_bonificacao > 0`, tratado como indicador de média de médias diárias — não é SUM.)
 
-4. **Inclui colaboradores inativos / não-colaboradores**
-   `usuarios` traz todos os usuários. A edge function filtra `ativo = true AND role = 'colaborador' AND worker_type IS NOT NULL`. Isso pode inflar o total se houver lançamentos antigos de usuários desativados.
+**4. `supabase/functions/calculate-monthly-bonus/index.ts`** — adicionar `REFUGO: 'f5ded347-...'` ao `INDICATOR_IDS` (linhas 11-18). Mesma justificativa: garante que o cálculo persistido em `user_incentives_daily` reconheça Refugo. Refugo NÃO entra em `SUM_INDICATORS` — ele agrega como média de médias diárias (cada mapa daquele dia → média do dia → média entre dias), exatamente como TML/TR/TI/JL/TX_DEVOLUCAO.
 
-5. **Não respeita prioridade de meta**
-   Hoje: `find()` retorna a primeira meta que casa (pode pegar a meta `default` antes da meta específica do `worker_type`).
-   Edge function: prioriza `worker_type` específico → fallback para `default`.
+**5. `src/pages/colaborador/Incentivo.tsx`** — a linha 295/302 atualmente faz `m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'`. Refugo é `%`, então já cai no caminho correto. **Sem alteração.**
 
-### Solução: unificar a lógica com a edge function
+**6. `src/pages/colaborador/Home.tsx`** — o filtro nas linhas 167-169 já permite Refugo para ajudantes (`'refugo'` não contém `'repos'`). Vou apenas reforçar a checagem usando código exato (`code === 'TX_REPOSICAO'` para esconder de ajudantes; `code === 'REFUGO'` para esconder de motoristas) em vez de `String.includes`, que é frágil. Comportamento final idêntico, código mais robusto.
 
-Reescrever o `useMemo` do `bonusMes` em `src/pages/admin/Dashboard.tsx` (linhas 67-112) replicando exatamente a lógica de `supabase/functions/calculate-monthly-bonus/index.ts`:
+### Como Refugo será tratado (resumo final)
 
-- **Filtrar usuários**: `usuarios.filter(u => u.ativo && u.role === 'colaborador' && u.worker_type)` antes de iterar.
-- **Lookup de metas com prioridade**: construir um `Map<indicator_id|worker_type, goal>` com fallback para `default`, igual à edge function.
-- **Agregação correta**:
-  - `TX_REPOSICAO` (por UUID): soma de todos os valores no mês.
-  - Demais indicadores: agrupar por dia (`Map<date, {sum, count}>`), tirar média de cada dia, depois média entre dias.
-- **Iterar sobre TODOS os colaboradores ativos** (não apenas os que têm lançamento), pulando combinações sem dados (mas mantendo o universo completo de usuários no loop, como faz a edge function).
-- **Constante de UUIDs** dos indicadores no topo do componente (mesmas do `INDICATOR_IDS` da edge function), para identificar SUM via UUID em vez de código.
+| Aspecto | Comportamento |
+|---|---|
+| Quem vê | Só ajudantes (motoristas filtrados) |
+| Onde aparece | KPIs por Mapa do ajudante, agrupado pelo número do mapa |
+| Status | Binário: `dentro_meta` se ≤ 0,50%; `abaixo_meta` se > 0,50% |
+| Desafio | Não tem (sempre `null`) |
+| Bônus mensal | Agrega como média de médias diárias do mês; paga `valor_bonificacao` da goal se aggregate ≤ 0,50% |
+| Reportar causa raiz | Botão "Reportar" disponível quando `abaixo_meta`, igual aos outros |
+| Ranking | Já entra automaticamente via `useRanking` (genérico, não hardcoded por código) |
+| Ordem na lista | Após TX_REPOSICAO, no final da sequência canônica |
 
-### Resultado esperado
+### Arquivos alterados
 
-O valor exibido em "Bônus Estimado · {mês}" passa a ser idêntico ao que a edge function `calculate-monthly-bonus` gravaria se rodasse agora — somando os bônus mensais (metas + desafios) de **todos os colaboradores ativos** com base agregada do mês corrente, e mais as Caixas Batidas do mês (que já está correto).
+- `src/lib/indicatorOrder.ts`
+- `src/pages/admin/Desempenho.tsx`
+- `src/pages/admin/Dashboard.tsx`
+- `src/pages/colaborador/Home.tsx`
+- `supabase/functions/calculate-monthly-bonus/index.ts`
 
-### Arquivo alterado
-
-- `src/pages/admin/Dashboard.tsx` (apenas o `useMemo` do `bonusMes`, ~50 linhas)
-
-Sem mudanças em banco, edge functions ou outros componentes.
+Sem mudanças em banco, sem mudanças em outras edge functions, sem novos componentes.
 
