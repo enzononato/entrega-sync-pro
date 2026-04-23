@@ -81,6 +81,60 @@ export default function Dashboard() {
   const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminMes(mesAtual);
 
+  // Bônus mensal pré-calculado pela edge function `calculate-monthly-bonus`.
+  // Evita recalcular 6k+ linhas no cliente; lê apenas ~100 linhas agregadas.
+  type BonusMensalRow = {
+    user_id: string;
+    valor_estimado: number;
+    created_at: string;
+    detalhes_json: {
+      tipo: string;
+      mes: string;
+      indicadores: {
+        indicator_id: string;
+        valor_agregado: number;
+        meta: number;
+        atingiu: boolean;
+        bonus: number;
+        desafio: number;
+        atingiu_desafio: boolean;
+        bonus_desafio: number;
+      }[];
+    };
+  };
+  const { data: bonusMensalRows = [], isFetching: isFetchingBonus, refetch: refetchBonusMensal } = useQuery({
+    queryKey: ['bonus-mensal', mesInicio],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_incentives_daily')
+        .select('user_id, valor_estimado, created_at, detalhes_json')
+        .eq('data_referencia', mesInicio);
+      if (error) throw error;
+      return ((data ?? []) as unknown as BonusMensalRow[])
+        .filter(r => r.detalhes_json?.tipo === 'bonus_mensal');
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  // Auto-refresh: se o último cálculo for mais antigo que 15 min, dispara em background.
+  const autoRefreshFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoRefreshFiredRef.current) return;
+    if (isFetchingBonus) return;
+    const latest = bonusMensalRows.reduce<number>((acc, r) => {
+      const t = new Date(r.created_at).getTime();
+      return t > acc ? t : acc;
+    }, 0);
+    const ageMs = latest > 0 ? Date.now() - latest : Infinity;
+    if (ageMs > 15 * 60_000) {
+      autoRefreshFiredRef.current = true;
+      supabase.functions
+        .invoke('calculate-monthly-bonus', { body: { month: mesAtual } })
+        .then(() => refetchBonusMensal())
+        .catch(() => { /* silencioso: card mostra valor atual */ });
+    }
+  }, [bonusMensalRows, isFetchingBonus, mesAtual, refetchBonusMensal]);
+
   // ALL active collaborators system-wide (independente de unidade visível ao admin)
   const { data: allCollaborators = [] } = useQuery({
     queryKey: ['all-active-collaborators-bonus'],
