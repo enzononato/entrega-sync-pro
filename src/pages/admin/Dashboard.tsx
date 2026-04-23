@@ -194,7 +194,7 @@ export default function Dashboard() {
       }
     }
     return total;
-  }, [metasAtivas, desempenhoMes, usuarios]);
+  }, [metasAtivas, desempenhoMes, allCollaborators]);
 
   // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
   const caixasBatidasTotal = useMemo(
