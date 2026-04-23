@@ -51,7 +51,7 @@ export default function LogsLogin() {
     return { total, ok, fail };
   }, [logs]);
 
-  const { paginatedItems, ...pag } = usePagination(logs, 25);
+  const { paginatedItems, page, setPage, totalPages, totalCount, from, to } = usePagination(logs, 25);
 
   return (
     <div className="space-y-6">
@@ -182,7 +182,14 @@ export default function LogsLogin() {
         })}
         {!isLoading && logs.length > 0 && (
           <div className="p-3">
-            <ListPagination {...pag} />
+            <ListPagination
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              from={from}
+              to={to}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </Card>
