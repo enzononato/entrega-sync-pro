@@ -19,6 +19,7 @@ import CausaRaizAdmin from '@/pages/admin/CausaRaiz';
 import PlanosDeAcaoAdmin from '@/pages/admin/PlanosDeAcao';
 import FeedbacksAdmin from '@/pages/admin/Feedbacks';
 import AuditoriaAdmin from '@/pages/admin/Auditoria';
+import LogsLoginAdmin from '@/pages/admin/LogsLogin';
 import DescontosAdmin from '@/pages/admin/Descontos';
 import RankingAdmin from '@/pages/admin/Ranking';
 import UsuariosAdmin from '@/pages/admin/Usuarios';
@@ -60,6 +61,7 @@ export default function AppRoutes() {
         <Route path="planos-de-acao" element={<PlanosDeAcaoAdmin />} />
         <Route path="feedbacks" element={<FeedbacksAdmin />} />
         <Route path="auditoria" element={<AuditoriaAdmin />} />
+        <Route path="logs-login" element={<LogsLoginAdmin />} />
         <Route path="ranking" element={<RankingAdmin />} />
         <Route path="usuarios" element={<UsuariosAdmin />} />
         <Route path="historico-mapas" element={<HistoricoMapasAdmin />} />

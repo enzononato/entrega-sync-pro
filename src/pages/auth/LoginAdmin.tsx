@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,9 +28,24 @@ export default function LoginAdmin() {
     setError('');
     setLoading(true);
     try {
-      await signIn(email, password);
+      const { data, error: fnError } = await supabase.functions.invoke('auth-email', {
+        body: { email, password },
+      });
+      if (fnError) {
+        const errMsg = (fnError as any)?.context?.json?.error || data?.error || 'E-mail ou senha inválidos';
+        setError(errMsg);
+        return;
+      }
+      if (!data?.session) {
+        setError(data?.error || 'E-mail ou senha inválidos');
+        return;
+      }
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
     } catch {
-      setError('E-mail ou senha inválidos');
+      setError('Erro ao conectar. Tente novamente.');
     } finally {
       setLoading(false);
     }

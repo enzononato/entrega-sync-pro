@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import {
   LayoutDashboard, Users, TrendingUp, Target, Flag, Award,
   Building2, MessageSquare, ClipboardCheck, AlertTriangle, LogOut, Shield, TrendingDown,
-  UserCog, Moon, Sun, Map, Upload,
+  UserCog, Moon, Sun, Map, Upload, LogIn,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -50,6 +50,7 @@ const sections = [
       { title: 'Unidades', url: '/admin/unidades', icon: Building2 },
       { title: 'Usuários', url: '/admin/usuarios', icon: UserCog },
       { title: 'Auditoria', url: '/admin/auditoria', icon: Shield },
+      { title: 'Logs de Login', url: '/admin/logs-login', icon: LogIn },
     ],
   },
 ];
