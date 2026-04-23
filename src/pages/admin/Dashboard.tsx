@@ -18,6 +18,7 @@ import { ProgressBar } from '@/components/shared/ProgressBar';
 import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   Users, MessageSquare, ClipboardList, DollarSign, TrendingUp,
   TrendingDown, AlertTriangle, ChevronRight, Target, BarChart3, Truck,
@@ -61,6 +62,7 @@ export default function Dashboard() {
   const [dateTo, setDateTo] = useState(today);
   const [unidadeFilter, setUnidadeFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
+  const [bonusDetailOpen, setBonusDetailOpen] = useState(false);
 
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
@@ -95,14 +97,25 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const bonusMes = useMemo(() => {
+  const bonusMesData = useMemo(() => {
     const goalsComBonus = metasAtivas.filter(m => m.valor_bonificacao > 0);
-    if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return 0;
+    type Breakdown = {
+      indicator_id: string;
+      codigo: string;
+      nome: string;
+      total: number;
+      beneficiarios: number;
+      bonusUnit: number;
+      bonusDesafio: number;
+      desafiosAtingidos: number;
+    };
+    const empty = { total: 0, breakdown: [] as Breakdown[] };
+    if (goalsComBonus.length === 0 || desempenhoMes.length === 0) return empty;
 
     // Mirror logic from supabase/functions/calculate-monthly-bonus/index.ts
     // 1) ALL active collaborators system-wide (não usar `usuarios` que pode estar filtrado por unidade)
     const activeCollaborators = allCollaborators;
-    if (activeCollaborators.length === 0) return 0;
+    if (activeCollaborators.length === 0) return empty;
 
     // 2) Goal lookup respeitando applies_to_worker_type do indicador.
     //    Regra: meta com worker_type específico só vale para esse worker_type.
@@ -165,6 +178,24 @@ export default function Dashboard() {
 
     // 4) Iterate over ALL active collaborators and compute bonus
     let total = 0;
+    const breakdownMap = new Map<string, Breakdown>();
+    const ensureRow = (indId: string, goal: typeof goalsComBonus[number]): Breakdown => {
+      let row = breakdownMap.get(indId);
+      if (!row) {
+        row = {
+          indicator_id: indId,
+          codigo: goal.indicators?.codigo ?? '—',
+          nome: goal.indicators?.nome ?? indId,
+          total: 0,
+          beneficiarios: 0,
+          bonusUnit: Number(goal.valor_bonificacao) || 0,
+          bonusDesafio: Number(goal.valor_bonificacao_desafio) || 0,
+          desafiosAtingidos: 0,
+        };
+        breakdownMap.set(indId, row);
+      }
+      return row;
+    };
     for (const user of activeCollaborators) {
       for (const indId of goalIndicatorIds) {
         const goal = findGoal(indId, user.worker_type!);
@@ -192,15 +223,25 @@ export default function Dashboard() {
         const atingiu = valorAgregado <= metaVal;
         if (!atingiu) continue;
 
-        total += Number(goal.valor_bonificacao);
+        const row = ensureRow(indId, goal);
+        const bMeta = Number(goal.valor_bonificacao);
+        total += bMeta;
+        row.total += bMeta;
+        row.beneficiarios += 1;
         const desafioVal = Number(goal.valor_desafio) || 0;
         if (desafioVal > 0 && valorAgregado <= desafioVal) {
-          total += Number(goal.valor_bonificacao_desafio) || 0;
+          const bDes = Number(goal.valor_bonificacao_desafio) || 0;
+          total += bDes;
+          row.total += bDes;
+          row.desafiosAtingidos += 1;
         }
       }
     }
-    return total;
+    const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
+    return { total, breakdown };
   }, [metasAtivas, desempenhoMes, allCollaborators]);
+
+  const bonusMes = bonusMesData.total;
 
   // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
   const caixasBatidasTotal = useMemo(
@@ -445,7 +486,14 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
           <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} />
-          <HeroStat icon={<DollarSign className="h-4 w-4" />} value={fmtBRL(bonusTotalMes)} label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`} sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`} isSmall />
+          <HeroStat
+            icon={<DollarSign className="h-4 w-4" />}
+            value={fmtBRL(bonusTotalMes)}
+            label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`}
+            sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`}
+            isSmall
+            onClick={() => setBonusDetailOpen(true)}
+          />
           <HeroStat icon={<Trophy className="h-4 w-4" />} value={`${desafioStatsMes.percentual}%`} label="Desafio nas Metas" sub={desafioStatsMes.metasAtingidas > 0 ? `${desafioStatsMes.desafiosAtingidos}/${desafioStatsMes.metasAtingidas} metas` : 'Sem base no mês'} />
         </div>
       </div>
@@ -686,21 +734,118 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Bônus Estimado — detalhamento */}
+      <Dialog open={bonusDetailOpen} onOpenChange={setBonusDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bônus Estimado · {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}</DialogTitle>
+            <DialogDescription>
+              Total previsto: <span className="font-semibold text-foreground">{fmtBRL(bonusTotalMes)}</span>
+              {' · '}Considera todos os colaboradores ativos do sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Resumo dos dois componentes */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Bônus por Meta</p>
+                <p className="text-lg font-bold text-foreground mt-0.5">{fmtBRL(bonusMes)}</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Caixas Batidas</p>
+                <p className="text-lg font-bold text-foreground mt-0.5">{fmtBRL(caixasBatidasTotal)}</p>
+              </div>
+            </div>
+
+            {/* Breakdown por indicador */}
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Bônus por Meta — detalhamento por indicador
+              </h4>
+              {bonusMesData.breakdown.length === 0 ? (
+                <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma meta atingida no mês até o momento.
+                </div>
+              ) : (
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr className="text-left">
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs">Indicador</th>
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs text-right">Beneficiários</th>
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs text-right">Desafios</th>
+                        <th className="px-3 py-2 font-semibold text-muted-foreground text-xs text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {bonusMesData.breakdown.map(row => (
+                        <tr key={row.indicator_id} className="hover:bg-muted/30">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-foreground">{row.codigo}</div>
+                            <div className="text-xs text-muted-foreground">{row.nome}</div>
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">{row.beneficiarios}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {row.desafiosAtingidos > 0 ? row.desafiosAtingidos : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
+                            {fmtBRL(row.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/40 font-semibold">
+                      <tr>
+                        <td className="px-3 py-2 text-foreground">Total Bônus por Meta</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                          {bonusMesData.breakdown.reduce((s, r) => s + r.beneficiarios, 0)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                          {bonusMesData.breakdown.reduce((s, r) => s + r.desafiosAtingidos, 0)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">{fmtBRL(bonusMes)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Cálculo baseado nas metas mensais ativas, agregando o desempenho do mês por colaborador.
+              Para cada meta atingida, soma-se o valor de bonificação; quando o desafio também é atingido, soma-se o bônus de desafio.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 /* ── Sub-components ────────────────────────────────── */
 
-function HeroStat({ icon, value, label, sub, isSmall }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean }) {
-  return (
-    <div className="py-4 px-4 text-center">
+function HeroStat({ icon, value, label, sub, isSmall, onClick }: { icon: React.ReactNode; value: string | number; label: string; sub?: string; isSmall?: boolean; onClick?: () => void }) {
+  const content = (
+    <>
       <div className="flex items-center justify-center text-white/40 mb-1.5">{icon}</div>
       <p className={cn('font-extrabold text-white leading-none', isSmall ? 'text-base' : 'text-xl')}>{value}</p>
       <p className="text-[8px] text-white/50 font-medium uppercase tracking-wider mt-1">{label}</p>
       {sub && <p className="text-[10px] text-white/40 mt-0.5">{sub}</p>}
-    </div>
+    </>
   );
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className="py-4 px-4 text-center transition-colors hover:bg-white/5 active:bg-white/10 cursor-pointer"
+      >
+        {content}
+      </button>
+    );
+  }
+  return <div className="py-4 px-4 text-center">{content}</div>;
 }
 
 function QuickCard({ onClick, icon, iconClass, value, label, accent, badge, isText }: {
