@@ -20,8 +20,10 @@ const DEFAULT_METAS: Record<string, number> = {
   TML: 30, TR: 560, TI: 30, JL: 620, TX_DEVOLUCAO: 5, DISP_TEMPO: 15, TX_REPOSICAO: 49.8, REFUGO: 0.5,
 };
 
-// FIX Problema 2: TX_DEVOLUCAO added to MOTORISTA_ONLY
-const MOTORISTA_ONLY = new Set(["DISP_TEMPO", "TX_DEVOLUCAO"]);
+// Indicadores que se aplicam exclusivamente a um perfil. DISP_TEMPO e
+// TX_DEVOLUCAO valem para AMBOS os perfis (motorista e ajudante), portanto
+// não entram aqui. Mantido vazio por enquanto, pode ser usado no futuro.
+const MOTORISTA_ONLY = new Set<string>([]);
 
 function parseTime(hhmm: string | null): number | null {
   if (!hhmm) return null;
@@ -104,25 +106,25 @@ function calculateIndicatorsForRow(row: any, workerType: string, metas: MetasMap
   }
   addResult("TX_DEVOLUCAO", txDevVal);
 
-  if (!isAjudante) {
-    let dispTempoVal: number | null = null;
-    if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
-      const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
-      const partsTP = cleanTP.split(":");
-      if (partsTP.length >= 2) {
-        const hTP = parseInt(partsTP[0], 10);
-        const mTP = parseInt(partsTP[1], 10);
-        if (!isNaN(hTP) && !isNaN(mTP)) {
-          const tempoPrev = hTP * 60 + mTP;
-          const tempoReal = Math.max(0, hrEntr - hrSai);
-          if (tempoPrev > 0) {
-            dispTempoVal = Math.round(Math.max(0, ((tempoReal - tempoPrev) / tempoPrev) * 100) * 100) / 100;
-          }
+  // DISP_TEMPO: vale para motoristas E ajudantes (mesma equipe → mesmo desvio
+  // de tempo previsto). Calcula sempre que houver dados.
+  let dispTempoVal: number | null = null;
+  if (row.tempo_prev && hrEntr !== null && hrSai !== null) {
+    const cleanTP = row.tempo_prev.replace(/[^\d:]/g, "");
+    const partsTP = cleanTP.split(":");
+    if (partsTP.length >= 2) {
+      const hTP = parseInt(partsTP[0], 10);
+      const mTP = parseInt(partsTP[1], 10);
+      if (!isNaN(hTP) && !isNaN(mTP)) {
+        const tempoPrev = hTP * 60 + mTP;
+        const tempoReal = Math.max(0, hrEntr - hrSai);
+        if (tempoPrev > 0) {
+          dispTempoVal = Math.round(Math.max(0, ((tempoReal - tempoPrev) / tempoPrev) * 100) * 100) / 100;
         }
       }
     }
-    addResult("DISP_TEMPO", dispTempoVal);
   }
+  addResult("DISP_TEMPO", dispTempoVal);
 
   return results;
 }

@@ -1,0 +1,1 @@
+UPDATE public.indicators SET applies_to_worker_type = 'ambos' WHERE codigo IN ('DISP_TEMPO', 'TX_DEVOLUCAO');

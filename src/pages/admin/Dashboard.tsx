@@ -109,22 +109,28 @@ export default function Dashboard() {
     //    Meta com worker_type=null só vale como universal SE indicator.applies_to_worker_type='ambos'.
     //    Em qualquer caso, o indicador também precisa aplicar-se ao worker_type do colaborador.
     const findGoal = (indicatorId: string, workerType: string) => {
+      // Aceita applies_to_worker_type como 'ambos', um único worker_type, ou
+      // lista separada por vírgula (defesa contra dados sujos no banco).
+      const matchesApplies = (applies: string | undefined | null) => {
+        const a = (applies ?? 'ambos').toLowerCase();
+        if (a === 'ambos') return true;
+        return a.split(',').map(s => s.trim()).includes(workerType);
+      };
       // Procura match exato por worker_type
       const exact = goalsComBonus.find(
         g => g.indicator_id === indicatorId && g.worker_type === workerType,
       );
       if (exact) {
-        const applies = exact.indicators?.applies_to_worker_type ?? 'ambos';
-        if (applies !== 'ambos' && applies !== workerType) return undefined;
+        if (!matchesApplies(exact.indicators?.applies_to_worker_type)) return undefined;
         return exact;
       }
-      // Fallback universal apenas se o indicador for 'ambos'
+      // Fallback universal: meta com worker_type=null vale para qualquer perfil
+      // que esteja contemplado pelo applies_to_worker_type do indicador.
       const universal = goalsComBonus.find(
         g => g.indicator_id === indicatorId && g.worker_type === null,
       );
       if (universal) {
-        const applies = universal.indicators?.applies_to_worker_type ?? 'ambos';
-        if (applies !== 'ambos') return undefined;
+        if (!matchesApplies(universal.indicators?.applies_to_worker_type)) return undefined;
         return universal;
       }
       return undefined;
