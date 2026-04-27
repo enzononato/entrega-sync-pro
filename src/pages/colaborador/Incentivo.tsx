@@ -130,18 +130,29 @@ export default function IncentivoColaborador() {
 
   // Monthly goals with bonificacao > 0 for this user's worker_type
   const metasMensais = useMemo(() => {
-    return metas.filter(m => {
+    const filtered = metas.filter(m => {
       if (m.periodo_tipo !== 'mensal' || m.valor_bonificacao <= 0) return false;
       if (!m.user_id && m.worker_type === user?.worker_type) return true;
       if (!m.user_id && !m.worker_type) return true;
       if (m.user_id === user?.id) return true;
       return false;
     });
+    // Deduplicate by indicator_id, keeping the most specific goal
+    // Priority: individual (user_id) > worker_type-specific > universal
+    const specificity = (m: any) => (m.user_id ? 3 : m.worker_type ? 2 : 1);
+    const map = new Map<string, typeof filtered[number]>();
+    for (const m of filtered) {
+      const existing = map.get(m.indicator_id);
+      if (!existing || specificity(m) > specificity(existing)) {
+        map.set(m.indicator_id, m);
+      }
+    }
+    return Array.from(map.values());
   }, [metas, user]);
 
   // Filter goals relevant to this user's worker_type and with bonus > 0
   const metasRelevantes = useMemo(() => {
-    return metas.filter(m => {
+    const filtered = metas.filter(m => {
       if (m.valor_bonificacao <= 0) return false;
       // Individual goal for this user
       if (m.user_id === user?.id) return true;
@@ -151,6 +162,16 @@ export default function IncentivoColaborador() {
       if (!m.user_id && !m.worker_type) return true;
       return false;
     });
+    // Deduplicate by indicator_id, keeping the most specific goal
+    const specificity = (m: any) => (m.user_id ? 3 : m.worker_type ? 2 : 1);
+    const map = new Map<string, typeof filtered[number]>();
+    for (const m of filtered) {
+      const existing = map.get(m.indicator_id);
+      if (!existing || specificity(m) > specificity(existing)) {
+        map.set(m.indicator_id, m);
+      }
+    }
+    return Array.from(map.values());
   }, [metas, user]);
 
   const breakdown = useMemo(() => {
