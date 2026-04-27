@@ -2,19 +2,59 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// In dev/preview, ensure no stale Service Worker keeps serving old assets.
-// We unregister once per session (not on every load) to avoid fighting Vite HMR.
-if (import.meta.env.DEV && "serviceWorker" in navigator) {
-  const FLAG = "__sw_cleared_v1";
-  if (!sessionStorage.getItem(FLAG)) {
-    sessionStorage.setItem(FLAG, "1");
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      if (registrations.length === 0) return;
-      Promise.all(registrations.map((r) => r.unregister()))
-        .then(() => caches?.keys?.() ?? [])
-        .then((cacheNames) => Promise.all((cacheNames as string[]).map((n) => caches.delete(n))))
-        .then(() => window.location.reload());
+// Service Worker: registra em produção com auto-update.
+// Em iframes/previews da Lovable, desregistra para evitar cache antigo no editor.
+const isInIframe = (() => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+})();
+
+const isPreviewHost =
+  typeof window !== "undefined" &&
+  (window.location.hostname.includes("id-preview--") ||
+    window.location.hostname.includes("lovableproject.com"));
+
+if ("serviceWorker" in navigator) {
+  if (isInIframe || isPreviewHost || import.meta.env.DEV) {
+    // Limpa qualquer SW que tenha sobrado em contextos de preview/dev
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => r.unregister());
     });
+    if (typeof caches !== "undefined") {
+      caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+    }
+  } else {
+    // Produção: registra o SW gerado pelo vite-plugin-pwa.
+    // Quando uma nova versão for detectada, recarrega a página automaticamente.
+    import("virtual:pwa-register")
+      .then(({ registerSW }) => {
+        const updateSW = registerSW({
+          immediate: true,
+          onNeedRefresh() {
+            updateSW(true);
+          },
+          onRegisteredSW(_swUrl, registration) {
+            // Verifica updates periodicamente (a cada 30 min)
+            if (registration) {
+              setInterval(() => registration.update(), 30 * 60 * 1000);
+            }
+          },
+        });
+
+        // Recarrega quando o novo SW assume o controle
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+      })
+      .catch(() => {
+        // Plugin PWA indisponível — segue sem SW
+      });
   }
 }
 
