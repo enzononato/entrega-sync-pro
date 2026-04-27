@@ -15,6 +15,54 @@
     <title>IncentivosPro</title>
     <meta name="description" content="Gestão de entregas e desempenho de colaboradores">
 
+    <script>
+      // Limpeza agressiva de Service Worker + caches no preview/iframe da Lovable.
+      // Roda ANTES do React para garantir que o SW antigo não sirva bundle cacheado.
+      (function () {
+        try {
+          var inIframe = false;
+          try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+          var host = window.location.hostname;
+          var isPreview =
+            host.indexOf("id-preview--") !== -1 ||
+            host.indexOf("lovableproject.com") !== -1 ||
+            host.indexOf("lovable.app") !== -1 ||
+            host === "localhost";
+
+          if (inIframe || isPreview) {
+            var RELOAD_KEY = "__sw_force_clean_v2__";
+            var didWork = false;
+
+            if ("serviceWorker" in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                if (regs && regs.length) {
+                  didWork = true;
+                  regs.forEach(function (r) { r.unregister(); });
+                }
+                if (typeof caches !== "undefined") {
+                  caches.keys().then(function (keys) {
+                    if (keys && keys.length) {
+                      didWork = true;
+                      Promise.all(keys.map(function (k) { return caches.delete(k); }))
+                        .then(function () {
+                          if (didWork && !sessionStorage.getItem(RELOAD_KEY)) {
+                            sessionStorage.setItem(RELOAD_KEY, "1");
+                            window.location.reload();
+                          }
+                        });
+                    } else if (didWork && !sessionStorage.getItem(RELOAD_KEY)) {
+                      sessionStorage.setItem(RELOAD_KEY, "1");
+                      window.location.reload();
+                    }
+                  });
+                }
+              }).catch(function () {});
+            }
+          }
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
+
     
     
     <meta property="og:type" content="website" />
