@@ -19,13 +19,31 @@ const isPreviewHost =
 
 if ("serviceWorker" in navigator) {
   if (isInIframe || isPreviewHost || import.meta.env.DEV) {
-    // Limpa qualquer SW que tenha sobrado em contextos de preview/dev
-    navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => r.unregister());
-    });
-    if (typeof caches !== "undefined") {
-      caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
-    }
+    // Limpa qualquer SW/cache que tenha sobrado em contextos de preview/dev.
+    // Se encontrarmos algo, fazemos um reload forçado UMA vez para garantir
+    // que o usuário veja a versão mais recente (não a cacheada pelo SW antigo).
+    (async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        const cacheNames =
+          typeof caches !== "undefined" ? await caches.keys() : [];
+        const hadStaleSW = regs.length > 0 || cacheNames.length > 0;
+
+        await Promise.all(regs.map((r) => r.unregister()));
+        if (cacheNames.length > 0) {
+          await Promise.all(cacheNames.map((n) => caches.delete(n)));
+        }
+
+        // Evita loop de reload usando sessionStorage
+        const RELOAD_KEY = "__sw_cleanup_reloaded__";
+        if (hadStaleSW && !sessionStorage.getItem(RELOAD_KEY)) {
+          sessionStorage.setItem(RELOAD_KEY, "1");
+          window.location.reload();
+        }
+      } catch {
+        // ignore
+      }
+    })();
   } else {
     // Produção: registra o SW gerado pelo vite-plugin-pwa.
     // Quando uma nova versão for detectada, recarrega a página automaticamente.
