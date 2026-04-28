@@ -658,6 +658,78 @@ export type Database = {
           },
         ]
       }
+      rating_avaliacoes: {
+        Row: {
+          avaliacoes: number
+          created_at: string
+          data_referencia_fim: string
+          data_referencia_inicio: string
+          detrator: number
+          gap: number
+          id: string
+          imported_by: string | null
+          matricula: string
+          meta: number
+          neutro: number
+          nome: string | null
+          pct_detrator: number
+          pct_neutro: number
+          pct_promotor: number
+          pdv: number
+          promotor: number
+          rating: number
+          unidade: string | null
+          user_id: string | null
+          worker_type: string
+        }
+        Insert: {
+          avaliacoes?: number
+          created_at?: string
+          data_referencia_fim: string
+          data_referencia_inicio: string
+          detrator?: number
+          gap?: number
+          id?: string
+          imported_by?: string | null
+          matricula: string
+          meta?: number
+          neutro?: number
+          nome?: string | null
+          pct_detrator?: number
+          pct_neutro?: number
+          pct_promotor?: number
+          pdv?: number
+          promotor?: number
+          rating?: number
+          unidade?: string | null
+          user_id?: string | null
+          worker_type: string
+        }
+        Update: {
+          avaliacoes?: number
+          created_at?: string
+          data_referencia_fim?: string
+          data_referencia_inicio?: string
+          detrator?: number
+          gap?: number
+          id?: string
+          imported_by?: string | null
+          matricula?: string
+          meta?: number
+          neutro?: number
+          nome?: string | null
+          pct_detrator?: number
+          pct_neutro?: number
+          pct_promotor?: number
+          pdv?: number
+          promotor?: number
+          rating?: number
+          unidade?: string | null
+          user_id?: string | null
+          worker_type?: string
+        }
+        Relationships: []
+      }
       refugo_031134: {
         Row: {
           aju1_user_id: string | null
