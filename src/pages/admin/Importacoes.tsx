@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import Import031805 from '@/components/admin/Import031805';
 import Import031134 from '@/components/admin/Import031134';
+import ImportRating from '@/components/admin/ImportRating';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -40,6 +41,7 @@ export default function Importacoes() {
         <TabsList>
           <TabsTrigger value="03.18.05">03.18.05</TabsTrigger>
           <TabsTrigger value="03.11.34.05">03.11.34.05</TabsTrigger>
+          <TabsTrigger value="rating">Rating</TabsTrigger>
         </TabsList>
 
         <TabsContent value="03.18.05">
@@ -48,6 +50,10 @@ export default function Importacoes() {
 
         <TabsContent value="03.11.34.05">
           <Import031134 />
+        </TabsContent>
+
+        <TabsContent value="rating">
+          <ImportRating />
         </TabsContent>
       </Tabs>
     </div>
