@@ -200,10 +200,11 @@ export default function IncentivoColaborador() {
 
   const mesAtualStr = format(new Date(), 'yyyy-MM');
   const mesHistorico = useMemo(() => historico.filter(h => h.data_referencia.startsWith(mesAtualStr)), [historico, mesAtualStr]);
-  const bonusAcumuladoBase = mesHistorico.reduce((s, h) => s + (h.valor_fechado ?? h.valor_estimado), 0);
+  // historico já inclui as linhas agregadas do dia 01 (caixas_batidas e bonus_mensal),
+  // portanto basta somar uma vez para obter o bônus acumulado do mês — sem re-adicionar caixas batidas.
   const valorCaixasBatidas = caixasBatidas?.valor_estimado ?? 0;
-  const bonusAcumulado = bonusAcumuladoBase + valorCaixasBatidas;
-  const diasComDados = mesHistorico.length;
+  const bonusAcumulado = mesHistorico.reduce((s, h) => s + (h.valor_fechado ?? h.valor_estimado), 0);
+  const diasComDados = mesHistorico.filter(h => !h.data_referencia.endsWith('-01')).length || mesHistorico.length;
 
   const descontosMes = useMemo(() => descontos.filter(d => d.data_referencia.startsWith(mesAtualStr)), [descontos, mesAtualStr]);
   const totalDescontos = descontosMes.reduce((s, d) => s + d.valor_desconto, 0);
