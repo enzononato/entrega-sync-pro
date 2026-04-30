@@ -417,7 +417,10 @@ export default function HistoricoMapas() {
       <ListPagination
         page={pg.page}
         totalPages={pg.totalPages}
-        onChange={pg.setPage}
+        from={pg.from}
+        to={pg.to}
+        totalCount={pg.totalCount}
+        onPageChange={pg.setPage}
       />
     </div>
   );
