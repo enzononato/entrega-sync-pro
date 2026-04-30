@@ -28,6 +28,8 @@ import { formatMinutesHHMM } from '@/lib/formatters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 import { compareIndicators } from '@/lib/indicatorOrder';
+import { isMonthlyRow } from '@/lib/indicatorPeriodicity';
+import { MonthlyIndicatorsSection } from '@/components/shared/MonthlyIndicatorsSection';
 
 export default function Desempenho() {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -127,14 +129,21 @@ export default function Desempenho() {
   };
 
   const groupedByUser = useMemo(() => {
-    const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]> }>();
+    const map = new Map<string, { user: DesempenhoRow['users']; userId: string; mapas: Map<string, DesempenhoRow[]>; monthly: DesempenhoRow[] }>();
     const uniqueDesempenho = Array.from(new Map(desempenho.map(row => [row.id, row])).values());
 
     for (const d of uniqueDesempenho) {
       if (!map.has(d.user_id)) {
-        map.set(d.user_id, { user: d.users, userId: d.user_id, mapas: new Map() });
+        map.set(d.user_id, { user: d.users, userId: d.user_id, mapas: new Map(), monthly: [] });
       }
       const entry = map.get(d.user_id)!;
+
+      // Indicadores mensais (Rating, etc.) ficam fora do agrupamento por mapa.
+      if (isMonthlyRow(d)) {
+        entry.monthly.push(d);
+        continue;
+      }
+
       const mapaKey = d.mapa_numero ?? 'manual';
       if (!entry.mapas.has(mapaKey)) entry.mapas.set(mapaKey, []);
 
@@ -161,6 +170,23 @@ export default function Desempenho() {
     }
 
     for (const entry of map.values()) {
+      // Dedup mensais por (indicador, ano-mês), mantendo o mais recente.
+      const monthlyMap = new Map<string, DesempenhoRow>();
+      for (const r of entry.monthly) {
+        const ym = (r.data_referencia ?? '').slice(0, 7);
+        const k = `${r.indicator_id}|${ym}`;
+        const existing = monthlyMap.get(k);
+        if (!existing) { monthlyMap.set(k, r); continue; }
+        const a = new Date(existing.updated_at || existing.created_at || 0).getTime();
+        const b = new Date(r.updated_at || r.created_at || 0).getTime();
+        if (b >= a) monthlyMap.set(k, r);
+      }
+      entry.monthly = Array.from(monthlyMap.values()).sort((a, b) => {
+        const dr = b.data_referencia.localeCompare(a.data_referencia);
+        if (dr !== 0) return dr;
+        return (a.indicators?.codigo ?? '').localeCompare(b.indicators?.codigo ?? '');
+      });
+
       const wt = entry.user?.worker_type ?? 'motorista';
       const expectedCodes = wt === 'ajudante' ? MAPA_INDICATORS_AJU : MAPA_INDICATORS_MOT;
 
