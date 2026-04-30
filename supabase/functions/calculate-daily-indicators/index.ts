@@ -295,7 +295,7 @@ Deno.serve(async (req) => {
         for (const r of chunk) {
           let userId = r.mot_user_id;
           if (!userId && r.motorista_codigo) {
-            userId = matriculaMap.get(r.motorista_codigo.trim()) ?? null;
+            userId = motMatriculaMap.get(r.motorista_codigo.trim()) ?? null;
           }
           if (userId && r.data_solicitacao && r.valor != null) {
             allRepoRows.push({
