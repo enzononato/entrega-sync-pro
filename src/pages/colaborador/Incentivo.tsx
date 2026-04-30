@@ -55,6 +55,7 @@ export default function IncentivoColaborador() {
   // Monthly bonus record (stored on first day of month)
   const mesAtual = format(new Date(), 'yyyy-MM');
   const firstDayOfMonth = `${mesAtual}-01`;
+  const lastDayOfMonth = format(endOfMonth(new Date()), 'yyyy-MM-dd');
   const { data: bonusMensal } = useQuery({
     queryKey: ['bonus_mensal', user?.id, mesAtual],
     queryFn: async () => {
@@ -72,6 +73,7 @@ export default function IncentivoColaborador() {
   });
 
   const { data: caixasBatidas } = useCaixasBatidasColaborador(user?.id, mesAtual);
+  const { data: desempenhoMensal = [] } = useDesempenhoDiario(firstDayOfMonth, lastDayOfMonth, { user_id: user?.id });
 
   // ── Histórico mensal (últimos 6 meses) ───
   const meses6 = useMemo(() => {
