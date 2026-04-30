@@ -151,7 +151,8 @@ export default function IncentivoColaborador() {
   // Monthly goals with bonificacao > 0 for this user's worker_type
   const metasMensais = useMemo(() => {
     const filtered = metas.filter(m => {
-      if (m.periodo_tipo !== 'mensal' || m.valor_bonificacao <= 0) return false;
+      if (m.periodo_tipo !== 'mensal') return false;
+      if (!appliesToWorker(m.indicators?.applies_to_worker_type, user?.worker_type)) return false;
       if (!m.user_id && m.worker_type === user?.worker_type) return true;
       if (!m.user_id && !m.worker_type) return true;
       if (m.user_id === user?.id) return true;
@@ -167,8 +168,55 @@ export default function IncentivoColaborador() {
         map.set(m.indicator_id, m);
       }
     }
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) => {
+      const orderA = CANONICAL_INDICATOR_ORDER.indexOf(a.indicators?.codigo ?? '');
+      const orderB = CANONICAL_INDICATOR_ORDER.indexOf(b.indicators?.codigo ?? '');
+      return (orderA === -1 ? 999 : orderA) - (orderB === -1 ? 999 : orderB);
+    });
   }, [metas, user]);
+
+  const monthlyResults = useMemo(() => {
+    const map = new Map<string, { valor_agregado?: number; atingiu: boolean; bonus: number; atingiu_desafio: boolean; bonus_desafio: number }>();
+
+    for (const m of metasMensais) {
+      const codigo = m.indicators?.codigo ?? '';
+      const detail = bonusMensal?.detalhes_json?.indicadores?.find((ind: any) => ind.indicator_id === m.indicator_id);
+      if (detail) {
+        map.set(m.indicator_id, {
+          valor_agregado: detail.valor_agregado,
+          atingiu: detail.atingiu,
+          bonus: detail.bonus ?? 0,
+          atingiu_desafio: detail.atingiu_desafio ?? false,
+          bonus_desafio: detail.bonus_desafio ?? 0,
+        });
+        continue;
+      }
+
+      const rows = desempenhoMensal.filter((row) => row.indicator_id === m.indicator_id);
+      if (rows.length === 0) {
+        map.set(m.indicator_id, { atingiu: false, bonus: 0, atingiu_desafio: false, bonus_desafio: 0 });
+        continue;
+      }
+
+      const valorAgregado = SUM_INDICATOR_CODES.has(codigo)
+        ? rows.reduce((sum, row) => sum + Number(row.valor ?? 0), 0)
+        : rows.reduce((sum, row) => sum + Number(row.valor ?? 0), 0) / rows.length;
+      const roundedValue = Math.round(valorAgregado * 100) / 100;
+      const higherIsBetter = HIGHER_IS_BETTER_CODES.has(codigo);
+      const atingiu = higherIsBetter ? roundedValue >= m.valor_meta : roundedValue <= m.valor_meta;
+      const atingiuDesafio = atingiu && m.valor_desafio > 0 && (higherIsBetter ? roundedValue >= m.valor_desafio : roundedValue <= m.valor_desafio);
+
+      map.set(m.indicator_id, {
+        valor_agregado: roundedValue,
+        atingiu,
+        bonus: atingiu ? m.valor_bonificacao : 0,
+        atingiu_desafio: atingiuDesafio,
+        bonus_desafio: atingiuDesafio ? m.valor_bonificacao_desafio : 0,
+      });
+    }
+
+    return map;
+  }, [bonusMensal, desempenhoMensal, metasMensais]);
 
   // Filter goals relevant to this user's worker_type and with bonus > 0
   const metasRelevantes = useMemo(() => {
