@@ -41,6 +41,8 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [workerType, setWorkerType] = useState<'motorista' | 'ajudante' | ''>('');
   const [unidadeId, setUnidadeId] = useState<string>('');
+  const [existingMatriculas, setExistingMatriculas] = useState<Set<string>>(new Set());
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   const reset = () => {
     setRows([]);
@@ -49,6 +51,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     setResult(null);
     setWorkerType('');
     setUnidadeId('');
+    setExistingMatriculas(new Set());
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -77,11 +80,37 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     setFileName(file.name);
     setResult(null);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string;
-      setRows(parseCsv(text));
+      const parsed = parseCsv(text);
+      setRows(parsed);
+      await checkExisting(parsed);
     };
     reader.readAsText(file, 'utf-8');
+  };
+
+  const checkExisting = async (parsed: CsvRow[]) => {
+    if (parsed.length === 0) {
+      setExistingMatriculas(new Set());
+      return;
+    }
+    setCheckingExisting(true);
+    const matriculas = parsed.map(r => r.matricula.toUpperCase());
+    const found = new Set<string>();
+    // chunk para evitar URL longa demais
+    const CHUNK = 200;
+    for (let i = 0; i < matriculas.length; i += CHUNK) {
+      const slice = matriculas.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('users')
+        .select('matricula')
+        .in('matricula', slice);
+      (data || []).forEach((u: any) => {
+        if (u.matricula) found.add(String(u.matricula).toUpperCase());
+      });
+    }
+    setExistingMatriculas(found);
+    setCheckingExisting(false);
   };
 
   const processRow = async (row: CsvRow, session: any): Promise<{ ok: boolean; updated?: boolean; nome: string; error?: string }> => {
