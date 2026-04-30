@@ -1,77 +1,89 @@
+## Diagnóstico
 
-## Objetivo
+### Problema 1 — Motorista matrícula 19 não mostra todos os mapas em Desempenho
 
-Adicionar uma terceira aba **"Rating"** em `/admin/importacoes` para importar os arquivos `Planificador_Motorista.xlsx` e `Planificador_Ajudante.xlsx`, que trazem as avaliações de PDVs (NPS: Promotor / Neutro / Detrator) por colaborador, com nota final (Rating).
+Confirmei diretamente no banco:
 
-## Estrutura dos arquivos analisados
+- `users` matrícula 19: **2 usuários** (motorista MATHEUS e ajudante ANTONIO).
+- `mapa_historico`: 46 mapas com `cd_mot='19'` e 27 com `cd_aju*='19'`.
+- Vínculos atuais (após a migração de ontem): **100% corretos** — `mot_user_id` aponta para o motorista nos 46 mapas e `aju*_user_id` para o ajudante nos 27. ✅
+- Porém em `user_indicator_daily` o motorista 19 só tem **3 mapas distintos** (datas 24/04 a 28/04), enquanto o ajudante tem 72.
 
-Ambos os XLSX têm o mesmo formato (13 colunas):
+**Causa**: ao corrigir os vínculos ontem, a recálculo da edge `calculate-daily-indicators` foi disparado apenas para as datas importadas mais recentes. As 43 datas históricas anteriores continuam com indicadores apontando para o ajudante (id antigo) em vez do motorista. Resultado: a página Desempenho não exibe esses mapas para o motorista.
 
-| Coluna | Descrição |
-|---|---|
-| Código | Matrícula do colaborador |
-| Nome Motorista/Ajudante | Nome |
-| Avaliações | Total de avaliações recebidas |
-| PDV | Quantidade de pontos de venda atendidos |
-| Promotor / Neutro / Detrator | Contagem de cada tipo |
-| % Promotor / % Neutro / % Detrator | Percentuais |
-| Rating | Nota final (0 a 5) |
-| Meta | Meta da empresa |
-| GAP | Diferença para a meta |
+**Bônus**: a edge `calculate-daily-indicators` ainda contém o mesmo bug original que existia no importador — o `matriculaMap` (linha ~169) é único e não distingue por `worker_type`. Se um mapa entrar com `mot_user_id` nulo e o último a registrar a matrícula no map for o ajudante, ela re-vincula errado. Precisa do mesmo split que o importador já tem.
 
-Há também filtros de data (período da avaliação) e revenda (UNB) no rodapé do arquivo, que precisarão ser informados manualmente pelo usuário no momento da importação.
+### Problema 2 — Páginas com tabelas travando
 
-## Mudanças
+Hoje os hooks carregam 100% dos registros em loop até o fim:
 
-### 1. Banco de dados — nova tabela `rating_avaliacoes`
+- `useMapas` → 2.479 linhas de `mapa_historico` (com 47 colunas cada).
+- `useDesempenhoDiario` → até 36.194 linhas em `user_indicator_daily` quando o período é amplo.
+- `useRanking` → mesmo padrão.
 
-```sql
-create table public.rating_avaliacoes (
-  id uuid primary key default gen_random_uuid(),
-  data_referencia_inicio date not null,
-  data_referencia_fim date not null,
-  worker_type text not null,           -- 'motorista' ou 'ajudante'
-  matricula text not null,
-  nome text,
-  avaliacoes int default 0,
-  pdv int default 0,
-  promotor int default 0,
-  neutro int default 0,
-  detrator int default 0,
-  pct_promotor numeric default 0,
-  pct_neutro numeric default 0,
-  pct_detrator numeric default 0,
-  rating numeric default 0,
-  meta numeric default 0,
-  gap numeric default 0,
-  unidade text,                         -- ex: "Revalle Juazeiro"
-  user_id uuid,                         -- FK lookup por matrícula
-  imported_by uuid,
-  created_at timestamptz not null default now(),
-  unique (data_referencia_inicio, data_referencia_fim, worker_type, matricula)
-);
+Tudo vai pra memória do navegador e é re-renderizado a cada filtro. Em períodos longos isso trava.
+
+---
+
+## Plano
+
+### 1. Recalcular indicadores históricos
+
+Disparar a edge `calculate-daily-indicators` para todas as 43 datas distintas em que o motorista 19 (e qualquer outro afetado pelo bug antigo) tem mapas. Para garantir consistência total, vou rodar para **todas as datas distintas em `mapa_historico`** desde o início — é uma operação one-shot que conserta qualquer registro que tenha ficado órfão da migração anterior.
+
+A chamada será feita em lotes de ~30 datas para não estourar timeout da edge.
+
+### 2. Corrigir bug residual na edge `calculate-daily-indicators`
+
+Em `supabase/functions/calculate-daily-indicators/index.ts`:
+
+- Substituir o único `matriculaMap` por dois mapas: `motMatriculaMap` e `ajuMatriculaMap`.
+- Na lógica `tryLink` (linhas ~213-222), usar o mapa correto conforme o campo:
+  - `cd_mot` → `motMatriculaMap`
+  - `cd_aju1`/`cd_aju2` → `ajuMatriculaMap`
+
+Isso garante que futuras recálculas nunca mais embaralhem motorista/ajudante de mesma matrícula.
+
+### 3. Otimizar carregamento das tabelas pesadas
+
+Mudar a estratégia de "carrega tudo" para **paginação server-side com filtros aplicados na query**:
+
+**a) `useMapas` (Histórico de Mapas)**
+- Aceitar parâmetros: `dateStart`, `dateEnd`, `page`, `pageSize` (default 50), e os filtros já existentes (placa, mapa, motorista, ajudante).
+- Aplicar `.gte/.lte` em `data_operacao` e `.ilike` nos campos de busca direto no Supabase.
+- Retornar `{ rows, total }` usando `count: 'exact'` e `.range()`.
+- A página `HistoricoMapas.tsx` passa a debouncar inputs (300ms) e usar paginação real (botões anterior/próxima já existem via `ListPagination`).
+- **Default**: últimos 30 dias, em vez de tudo.
+
+**b) `useDesempenhoDiario` (Desempenho)**
+- Já aceita período. Adicionar filtros server-side para `unidade_id` e `worker_type` via JOIN/in (em vez de filtrar no cliente após baixar tudo).
+- Para isso, primeiro buscar `users.id` que batem nos filtros, depois `.in('user_id', ids)` na query principal. Reduz drasticamente o payload quando o admin filtra por unidade.
+- Manter loop de paginação interna (já existe), mas com filtros aplicados antes.
+- **Default**: hoje (já é).
+
+**c) `useRanking`**
+- Mesma abordagem do desempenho: filtrar `user_id`/`worker_type`/`unidade` antes do download.
+
+**d) Cache do React Query**
+- Aumentar `staleTime` para 5 min nos três hooks (já está em alguns) para evitar refetch ao trocar de aba.
+
+### 4. Validação
+
+Após implementar:
+- Verificar que a página Desempenho mostra os 46 mapas do motorista 19 quando filtrado por período cobrindo todas as datas.
+- Conferir tempo de carregamento de Histórico de Mapas (deve ficar instantâneo com 50 linhas/página).
+- Conferir Desempenho com filtro de unidade aplicado (deve baixar só as linhas relevantes).
+
+---
+
+## Arquivos afetados
+
+```text
+supabase/functions/calculate-daily-indicators/index.ts   (fix bug matrícula)
+src/hooks/useMapas.ts                                    (paginação server-side)
+src/hooks/useDesempenho.ts                               (filtros server-side)
+src/hooks/useRanking.ts                                  (filtros server-side)
+src/pages/admin/HistoricoMapas.tsx                       (debounce + paginação)
 ```
 
-RLS: admins acesso total; usuários leem apenas suas próprias linhas (`user_id = get_user_id(auth.uid())`).
-
-### 2. Novo componente `src/components/admin/ImportRating.tsx`
-
-- Card com listagem dos dados já importados (DataTable + filtros: busca, intervalo de datas, worker_type, unidade).
-- Botão "Importar Planilha" que abre dialog com:
-  - Seletor de **tipo** (Motorista / Ajudante)
-  - Campos de **período** (data início / data fim)
-  - Campo opcional de **unidade/revenda** (default "Revalle Juazeiro")
-  - Upload de arquivo `.xlsx` (parse com `xlsx` lib — já presente no projeto, ou adicionar `bun add xlsx`)
-- Pula linhas "Total" e linhas sem código.
-- Faz lookup de `users` por `matricula` para preencher `user_id`.
-- Upsert em lote com `onConflict: 'data_referencia_inicio,data_referencia_fim,worker_type,matricula'`.
-- Toast com quantidade de matrículas vinculadas vs total.
-
-### 3. Atualizar `src/pages/admin/Importacoes.tsx`
-
-- Adicionar terceiro `<TabsTrigger value="rating">Rating</TabsTrigger>` e `<TabsContent>` correspondente.
-
-## Pontos a confirmar
-
-1. **Rating como indicador**: por enquanto, os dados ficam apenas armazenados/visualizados na tela de importação. Não vou criar automaticamente um indicador "Rating" no `indicators` nem integrar ao cálculo de bônus/metas — isso pode ser feito em uma etapa seguinte se desejar.
-2. **Período**: os arquivos não têm a data por linha, apenas o período aplicado no filtro do relatório. Por isso o usuário informa o intervalo (início/fim) no momento do upload.
+E uma execução one-shot da edge para recalcular o histórico (sem migration SQL — só chamada da function).

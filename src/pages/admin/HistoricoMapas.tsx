@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DateRangePick } from '@/components/shared/DateRangePick';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { ListPagination } from '@/components/shared/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 function parseTime(hhmm: string | null | undefined): number | null {
   if (!hhmm) return null;
@@ -167,14 +169,20 @@ function calculateMapIndicators(row: any, metas: MetasMap): IndicatorCalc[] {
 }
 
 export default function HistoricoMapas() {
-  const { mapas, loading, refetch } = useMapas();
+  // Default: últimos 60 dias (reduz drasticamente o payload inicial)
+  const today = new Date();
+  const sixtyDaysAgo = new Date(today);
+  sixtyDaysAgo.setDate(today.getDate() - 60);
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+  const [dateFrom, setDateFrom] = useState(fmt(sixtyDaysAgo));
+  const [dateTo, setDateTo] = useState(fmt(today));
+  const { mapas, loading, refetch } = useMapas({ dateFrom, dateTo });
   const { data: goals = [] } = useMetas({ ativo: 'true' });
   const [search, setSearch] = useState('');
   const [searchMot, setSearchMot] = useState('');
   const [searchAju, setSearchAju] = useState('');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [regiao, setRegiao] = useState('all');
   const [frota, setFrota] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -235,12 +243,13 @@ export default function HistoricoMapas() {
     });
   }, [mapas, search, searchMot, searchAju, dateFrom, dateTo, regiao, frota, statusFilter, metasMap]);
 
-  const hasFilters = !!(search || searchMot || searchAju || dateFrom || dateTo || regiao !== 'all' || frota !== 'all' || statusFilter !== 'all');
+  const hasFilters = !!(search || searchMot || searchAju || regiao !== 'all' || frota !== 'all' || statusFilter !== 'all');
   const clearFilters = () => {
-    setSearch(''); setSearchMot(''); setSearchAju(''); setDateFrom(''); setDateTo(''); setRegiao('all'); setFrota('all'); setStatusFilter('all');
+    setSearch(''); setSearchMot(''); setSearchAju(''); setRegiao('all'); setFrota('all'); setStatusFilter('all');
   };
 
-  const selectedMapa = selectedIndex !== null ? filtered[selectedIndex] : null;
+  const pg = usePagination(filtered, 50);
+  const selectedMapa = selectedIndex !== null ? pg.paginatedItems[selectedIndex] : null;
   const indicators = useMemo(() => selectedMapa ? calculateMapIndicators(selectedMapa, metasMap) : [], [selectedMapa, metasMap]);
 
   const formatDate = (d: string | null) => {
@@ -298,7 +307,7 @@ export default function HistoricoMapas() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Mapas" subtitle={`${filtered.length} registros`}>
+      <PageHeader title="Mapas" subtitle={`${filtered.length} registros (período: ${dateFrom} a ${dateTo})`}>
         <ImportMapasDialog onSuccess={refetch} />
       </PageHeader>
 
@@ -399,11 +408,19 @@ export default function HistoricoMapas() {
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={pg.paginatedItems}
         loading={loading}
         emptyMessage="Nenhum mapa importado"
         onRowClick={(_, i) => setSelectedIndex(selectedIndex === i ? null : i)}
         selectedIndex={selectedIndex ?? undefined}
+      />
+      <ListPagination
+        page={pg.page}
+        totalPages={pg.totalPages}
+        from={pg.from}
+        to={pg.to}
+        totalCount={pg.totalCount}
+        onPageChange={pg.setPage}
       />
     </div>
   );
