@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { format, formatDistanceToNow, endOfMonth } from 'date-fns';
+import { format, formatDistanceToNow, endOfMonth, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -58,8 +58,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [dateFrom, setDateFrom] = useState(today);
-  const [dateTo, setDateTo] = useState(today);
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [unidadeFilter, setUnidadeFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
   const [bonusDetailOpen, setBonusDetailOpen] = useState(false);
