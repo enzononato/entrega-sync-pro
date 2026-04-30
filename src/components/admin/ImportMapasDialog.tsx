@@ -119,13 +119,19 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         if (a2 && a2 !== '0') allMatriculas.add(a2);
       });
 
-      const matriculaToUserId: Record<string, string> = {};
+      // Mapas separados por worker_type para evitar colisão de matrícula
+      // (motorista e ajudante podem ter a mesma matrícula).
+      const motMap: Record<string, string> = {};
+      const ajuMap: Record<string, string> = {};
       if (allMatriculas.size > 0) {
         const { data: users } = await supabase
           .from('users')
-          .select('id, matricula')
+          .select('id, matricula, worker_type')
           .in('matricula', Array.from(allMatriculas));
-        users?.forEach(u => { matriculaToUserId[u.matricula] = u.id; });
+        users?.forEach(u => {
+          if (u.worker_type === 'motorista') motMap[u.matricula] = u.id;
+          else if (u.worker_type === 'ajudante') ajuMap[u.matricula] = u.id;
+        });
       }
 
       const enriched = rows.map(r => {
@@ -134,9 +140,9 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         const a2 = String(r.cd_aju2 || '').trim();
         return {
           ...r,
-          mot_user_id: (mot && mot !== '0') ? matriculaToUserId[mot] || null : null,
-          aju1_user_id: (a1 && a1 !== '0') ? matriculaToUserId[a1] || null : null,
-          aju2_user_id: (a2 && a2 !== '0') ? matriculaToUserId[a2] || null : null,
+          mot_user_id: (mot && mot !== '0') ? motMap[mot] || null : null,
+          aju1_user_id: (a1 && a1 !== '0') ? ajuMap[a1] || null : null,
+          aju2_user_id: (a2 && a2 !== '0') ? ajuMap[a2] || null : null,
         };
       });
 
@@ -162,9 +168,11 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         console.error('Erro ao chamar calculate-daily-indicators:', e);
       }
 
-      const matched = new Set(Object.keys(matriculaToUserId)).size;
-      const total = allMatriculas.size;
-      toast.success(`${rows.length} registros importados e indicadores recalculados! (${matched}/${total} matrículas vinculadas)`);
+      const matchedCount = enriched.reduce(
+        (acc, r: any) => acc + (r.mot_user_id ? 1 : 0) + (r.aju1_user_id ? 1 : 0) + (r.aju2_user_id ? 1 : 0),
+        0,
+      );
+      toast.success(`${rows.length} registros importados e indicadores recalculados! (${matchedCount} vínculos motorista/ajudante)`);
       setRows([]);
       setOpen(false);
       onSuccess();
