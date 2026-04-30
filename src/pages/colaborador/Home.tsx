@@ -411,13 +411,16 @@ export default function ColaboradorHome() {
         <SectionHeader icon={<Zap className="h-4 w-4 text-primary" />} title="KPIs por Mapa" />
         {loadDes ? (
           <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-        ) : kpis.length === 0 ? (
+        ) : kpis.length === 0 && monthlyKpis.length === 0 ? (
           <div className="card-elevated p-6 text-center">
             <Target className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Sem indicadores para este período</p>
           </div>
         ) : (
           <div className="space-y-3">
+            {monthlyKpis.length > 0 && (
+              <MonthlyIndicatorsSection rows={monthlyKpis} variant="compact" />
+            )}
             {groupedByMapa.map(([mapaKey, rows]) => {
               const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
               const isMapaExpanded = expandedMapas.has(mapaKey) || groupedByMapa.length === 1;
