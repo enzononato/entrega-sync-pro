@@ -31,6 +31,8 @@ import { ImportColaboradoresDialog } from '@/components/admin/ImportColaboradore
 import { ImportMatriculasDialog } from '@/components/admin/ImportMatriculasDialog';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { formatMinutesHHMM } from '@/lib/formatters';
+import { splitByPeriodicidade } from '@/lib/indicatorPeriodicity';
+import { MonthlyIndicatorsSection } from '@/components/shared/MonthlyIndicatorsSection';
 import { cn } from '@/lib/utils';
 
 const emptyForm = {
@@ -541,8 +543,9 @@ function PerfDrawerContent({ user, getInitials }: { user: UserWithRelations; get
 
   // Group by mapa
   const groupedByMapa = useMemo(() => {
+    const { diarios } = splitByPeriodicidade(desempenho);
     const map = new Map<string, typeof desempenho>();
-    desempenho.forEach(d => {
+    diarios.forEach(d => {
       const key = d.mapa_numero ?? 'manual';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
@@ -554,7 +557,8 @@ function PerfDrawerContent({ user, getInitials }: { user: UserWithRelations; get
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [desempenho]);
 
-  const okCount = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
+  const monthlyRows = useMemo(() => splitByPeriodicidade(desempenho).mensais, [desempenho]);
+  const okCount = desempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta' || d.status === 'atingiu').length;
   const isMot = user.worker_type === 'motorista';
 
   return (
