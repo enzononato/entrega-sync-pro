@@ -211,7 +211,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
           {/* File Upload */}
           <div>
             <p className="text-xs text-muted-foreground mb-3">
-              CSV separado por <strong>ponto e vírgula (;)</strong> com as colunas: <span className="font-mono text-[10px]">NOME;MATRICULA;CPF</span>. Senha padrão: <span className="font-mono text-[10px]">rev123</span>.
+              CSV separado por <strong>ponto e vírgula (;)</strong> com as colunas: <span className="font-mono text-[10px]">NOME;MATRICULA;CPF</span>. Senha padrão: <span className="font-mono text-[10px]">rev123</span>. Matrículas já existentes serão <strong>atualizadas</strong>.
             </p>
             <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
             <Button variant="outline" className="w-full h-20 border-dashed gap-2" onClick={() => fileRef.current?.click()}>
