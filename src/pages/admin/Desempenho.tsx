@@ -516,6 +516,11 @@ export default function Desempenho() {
 
                   {isExpanded && (
                     <div className="border-t border-border/50">
+                      {group.monthly.length > 0 && (
+                        <div className="px-5 py-3 border-b border-border/30 bg-muted/10">
+                          <MonthlyIndicatorsSection rows={group.monthly} />
+                        </div>
+                      )}
                       {Array.from(group.mapas.entries()).map(([mapaNum, rows]) => (
                         <div key={mapaNum} className="border-b border-border/30 last:border-b-0">
                           <div className="flex items-center gap-2 px-5 py-2.5 bg-muted/30">
