@@ -358,9 +358,7 @@ export default function IncentivoColaborador() {
           </div>
           <div className="divide-y divide-border/40">
             {metasMensais.map((m, i) => {
-              const bonusDetail = bonusMensal?.detalhes_json?.indicadores?.find(
-                (ind: any) => ind.indicator_id === m.indicator_id
-              );
+              const bonusDetail = monthlyResults.get(m.indicator_id);
               const atingiu = bonusDetail?.atingiu ?? false;
               const valorAgregado = bonusDetail?.valor_agregado;
               const bonusValor = (bonusDetail?.bonus ?? 0) + (bonusDetail?.atingiu_desafio ? (bonusDetail?.bonus_desafio ?? 0) : 0);
@@ -384,14 +382,14 @@ export default function IncentivoColaborador() {
                       </div>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-[10px] text-muted-foreground">
-                          Meta: ≤ {m.valor_meta}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                          Meta: {HIGHER_IS_BETTER_CODES.has(m.indicators?.codigo ?? '') ? '≥' : '≤'} {formatResultValue(m.valor_meta, m.indicators?.codigo, m.indicators?.unidade_medida)}
                         </span>
                         {valorAgregado != null && (
                           <span className={cn(
                             'text-[10px] font-bold px-2 py-0.5 rounded-full',
                             atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                           )}>
-                            Resultado: {valorAgregado}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                            Resultado: {formatResultValue(valorAgregado, m.indicators?.codigo, m.indicators?.unidade_medida)}
                           </span>
                         )}
                         {semDados && (
