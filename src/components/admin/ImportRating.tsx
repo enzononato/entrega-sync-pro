@@ -3,15 +3,15 @@ import * as XLSX from 'xlsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Loader2, Database, Search, X, Star } from 'lucide-react';
+import { Upload, Loader2, Database, Search, X, Star, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { toast } from 'sonner';
-import { formatDate } from '@/lib/formatters';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateRangePick } from '@/components/shared/DateRangePick';
+
+const RATING_INDICATOR_ID = '853beb35-febb-48b9-b3ae-be7173bfc6fc';
 
 interface ParsedRow {
   matricula: string;
@@ -52,6 +52,22 @@ interface DbRow {
   created_at: string;
 }
 
+const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+function formatMonth(dateStr: string): string {
+  if (!dateStr) return '—';
+  const [y, m] = dateStr.split('-');
+  const mi = parseInt(m, 10) - 1;
+  if (isNaN(mi) || mi < 0 || mi > 11) return dateStr;
+  return `${MESES_PT[mi]}/${y}`;
+}
+function monthToRange(ym: string): { inicio: string; fim: string } {
+  const [y, m] = ym.split('-').map(Number);
+  const inicio = `${y}-${String(m).padStart(2, '0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const fim = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { inicio, fim };
+}
+
 function toNum(v: any): number {
   if (v == null || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -61,7 +77,6 @@ function toNum(v: any): number {
 }
 
 function toPct(v: any): number {
-  // Excel pode trazer 0.9876 ou "98.76%" — normalizamos para 0..100
   if (v == null || v === '') return 0;
   if (typeof v === 'number') {
     return v <= 1 ? v * 100 : v;
@@ -77,8 +92,7 @@ export default function ImportRating() {
   const [dbRows, setDbRows] = useState<DbRow[]>([]);
   const [loadingDb, setLoadingDb] = useState(true);
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [mes, setMes] = useState(''); // YYYY-MM
   const [workerType, setWorkerType] = useState('all');
   const [unidade, setUnidade] = useState('all');
 
@@ -91,7 +105,7 @@ export default function ImportRating() {
       while (true) {
         const { data, error } = await (supabase.from('rating_avaliacoes') as any)
           .select('*')
-          .order('data_referencia_fim', { ascending: false })
+          .order('data_referencia_inicio', { ascending: false })
           .order('rating', { ascending: false })
           .range(from, from + pageSize - 1);
         if (error) throw error;
@@ -124,29 +138,31 @@ export default function ImportRating() {
           r.nome?.toLowerCase().includes(s);
         if (!match) return false;
       }
-      if (dateFrom && r.data_referencia_fim < dateFrom) return false;
-      if (dateTo && r.data_referencia_inicio > dateTo) return false;
+      if (mes) {
+        const rowMes = r.data_referencia_inicio?.slice(0, 7);
+        if (rowMes !== mes) return false;
+      }
       if (workerType !== 'all' && r.worker_type !== workerType) return false;
       if (unidade !== 'all' && r.unidade !== unidade) return false;
       return true;
     });
-  }, [dbRows, search, dateFrom, dateTo, workerType, unidade]);
+  }, [dbRows, search, mes, workerType, unidade]);
 
   const avgRating = useMemo(() => {
     if (!filteredRows.length) return 0;
     return filteredRows.reduce((a, r) => a + Number(r.rating || 0), 0) / filteredRows.length;
   }, [filteredRows]);
 
-  const hasFilters = !!(search || dateFrom || dateTo || workerType !== 'all' || unidade !== 'all');
+  const hasFilters = !!(search || mes || workerType !== 'all' || unidade !== 'all');
   const clearFilters = () => {
-    setSearch(''); setDateFrom(''); setDateTo(''); setWorkerType('all'); setUnidade('all');
+    setSearch(''); setMes(''); setWorkerType('all'); setUnidade('all');
   };
 
   const dbColumns: Column<DbRow>[] = [
     {
       key: 'data_referencia_inicio',
-      label: 'Período',
-      render: (r) => `${formatDate(r.data_referencia_inicio)} – ${formatDate(r.data_referencia_fim)}`,
+      label: 'Mês de Referência',
+      render: (r) => formatMonth(r.data_referencia_inicio),
     },
     { key: 'worker_type', label: 'Tipo', render: (r) => r.worker_type === 'motorista' ? 'Motorista' : 'Ajudante' },
     { key: 'matricula', label: 'Matrícula' },
@@ -160,6 +176,7 @@ export default function ImportRating() {
     { key: 'pct_promotor', label: '% Promotor', render: (r) => `${Number(r.pct_promotor).toFixed(2)}%` },
     { key: 'pct_detrator', label: '% Detrator', render: (r) => `${Number(r.pct_detrator).toFixed(2)}%` },
     { key: 'rating', label: 'Rating', render: (r) => Number(r.rating).toFixed(2) },
+    { key: 'meta', label: 'Meta', render: (r) => Number(r.meta).toFixed(2) },
     { key: 'gap', label: 'GAP', render: (r) => Number(r.gap).toFixed(2) },
     { key: 'user_id', label: 'Vinculado', render: (r) => r.user_id ? 'Sim' : '—' },
   ];
@@ -172,7 +189,7 @@ export default function ImportRating() {
             <Star className="h-5 w-5" /> Importação de Rating (Avaliações de PDV)
           </h3>
           <p className="text-sm text-muted-foreground">
-            Planilhas <strong>Planificador_Motorista.xlsx</strong> e <strong>Planificador_Ajudante.xlsx</strong>
+            Indicador <strong>mensal</strong> — Planilhas <strong>Planificador_Motorista.xlsx</strong> e <strong>Planificador_Ajudante.xlsx</strong>
           </p>
         </div>
         <ImportRatingDialog onSuccess={fetchDbRows} />
@@ -201,7 +218,13 @@ export default function ImportRating() {
                 className="pl-9 h-9"
               />
             </div>
-            <DateRangePick from={dateFrom} to={dateTo} onChangeFrom={setDateFrom} onChangeTo={setDateTo} />
+            <Input
+              type="month"
+              value={mes}
+              onChange={e => setMes(e.target.value)}
+              className="w-44 h-9"
+              placeholder="Mês"
+            />
             <Select value={workerType} onValueChange={setWorkerType}>
               <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
@@ -238,10 +261,16 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
   const [workerType, setWorkerType] = useState<'motorista' | 'ajudante'>('motorista');
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
-  const [unidade, setUnidade] = useState('Revalle Juazeiro');
+  const [mesReferencia, setMesReferencia] = useState(''); // YYYY-MM
+  const [unidade, setUnidade] = useState('');
+  const [units, setUnits] = useState<{ id: string; nome: string }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    supabase.from('units').select('id, nome').eq('ativo', true).order('nome').then(({ data }) => {
+      if (data) setUnits(data);
+    });
+  }, []);
 
   const reset = () => {
     setRows([]); setProgress('');
@@ -260,7 +289,6 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const json: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-        // Encontra a linha de cabeçalho (contém "Código" e "Avaliações")
         let headerIdx = -1;
         for (let i = 0; i < json.length; i++) {
           const row = json[i].map((c: any) => String(c).trim().toLowerCase());
@@ -278,7 +306,6 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         for (let i = headerIdx + 1; i < json.length; i++) {
           const row = json[i];
           const matricula = String(row[0] ?? '').trim();
-          // pula totais e linhas vazias / sem código numérico
           if (!matricula || matricula.toLowerCase() === 'total' || matricula.toLowerCase().startsWith('filtros')) continue;
           if (!/^\d+$/.test(matricula)) continue;
           if (matricula === '0') continue;
@@ -319,28 +346,34 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
   const handleImport = async () => {
     if (!rows.length) return;
-    if (!dataInicio || !dataFim) { toast.error('Informe o período (data início e fim).'); return; }
-    if (dataInicio > dataFim) { toast.error('Data início deve ser anterior à data fim.'); return; }
+    if (!mesReferencia) { toast.error('Informe o mês de referência.'); return; }
+    if (!unidade.trim()) { toast.error('Informe a unidade/revenda.'); return; }
+
+    const { inicio, fim } = monthToRange(mesReferencia);
 
     setImporting(true);
     try {
-      // Lookup matrículas → user_ids
       const matriculas = rows.map(r => r.matricula);
       const matriculaToUserId: Record<string, string> = {};
       const { data: users } = await supabase
         .from('users')
-        .select('id, matricula')
+        .select('id, matricula, worker_type')
         .in('matricula', matriculas);
-      users?.forEach(u => { matriculaToUserId[u.matricula] = u.id; });
+      // Vincular apenas se o worker_type bater com o tipo da importação
+      users?.forEach(u => {
+        if (u.worker_type === workerType) {
+          matriculaToUserId[u.matricula] = u.id;
+        }
+      });
 
       const { data: authData } = await supabase.auth.getUser();
       const importedBy = authData.user?.id || null;
 
       const enriched = rows.map(r => ({
-        data_referencia_inicio: dataInicio,
-        data_referencia_fim: dataFim,
+        data_referencia_inicio: inicio,
+        data_referencia_fim: fim,
         worker_type: workerType,
-        unidade: unidade.trim() || null,
+        unidade: unidade.trim(),
         user_id: matriculaToUserId[r.matricula] || null,
         imported_by: importedBy,
         ...r,
@@ -353,13 +386,51 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length})`);
         const batch = enriched.slice(i, i + batchSize);
         const { error } = await (supabase.from('rating_avaliacoes') as any).upsert(batch, {
-          onConflict: 'data_referencia_inicio,data_referencia_fim,worker_type,matricula',
+          onConflict: 'data_referencia_inicio,worker_type,unidade,matricula',
         });
         if (error) throw error;
       }
 
-      const matched = Object.values(matriculaToUserId).length;
-      toast.success(`${rows.length} avaliações importadas! (${matched}/${rows.length} matrículas vinculadas)`);
+      // Gera/atualiza indicador mensal Rating em user_indicator_daily
+      setProgress('Atualizando indicador mensal de Rating...');
+      const indicatorRows = enriched
+        .filter(r => r.user_id)
+        .map(r => {
+          const atingiu = Number(r.rating) >= Number(r.meta) && Number(r.meta) > 0;
+          return {
+            user_id: r.user_id,
+            indicator_id: RATING_INDICATOR_ID,
+            data_referencia: inicio,
+            valor: r.rating,
+            meta: r.meta,
+            percentual_atingimento: r.meta > 0 ? (r.rating / r.meta) * 100 : 0,
+            status: atingiu ? 'atingiu' : 'nao_atingiu',
+            origem_dado: 'import_rating',
+          };
+        });
+
+      let indicatorsUpserted = 0;
+      if (indicatorRows.length) {
+        for (let i = 0; i < indicatorRows.length; i += batchSize) {
+          const batch = indicatorRows.slice(i, i + batchSize);
+          const { error } = await (supabase.from('user_indicator_daily') as any).upsert(batch, {
+            onConflict: 'user_id,indicator_id,data_referencia',
+          });
+          if (error) {
+            console.error('Erro ao upsert user_indicator_daily:', error);
+            // não bloqueia o sucesso da importação principal
+            break;
+          }
+          indicatorsUpserted += batch.length;
+        }
+      }
+
+      const matched = Object.keys(matriculaToUserId).length;
+      toast.success(
+        `${rows.length} avaliações importadas/atualizadas! ` +
+        `${matched}/${rows.length} matrículas vinculadas. ` +
+        `${indicatorsUpserted} indicadores mensais atualizados.`
+      );
       reset();
       setOpen(false);
       onSuccess();
@@ -378,12 +449,19 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Importar Rating (XLSX)</DialogTitle>
+          <DialogTitle>Importar Rating Mensal (XLSX)</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              Reimportar uma planilha do mesmo <strong>mês + tipo + unidade</strong> irá <strong>substituir</strong> os valores existentes (não duplica).
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Tipo de colaborador</Label>
+              <Label>Tipo de colaborador *</Label>
               <Select value={workerType} onValueChange={(v) => setWorkerType(v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -393,16 +471,22 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
               </Select>
             </div>
             <div>
-              <Label>Unidade / Revenda</Label>
-              <Input value={unidade} onChange={e => setUnidade(e.target.value)} placeholder="Ex: Revalle Juazeiro" />
+              <Label>Unidade / Revenda *</Label>
+              <Select value={unidade} onValueChange={setUnidade}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {units.map(u => <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label>Período — Início</Label>
-              <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
-            </div>
-            <div>
-              <Label>Período — Fim</Label>
-              <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+            <div className="col-span-2">
+              <Label>Mês de referência *</Label>
+              <Input type="month" value={mesReferencia} onChange={e => setMesReferencia(e.target.value)} />
+              {mesReferencia && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Será registrado como: <strong>{formatMonth(monthToRange(mesReferencia).inicio)}</strong>
+                </p>
+              )}
             </div>
           </div>
 
