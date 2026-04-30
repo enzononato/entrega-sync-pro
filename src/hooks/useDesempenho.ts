@@ -16,6 +16,19 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
   return useQuery({
     queryKey: ['user_indicator_daily', dataInicio, dataFim, filters],
     queryFn: async () => {
+      // Pré-filtrar IDs de usuários no servidor quando há filtro de unidade/worker_type.
+      // Isso reduz drasticamente o payload em vez de baixar tudo e filtrar no cliente.
+      let preFilteredUserIds: string[] | null = null;
+      if (filters?.unidade_id || filters?.worker_type) {
+        let uq = supabase.from('users').select('id');
+        if (filters?.unidade_id) uq = uq.eq('unidade_id', filters.unidade_id);
+        if (filters?.worker_type) uq = uq.eq('worker_type', filters.worker_type);
+        const { data: uList, error: uErr } = await uq;
+        if (uErr) throw uErr;
+        preFilteredUserIds = (uList ?? []).map(u => u.id);
+        if (preFilteredUserIds.length === 0) return [] as DesempenhoRow[];
+      }
+
       const PAGE_SIZE = 1000;
       let allRows: any[] = [];
       let from = 0;
@@ -30,6 +43,11 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
           .range(from, from + PAGE_SIZE - 1);
         if (filters?.user_id) q = q.eq('user_id', filters.user_id);
         if (filters?.indicator_id) q = q.eq('indicator_id', filters.indicator_id);
+        if (preFilteredUserIds) {
+          // Supabase aceita até ~1000 ids confortavelmente; em caso de mais,
+          // dividir em chunks. Aqui mantemos simples (unidades raramente passam disso).
+          q = q.in('user_id', preFilteredUserIds);
+        }
         const { data: page, error } = await q;
         if (error) throw error;
         if (!page || page.length === 0) break;
@@ -38,10 +56,7 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
         from += PAGE_SIZE;
       }
 
-      let result = allRows as DesempenhoRow[];
-      if (filters?.unidade_id) result = result.filter(r => r.users?.unidade_id === filters.unidade_id);
-      if (filters?.worker_type) result = result.filter(r => r.users?.worker_type === filters.worker_type);
-      return result;
+      return allRows as DesempenhoRow[];
     },
     staleTime: 5 * 60_000,
   });
