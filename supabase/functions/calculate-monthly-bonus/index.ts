@@ -23,6 +23,12 @@ const ALL_INDICATOR_IDS = Object.values(INDICATOR_IDS);
 // TX_REPOSICAO aggregates by sum; all others by average of daily averages
 const SUM_INDICATORS = new Set([INDICATOR_IDS.TX_REPOSICAO]);
 
+// Indicators where higher value = better (atingiu when valor >= meta)
+// All others: lower is better (atingiu when valor <= meta)
+const HIGHER_IS_BETTER = new Set<string>([
+  "853beb35-febb-48b9-b3ae-be7173bfc6fc", // RATING
+]);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -199,15 +205,19 @@ Deno.serve(async (req) => {
         // Skip if no data at all for this user/indicator
         if (valorAgregado === null) continue;
 
-        // For all indicators: lower is better (valor <= meta = atingiu)
+        const higherIsBetter = HIGHER_IS_BETTER.has(indId);
         const metaVal = Number(goal.valor_meta);
-        const atingiu = valorAgregado <= metaVal;
+        const atingiu = higherIsBetter
+          ? valorAgregado >= metaVal
+          : valorAgregado <= metaVal;
         const bonus = atingiu ? Number(goal.valor_bonificacao) : 0;
 
         // Challenge check: must first hit meta, then also hit desafio
         const desafioVal = Number(goal.valor_desafio) || 0;
         const desafioBonusVal = Number(goal.valor_bonificacao_desafio) || 0;
-        const atingiuDesafio = desafioVal > 0 && atingiu && valorAgregado <= desafioVal;
+        const atingiuDesafio = desafioVal > 0 && atingiu && (
+          higherIsBetter ? valorAgregado >= desafioVal : valorAgregado <= desafioVal
+        );
         const bonusDesafio = atingiuDesafio ? desafioBonusVal : 0;
 
         userDetails.push({
