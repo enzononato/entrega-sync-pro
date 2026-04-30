@@ -267,12 +267,20 @@ Deno.serve(async (req) => {
             .in("user_id", batch).eq("data_referencia", date)
             .in("indicator_id", indicatorIds).eq("origem_dado", "mapa_historico");
         }
-        for (let i = 0; i < upserts.length; i += 500) {
-          const batch = upserts.slice(i, i + 500);
+        // Deduplicar pelo unique key (user_id, indicator_id, data_referencia, mapa_numero)
+        // — ex: mesmo ajudante em aju1 e aju2 produziria duplicata no batch.
+        const dedupedMap = new Map<string, any>();
+        for (const u of upserts) {
+          const k = `${u.user_id}|${u.indicator_id}|${u.data_referencia}|${u.mapa_numero}`;
+          dedupedMap.set(k, u);
+        }
+        const dedupedUpserts = Array.from(dedupedMap.values());
+        for (let i = 0; i < dedupedUpserts.length; i += 500) {
+          const batch = dedupedUpserts.slice(i, i + 500);
           const { error: insertErr } = await supabase.from("user_indicator_daily").upsert(batch, { onConflict: "user_id,indicator_id,data_referencia,mapa_numero" });
           if (insertErr) throw insertErr;
         }
-        totalInserted += upserts.length;
+        totalInserted += dedupedUpserts.length;
       }
     }
 
