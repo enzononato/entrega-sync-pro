@@ -41,6 +41,8 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [workerType, setWorkerType] = useState<'motorista' | 'ajudante' | ''>('');
   const [unidadeId, setUnidadeId] = useState<string>('');
+  const [existingMatriculas, setExistingMatriculas] = useState<Set<string>>(new Set());
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   const reset = () => {
     setRows([]);
@@ -49,6 +51,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     setResult(null);
     setWorkerType('');
     setUnidadeId('');
+    setExistingMatriculas(new Set());
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -77,11 +80,37 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     setFileName(file.name);
     setResult(null);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string;
-      setRows(parseCsv(text));
+      const parsed = parseCsv(text);
+      setRows(parsed);
+      await checkExisting(parsed);
     };
     reader.readAsText(file, 'utf-8');
+  };
+
+  const checkExisting = async (parsed: CsvRow[]) => {
+    if (parsed.length === 0) {
+      setExistingMatriculas(new Set());
+      return;
+    }
+    setCheckingExisting(true);
+    const matriculas = parsed.map(r => r.matricula.toUpperCase());
+    const found = new Set<string>();
+    // chunk para evitar URL longa demais
+    const CHUNK = 200;
+    for (let i = 0; i < matriculas.length; i += CHUNK) {
+      const slice = matriculas.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('users')
+        .select('matricula')
+        .in('matricula', slice);
+      (data || []).forEach((u: any) => {
+        if (u.matricula) found.add(String(u.matricula).toUpperCase());
+      });
+    }
+    setExistingMatriculas(found);
+    setCheckingExisting(false);
   };
 
   const processRow = async (row: CsvRow, session: any): Promise<{ ok: boolean; updated?: boolean; nome: string; error?: string }> => {
@@ -238,10 +267,30 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
                 <p>Tipo: <strong className="text-foreground">{workerType ? (workerType === 'motorista' ? '🚛 Motorista' : '📦 Ajudante') : '— selecione —'}</strong></p>
                 <p>Unidade: <strong className="text-foreground">{selectedUnit ? `${selectedUnit.codigo} — ${selectedUnit.nome}` : '— selecione —'}</strong></p>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2.5">
+                  <p className="text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400 font-medium">Novos</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                    {checkingExisting ? '…' : rows.filter(r => !existingMatriculas.has(r.matricula.toUpperCase())).length}
+                  </p>
+                </div>
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
+                  <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400 font-medium">Já existentes (serão atualizados)</p>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                    {checkingExisting ? '…' : rows.filter(r => existingMatriculas.has(r.matricula.toUpperCase())).length}
+                  </p>
+                </div>
+              </div>
               <div className="max-h-32 overflow-y-auto rounded border border-border/50 bg-background/50 p-2 text-[11px] font-mono space-y-0.5">
-                {rows.slice(0, 5).map((r, i) => (
-                  <div key={i} className="truncate">{r.matricula} • {r.nome} • {r.cpf}</div>
-                ))}
+                {rows.slice(0, 5).map((r, i) => {
+                  const exists = existingMatriculas.has(r.matricula.toUpperCase());
+                  return (
+                    <div key={i} className="truncate flex items-center gap-1.5">
+                      <span className={cn('inline-block w-1.5 h-1.5 rounded-full', exists ? 'bg-amber-500' : 'bg-emerald-500')} />
+                      <span>{r.matricula} • {r.nome} • {r.cpf}</span>
+                    </div>
+                  );
+                })}
                 {rows.length > 5 && <div className="text-muted-foreground">+{rows.length - 5} linhas...</div>}
               </div>
             </div>
