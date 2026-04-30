@@ -28,6 +28,8 @@ import {
 import { cn } from '@/lib/utils';
 import { compareIndicators } from '@/lib/indicatorOrder';
 import { formatMinutesHHMM } from '@/lib/formatters';
+import { splitByPeriodicidade } from '@/lib/indicatorPeriodicity';
+import { MonthlyIndicatorsSection } from '@/components/shared/MonthlyIndicatorsSection';
 import type { IndicatorStatus } from '@/types';
 import type { DesempenhoRow } from '@/hooks/useDesempenho';
 
@@ -170,7 +172,10 @@ export default function ColaboradorHome() {
       return true;
     }).map(d => {
       const code = d.indicators?.codigo?.toUpperCase();
-      if (code) {
+      // Indicadores mensais (Rating, etc.) já vêm com meta/status corretos do importer
+      // (e a regra de comparação é diferente — ex: Rating é maior-é-melhor).
+      // Não aplicamos override do "menor é melhor" usado nos diários.
+      if (code && d.indicators?.periodicidade !== 'mensal') {
         const goalConfig = getMetaConfig(code, wt);
         if (goalConfig.meta > 0) {
           d.meta = goalConfig.meta;
@@ -189,8 +194,11 @@ export default function ColaboradorHome() {
 
   // Group by mapa
   const groupedByMapa = useMemo(() => {
+    // Indicadores mensais (Rating, etc.) não pertencem a nenhum mapa.
+    // Renderizamos numa seção separada acima da listagem por mapa.
+    const { diarios } = splitByPeriodicidade(kpis);
     const map = new Map<string, typeof kpis>();
-    for (const d of kpis) {
+    for (const d of diarios) {
       const key = d.mapa_numero ?? 'manual';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
@@ -201,6 +209,8 @@ export default function ColaboradorHome() {
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [kpis]);
+
+  const monthlyKpis = useMemo(() => splitByPeriodicidade(kpis).mensais, [kpis]);
 
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
@@ -404,13 +414,16 @@ export default function ColaboradorHome() {
         <SectionHeader icon={<Zap className="h-4 w-4 text-primary" />} title="KPIs por Mapa" />
         {loadDes ? (
           <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-        ) : kpis.length === 0 ? (
+        ) : kpis.length === 0 && monthlyKpis.length === 0 ? (
           <div className="card-elevated p-6 text-center">
             <Target className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Sem indicadores para este período</p>
           </div>
         ) : (
           <div className="space-y-3">
+            {monthlyKpis.length > 0 && (
+              <MonthlyIndicatorsSection rows={monthlyKpis} variant="compact" />
+            )}
             {groupedByMapa.map(([mapaKey, rows]) => {
               const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
               const isMapaExpanded = expandedMapas.has(mapaKey) || groupedByMapa.length === 1;

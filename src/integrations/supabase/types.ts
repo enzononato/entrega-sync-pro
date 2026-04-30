@@ -388,6 +388,7 @@ export type Database = {
           descricao: string
           id: string
           nome: string
+          periodicidade: string
           unidade_medida: string
         }
         Insert: {
@@ -399,6 +400,7 @@ export type Database = {
           descricao?: string
           id?: string
           nome: string
+          periodicidade?: string
           unidade_medida?: string
         }
         Update: {
@@ -410,6 +412,7 @@ export type Database = {
           descricao?: string
           id?: string
           nome?: string
+          periodicidade?: string
           unidade_medida?: string
         }
         Relationships: []
