@@ -596,6 +596,9 @@ function PerfDrawerContent({ user, getInitials }: { user: UserWithRelations; get
         <p className="text-sm text-muted-foreground text-center py-4">Sem lançamentos para este período.</p>
       ) : (
         <div className="space-y-3">
+          {monthlyRows.length > 0 && (
+            <MonthlyIndicatorsSection rows={monthlyRows} variant="compact" />
+          )}
           {groupedByMapa.map(([mapaKey, rows]) => {
             const mapaOk = rows.filter(r => r.status === 'dentro_meta' || r.status === 'acima_meta').length;
             return (
