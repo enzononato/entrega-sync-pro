@@ -94,7 +94,66 @@ serve(async (req) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedMatricula = (matricula || "").toString().trim().toUpperCase();
     let authUserId: string;
+
+    // 1) Se já existir usuário com a mesma matrícula, atualizar dados existentes
+    if (normalizedMatricula) {
+      const { data: existingByMatricula } = await supabaseAdmin
+        .from("users")
+        .select("id, auth_user_id, email")
+        .eq("matricula", normalizedMatricula)
+        .maybeSingle();
+
+      if (existingByMatricula?.id) {
+        const updatePayload: Record<string, unknown> = {
+          nome,
+          cpf: cpf || null,
+          worker_type: worker_type || null,
+          unidade_id: unidade_id || null,
+          rota_id: rota_id || null,
+          role: role || "colaborador",
+        };
+
+        const { error: updErr } = await supabaseAdmin
+          .from("users")
+          .update(updatePayload)
+          .eq("id", existingByMatricula.id);
+
+        if (updErr) {
+          return new Response(JSON.stringify({ error: updErr.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Garante user_units sem duplicar
+        if (unidade_id) {
+          const { data: existingLink } = await supabaseAdmin
+            .from("user_units")
+            .select("id")
+            .eq("user_id", existingByMatricula.id)
+            .eq("unit_id", unidade_id)
+            .maybeSingle();
+          if (!existingLink) {
+            await supabaseAdmin.from("user_units").insert({
+              user_id: existingByMatricula.id,
+              unit_id: unidade_id,
+            });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            updated: true,
+            user_id: existingByMatricula.id,
+            auth_user_id: existingByMatricula.auth_user_id,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
