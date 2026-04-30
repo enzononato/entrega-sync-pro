@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,16 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const [unidadeId, setUnidadeId] = useState<string>('');
   const [existingMatriculas, setExistingMatriculas] = useState<Set<string>>(new Set());
   const [checkingExisting, setCheckingExisting] = useState(false);
+
+  // Re-checa existentes quando o tipo muda (matrícula+worker_type formam a chave)
+  useEffect(() => {
+    if (rows.length > 0 && workerType) {
+      checkExisting(rows);
+    } else {
+      setExistingMatriculas(new Set());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workerType]);
 
   const reset = () => {
     setRows([]);
