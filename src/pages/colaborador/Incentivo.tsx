@@ -148,10 +148,10 @@ export default function IncentivoColaborador() {
     enabled: !!user?.id,
   });
 
-  // Monthly goals with bonificacao > 0 for this user's worker_type
+  // Goals displayed in the monthly bonus breakdown for this user's worker_type
   const metasMensais = useMemo(() => {
     const filtered = metas.filter(m => {
-      if (m.periodo_tipo !== 'mensal') return false;
+      if (!m.indicators?.codigo || m.indicators.codigo === 'CX_BATIDAS') return false;
       if (!appliesToWorker(m.indicators?.applies_to_worker_type, user?.worker_type)) return false;
       if (!m.user_id && m.worker_type === user?.worker_type) return true;
       if (!m.user_id && !m.worker_type) return true;
