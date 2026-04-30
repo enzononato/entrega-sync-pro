@@ -90,7 +90,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   };
 
   const checkExisting = async (parsed: CsvRow[]) => {
-    if (parsed.length === 0) {
+    if (parsed.length === 0 || !workerType) {
       setExistingMatriculas(new Set());
       return;
     }
@@ -104,6 +104,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
       const { data } = await supabase
         .from('users')
         .select('matricula')
+        .eq('worker_type', workerType)
         .in('matricula', slice);
       (data || []).forEach((u: any) => {
         if (u.matricula) found.add(String(u.matricula).toUpperCase());
@@ -117,10 +118,11 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     try {
       const unitId = unidadeId || null;
       const matricula = row.matricula.toUpperCase();
+      const emailSuffix = workerType === 'motorista' ? 'mot' : 'aju';
 
       const res = await supabase.functions.invoke('create-user', {
         body: {
-          email: `${matricula}@app.local`,
+          email: `${matricula}-${emailSuffix}@app.local`,
           password: 'rev123',
           nome: row.nome.trim(),
           matricula,
