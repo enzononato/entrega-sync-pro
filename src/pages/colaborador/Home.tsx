@@ -172,7 +172,10 @@ export default function ColaboradorHome() {
       return true;
     }).map(d => {
       const code = d.indicators?.codigo?.toUpperCase();
-      if (code) {
+      // Indicadores mensais (Rating, etc.) já vêm com meta/status corretos do importer
+      // (e a regra de comparação é diferente — ex: Rating é maior-é-melhor).
+      // Não aplicamos override do "menor é melhor" usado nos diários.
+      if (code && d.indicators?.periodicidade !== 'mensal') {
         const goalConfig = getMetaConfig(code, wt);
         if (goalConfig.meta > 0) {
           d.meta = goalConfig.meta;
