@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const RATING_INDICATOR_ID = '853beb35-febb-48b9-b3ae-be7173bfc6fc';
+const RATING_META = 4.95;
+const RATING_DESAFIO = 5.00;
 
 interface ParsedRow {
   matricula: string;
@@ -396,15 +398,19 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       const indicatorRows = enriched
         .filter(r => r.user_id)
         .map(r => {
-          const atingiu = Number(r.rating) >= Number(r.meta) && Number(r.meta) > 0;
+          const ratingVal = Number(r.rating);
+          const atingiuMeta = ratingVal >= RATING_META;
+          const atingiuDesafio = ratingVal >= RATING_DESAFIO; // exatamente 5,00 ou mais
           return {
             user_id: r.user_id,
             indicator_id: RATING_INDICATOR_ID,
             data_referencia: inicio,
-            valor: r.rating,
-            meta: r.meta,
-            percentual_atingimento: r.meta > 0 ? (r.rating / r.meta) * 100 : 0,
-            status: atingiu ? 'atingiu' : 'nao_atingiu',
+            valor: ratingVal,
+            meta: RATING_META,
+            desafio: RATING_DESAFIO,
+            percentual_atingimento: (ratingVal / RATING_META) * 100,
+            status: atingiuMeta ? 'atingiu' : 'nao_atingiu',
+            status_desafio: atingiuDesafio ? 'atingiu' : 'nao_atingiu',
             origem_dado: 'import_rating',
           };
         });
