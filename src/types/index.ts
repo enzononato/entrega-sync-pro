@@ -29,6 +29,7 @@ export interface Indicator {
   id: string; codigo: string; nome: string; categoria: string;
   descricao: string;
   applies_to_worker_type: string; ativo: boolean; created_at: string;
+  periodicidade?: 'diario' | 'mensal';
 }
 
 export interface Goal {
