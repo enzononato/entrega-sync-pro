@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
         }
         for (let i = 0; i < upserts.length; i += 500) {
           const batch = upserts.slice(i, i + 500);
-          const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
+          const { error: insertErr } = await supabase.from("user_indicator_daily").upsert(batch, { onConflict: "user_id,indicator_id,data_referencia,mapa_numero" });
           if (insertErr) throw insertErr;
         }
         totalInserted += upserts.length;
@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
     }
     for (let i = 0; i < repoUpserts.length; i += 500) {
       const batch = repoUpserts.slice(i, i + 500);
-      const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
+      const { error: insertErr } = await supabase.from("user_indicator_daily").upsert(batch, { onConflict: "user_id,indicator_id,data_referencia,mapa_numero" });
       if (insertErr) throw insertErr;
     }
     totalInserted += repoUpserts.length;
@@ -494,7 +494,7 @@ Deno.serve(async (req) => {
       }
       for (let i = 0; i < refugoUpserts.length; i += 500) {
         const batch = refugoUpserts.slice(i, i + 500);
-        const { error: insertErr } = await supabase.from("user_indicator_daily").insert(batch);
+        const { error: insertErr } = await supabase.from("user_indicator_daily").upsert(batch, { onConflict: "user_id,indicator_id,data_referencia,mapa_numero" });
         if (insertErr) throw insertErr;
       }
       totalInserted += refugoUpserts.length;
