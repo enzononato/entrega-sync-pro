@@ -412,7 +412,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
             status: atingiuMeta ? 'dentro_meta' : 'abaixo_meta',
             status_desafio: atingiuDesafio ? 'atingiu' : 'nao_atingiu',
             origem_dado: 'import_rating',
-            mapa_numero: null,
+            mapa_numero: 'MENSAL',
           };
         });
 
