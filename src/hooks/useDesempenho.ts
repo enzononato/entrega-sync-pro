@@ -33,11 +33,25 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
       let allRows: any[] = [];
       let from = 0;
 
+      // Indicadores mensais são gravados no dia 01 do mês de referência.
+      // Para que qualquer dia escolhido dentro de um mês traga o registro mensal,
+      // expandimos o range no servidor para cobrir mês cheio das pontas e
+      // depois filtramos no cliente: diários respeitam o intervalo original,
+      // mensais são mantidos por interseção de mês.
+      const startOfMonth = (d: string) => `${d.slice(0, 7)}-01`;
+      const endOfMonth = (d: string) => {
+        const [y, m] = d.split('-').map(Number);
+        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        return `${d.slice(0, 7)}-${String(last).padStart(2, '0')}`;
+      };
+      const fetchFrom = startOfMonth(dataInicio);
+      const fetchTo = endOfMonth(dataFim);
+
       while (true) {
         let q = supabase.from('user_indicator_daily')
           .select('*, users(nome, worker_type, matricula, unidade_id), indicators(nome, codigo, periodicidade)')
-          .gte('data_referencia', dataInicio)
-          .lte('data_referencia', dataFim)
+          .gte('data_referencia', fetchFrom)
+          .lte('data_referencia', fetchTo)
           .order('data_referencia', { ascending: false })
           .order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
@@ -56,7 +70,18 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
         from += PAGE_SIZE;
       }
 
-      return allRows as DesempenhoRow[];
+      // Pós-filtro: diários estritamente no intervalo; mensais por interseção de mês.
+      const inicioYM = dataInicio.slice(0, 7);
+      const fimYM = dataFim.slice(0, 7);
+      const filtered = (allRows as DesempenhoRow[]).filter(r => {
+        const isMonthly = r.indicators?.periodicidade === 'mensal';
+        if (isMonthly) {
+          const ym = (r.data_referencia ?? '').slice(0, 7);
+          return ym >= inicioYM && ym <= fimYM;
+        }
+        return r.data_referencia >= dataInicio && r.data_referencia <= dataFim;
+      });
+      return filtered;
     },
     staleTime: 5 * 60_000,
   });
@@ -66,13 +91,28 @@ export function useDesempenhoPorColaborador(userId: string | undefined, dataInic
   return useQuery({
     queryKey: ['user_indicator_daily', 'byUser', userId, dataInicio, dataFim],
     queryFn: async () => {
+      const startOfMonth = (d: string) => `${d.slice(0, 7)}-01`;
+      const endOfMonth = (d: string) => {
+        const [y, m] = d.split('-').map(Number);
+        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        return `${d.slice(0, 7)}-${String(last).padStart(2, '0')}`;
+      };
       const { data, error } = await supabase.from('user_indicator_daily')
         .select('*, indicators(nome, codigo, periodicidade)')
         .eq('user_id', userId!)
-        .gte('data_referencia', dataInicio).lte('data_referencia', dataFim)
+        .gte('data_referencia', startOfMonth(dataInicio)).lte('data_referencia', endOfMonth(dataFim))
         .order('data_referencia', { ascending: false });
       if (error) throw error;
-      return data;
+      const inicioYM = dataInicio.slice(0, 7);
+      const fimYM = dataFim.slice(0, 7);
+      return (data ?? []).filter((r: any) => {
+        const isMonthly = r.indicators?.periodicidade === 'mensal';
+        if (isMonthly) {
+          const ym = (r.data_referencia ?? '').slice(0, 7);
+          return ym >= inicioYM && ym <= fimYM;
+        }
+        return r.data_referencia >= dataInicio && r.data_referencia <= dataFim;
+      });
     },
     enabled: !!userId,
   });
