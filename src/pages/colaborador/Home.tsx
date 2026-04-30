@@ -28,6 +28,8 @@ import {
 import { cn } from '@/lib/utils';
 import { compareIndicators } from '@/lib/indicatorOrder';
 import { formatMinutesHHMM } from '@/lib/formatters';
+import { splitByPeriodicidade } from '@/lib/indicatorPeriodicity';
+import { MonthlyIndicatorsSection } from '@/components/shared/MonthlyIndicatorsSection';
 import type { IndicatorStatus } from '@/types';
 import type { DesempenhoRow } from '@/hooks/useDesempenho';
 
@@ -189,8 +191,11 @@ export default function ColaboradorHome() {
 
   // Group by mapa
   const groupedByMapa = useMemo(() => {
+    // Indicadores mensais (Rating, etc.) não pertencem a nenhum mapa.
+    // Renderizamos numa seção separada acima da listagem por mapa.
+    const { diarios } = splitByPeriodicidade(kpis);
     const map = new Map<string, typeof kpis>();
-    for (const d of kpis) {
+    for (const d of diarios) {
       const key = d.mapa_numero ?? 'manual';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
@@ -201,6 +206,8 @@ export default function ColaboradorHome() {
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [kpis]);
+
+  const monthlyKpis = useMemo(() => splitByPeriodicidade(kpis).mensais, [kpis]);
 
   const okCount = kpis.filter(d => d.status === 'acima_meta' || d.status === 'dentro_meta').length;
   const badCount = kpis.filter(d => d.status === 'abaixo_meta').length;
