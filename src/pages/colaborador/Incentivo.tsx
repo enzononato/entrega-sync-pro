@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, startOfMonth, subMonths } from 'date-fns';
+import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico } from '@/hooks/useIncentivoDiario';
@@ -21,6 +21,24 @@ import { useCaixasBatidasColaborador } from '@/hooks/useCaixasBatidas';
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+const CANONICAL_INDICATOR_ORDER = ['TML', 'TR', 'TI', 'JL', 'DEVOLUCAO', 'DISP_TEMPO', 'RATING', 'TX_REPOSICAO', 'DEV_PDV', 'PDV_CRITICO'];
+const SUM_INDICATOR_CODES = new Set(['TX_REPOSICAO']);
+const HIGHER_IS_BETTER_CODES = new Set(['RATING']);
+
+const appliesToWorker = (appliesTo: string | undefined | null, workerType: string | null | undefined) => {
+  if (!workerType) return false;
+  const normalized = (appliesTo ?? 'ambos').toLowerCase();
+  if (normalized === 'ambos') return true;
+  return normalized.split(',').map((value) => value.trim()).includes(workerType);
+};
+
+const formatResultValue = (value: number, codigo?: string, unidadeMedida?: string) => {
+  if (codigo === 'TX_REPOSICAO' || unidadeMedida === 'R$') return fmtBRL(value);
+  const formatted = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
+  if (unidadeMedida === '%' || ['DEVOLUCAO', 'DISP_TEMPO', 'REFUGO'].includes(codigo ?? '')) return `${formatted}%`;
+  return formatted;
+};
 
 export default function IncentivoColaborador() {
   const { user } = useAuth();
