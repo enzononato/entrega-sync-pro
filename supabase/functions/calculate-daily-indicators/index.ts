@@ -166,11 +166,17 @@ Deno.serve(async (req) => {
     const { data: allUsers } = await supabase
       .from("users").select("id, matricula, worker_type").neq("matricula", "").eq("ativo", true);
     const userWorkerType = new Map<string, string>();
-    const matriculaMap = new Map<string, string>();
+    // Mapas separados por worker_type — motorista e ajudante podem ter mesma matrícula.
+    const motMatriculaMap = new Map<string, string>();
+    const ajuMatriculaMap = new Map<string, string>();
     if (allUsers) {
       for (const u of allUsers) {
-        if (u.matricula) matriculaMap.set(u.matricula.trim(), u.id);
-        userWorkerType.set(u.id, u.worker_type || "motorista");
+        const wt = u.worker_type || "motorista";
+        userWorkerType.set(u.id, wt);
+        if (!u.matricula) continue;
+        const key = u.matricula.trim();
+        if (wt === "ajudante") ajuMatriculaMap.set(key, u.id);
+        else motMatriculaMap.set(key, u.id);
       }
     }
 
@@ -210,15 +216,15 @@ Deno.serve(async (req) => {
 
       const updates: { id: string; field: string; userId: string }[] = [];
       for (const row of allMapas) {
-        const tryLink = (code: string, field: string) => {
+        const tryLink = (code: string, field: string, lookup: Map<string, string>) => {
           if (!row[field] && code && code !== "0") {
-            const uid = matriculaMap.get(code.trim());
+            const uid = lookup.get(code.trim());
             if (uid) { row[field] = uid; updates.push({ id: row.id, field, userId: uid }); }
           }
         };
-        tryLink(row.cd_mot, "mot_user_id");
-        tryLink(row.cd_aju1, "aju1_user_id");
-        tryLink(row.cd_aju2, "aju2_user_id");
+        tryLink(row.cd_mot, "mot_user_id", motMatriculaMap);
+        tryLink(row.cd_aju1, "aju1_user_id", ajuMatriculaMap);
+        tryLink(row.cd_aju2, "aju2_user_id", ajuMatriculaMap);
       }
       for (const field of ["mot_user_id", "aju1_user_id", "aju2_user_id"]) {
         const fieldUpdates = updates.filter(u => u.field === field);
