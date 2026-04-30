@@ -97,12 +97,14 @@ serve(async (req) => {
     const normalizedMatricula = (matricula || "").toString().trim().toUpperCase();
     let authUserId: string;
 
-    // 1) Se já existir usuário com a mesma matrícula, atualizar dados existentes
-    if (normalizedMatricula) {
+    // 1) Se já existir usuário com a mesma matrícula + worker_type, atualizar.
+    // Motoristas e ajudantes podem compartilhar matrícula — a chave é (matricula, worker_type).
+    if (normalizedMatricula && worker_type) {
       const { data: existingByMatricula } = await supabaseAdmin
         .from("users")
         .select("id, auth_user_id, email")
         .eq("matricula", normalizedMatricula)
+        .eq("worker_type", worker_type)
         .maybeSingle();
 
       if (existingByMatricula?.id) {
