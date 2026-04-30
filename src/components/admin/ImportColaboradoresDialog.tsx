@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useUnidades } from '@/hooks/useUnidades';
 import { useCreateUsuario } from '@/hooks/useUsuarios';
@@ -17,13 +19,7 @@ interface Props {
 interface CsvRow {
   nome: string;
   cpf: string;
-  email: string;
-  password: string;
   matricula: string;
-  role: string;
-  worker_type: string;
-  ativo: boolean;
-  codigo_unidade: string;
 }
 
 interface ImportResult {
@@ -42,37 +38,36 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [workerType, setWorkerType] = useState<'motorista' | 'ajudante' | ''>('');
+  const [unidadeId, setUnidadeId] = useState<string>('');
 
   const reset = () => {
     setRows([]);
     setFileName('');
     setProgress({ current: 0, total: 0 });
     setResult(null);
+    setWorkerType('');
+    setUnidadeId('');
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  // CSV format: NOME;MATRICULA;CPF (semicolon-separated)
   const parseCsv = (text: string): CsvRow[] => {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return [];
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^\uFEFF/, '').toLowerCase());
-    
+    const headers = lines[0].split(';').map(h => h.trim().replace(/^\uFEFF/, '').toLowerCase());
+    const idxNome = headers.indexOf('nome');
+    const idxMat = headers.indexOf('matricula');
+    const idxCpf = headers.indexOf('cpf');
+
     return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
-      const obj: Record<string, string> = {};
-      headers.forEach((h, i) => { obj[h] = values[i] || ''; });
-      const matricula = obj['matricula'] || '';
+      const values = line.split(';').map(v => v.trim());
       return {
-        nome: obj['nome'] || '',
-        cpf: obj['cpf'] || '',
-        email: obj['email'] || (matricula ? `${matricula}@app.local` : ''),
-        password: obj['password'] || 'rev123',
-        matricula,
-        role: obj['role'] || 'colaborador',
-        worker_type: obj['worker_type'] || '',
-        ativo: (obj['ativo'] || 'true').toLowerCase() === 'true',
-        codigo_unidade: obj['codigo_unidade'] || '',
+        nome: (idxNome >= 0 ? values[idxNome] : values[0]) || '',
+        matricula: (idxMat >= 0 ? values[idxMat] : values[1]) || '',
+        cpf: (idxCpf >= 0 ? values[idxCpf] : values[2]) || '',
       };
-    }).filter(r => r.nome);
+    }).filter(r => r.nome && r.matricula && r.cpf);
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,24 +83,20 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     reader.readAsText(file, 'utf-8');
   };
 
-  const motoristas = rows.filter(r => r.worker_type === 'motorista').length;
-  const ajudantes = rows.filter(r => r.worker_type === 'ajudante').length;
-  const outros = rows.length - motoristas - ajudantes;
-
   const processRow = async (row: CsvRow, session: any): Promise<{ ok: boolean; nome: string; error?: string }> => {
     try {
-      const unit = units.find(u => u.codigo.toUpperCase() === row.codigo_unidade.toUpperCase());
-      const unitId = unit?.id || null;
+      const unitId = unidadeId || null;
+      const matricula = row.matricula.toUpperCase();
 
       const res = await supabase.functions.invoke('create-user', {
         body: {
-          email: row.email,
-          password: row.password,
-          nome: row.nome,
-          matricula: row.matricula.toUpperCase(),
-          cpf: row.cpf || null,
-          role: row.role || 'colaborador',
-          worker_type: row.worker_type || null,
+          email: `${matricula}@app.local`,
+          password: 'rev123',
+          nome: row.nome.trim(),
+          matricula,
+          cpf: row.cpf,
+          role: 'colaborador',
+          worker_type: workerType,
           unidade_id: unitId,
           rota_id: null,
         },
@@ -128,6 +119,10 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
   const BATCH_SIZE = 10;
 
   const handleImport = async () => {
+    if (!workerType || !unidadeId) {
+      toast({ title: 'Selecione o tipo e a unidade antes de importar', variant: 'destructive' });
+      return;
+    }
     setImporting(true);
     setProgress({ current: 0, total: rows.length });
     const errors: { nome: string; error: string }[] = [];
@@ -159,6 +154,9 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     }
   };
 
+  const canImport = !importing && rows.length > 0 && !!workerType && !!unidadeId;
+  const selectedUnit = units.find(u => u.id === unidadeId);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) { onOpenChange(v); if (!v) reset(); } }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
@@ -169,10 +167,35 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
         </div>
 
         <div className="px-6 py-5 space-y-5">
+          {/* Tipo + Unidade */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tipo de colaborador *</Label>
+              <Select value={workerType} onValueChange={(v) => setWorkerType(v as any)} disabled={importing}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="motorista">🚛 Motorista</SelectItem>
+                  <SelectItem value="ajudante">📦 Ajudante</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Unidade *</Label>
+              <Select value={unidadeId} onValueChange={setUnidadeId} disabled={importing}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {units.filter(u => u.ativo).map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.codigo} — {u.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* File Upload */}
           <div>
             <p className="text-xs text-muted-foreground mb-3">
-              Selecione um arquivo CSV com as colunas: <span className="font-mono text-[10px]">nome, matricula, password, role, worker_type, ativo, codigo_unidade</span>
+              CSV separado por <strong>ponto e vírgula (;)</strong> com as colunas: <span className="font-mono text-[10px]">NOME;MATRICULA;CPF</span>. Senha padrão: <span className="font-mono text-[10px]">rev123</span>.
             </p>
             <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
             <Button variant="outline" className="w-full h-20 border-dashed gap-2" onClick={() => fileRef.current?.click()}>
@@ -194,29 +217,16 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
           {rows.length > 0 && !result && (
             <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Preview da Importação</h3>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <span className="text-muted-foreground">Motoristas: <strong className="text-foreground">{motoristas}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-violet-500" />
-                  <span className="text-muted-foreground">Ajudantes: <strong className="text-foreground">{ajudantes}</strong></span>
-                </div>
-                {outros > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                    <span className="text-muted-foreground">Outros: <strong className="text-foreground">{outros}</strong></span>
-                  </div>
-                )}
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>Total: <strong className="text-foreground">{rows.length}</strong> colaboradores</p>
+                <p>Tipo: <strong className="text-foreground">{workerType ? (workerType === 'motorista' ? '🚛 Motorista' : '📦 Ajudante') : '— selecione —'}</strong></p>
+                <p>Unidade: <strong className="text-foreground">{selectedUnit ? `${selectedUnit.codigo} — ${selectedUnit.nome}` : '— selecione —'}</strong></p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Total: <strong className="text-foreground">{rows.length}</strong> colaboradores serão criados
-              </p>
-
-              {/* Show unique units */}
-              <div className="text-[11px] text-muted-foreground">
-                Unidades: {[...new Set(rows.map(r => r.codigo_unidade))].filter(Boolean).join(', ') || 'Nenhuma'}
+              <div className="max-h-32 overflow-y-auto rounded border border-border/50 bg-background/50 p-2 text-[11px] font-mono space-y-0.5">
+                {rows.slice(0, 5).map((r, i) => (
+                  <div key={i} className="truncate">{r.matricula} • {r.nome} • {r.cpf}</div>
+                ))}
+                {rows.length > 5 && <div className="text-muted-foreground">+{rows.length - 5} linhas...</div>}
               </div>
             </div>
           )}
@@ -275,7 +285,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
             {result ? 'Fechar' : 'Cancelar'}
           </Button>
           {!result && (
-            <Button onClick={handleImport} disabled={importing || rows.length === 0}>
+            <Button onClick={handleImport} disabled={!canImport}>
               {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Importar {rows.length > 0 ? `(${rows.length})` : ''}
             </Button>
