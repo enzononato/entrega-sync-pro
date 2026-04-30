@@ -409,9 +409,10 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
             meta: RATING_META,
             desafio: RATING_DESAFIO,
             percentual_atingimento: (ratingVal / RATING_META) * 100,
-            status: atingiuMeta ? 'atingiu' : 'nao_atingiu',
+            status: atingiuMeta ? 'dentro_meta' : 'abaixo_meta',
             status_desafio: atingiuDesafio ? 'atingiu' : 'nao_atingiu',
             origem_dado: 'import_rating',
+            mapa_numero: null,
           };
         });
 
