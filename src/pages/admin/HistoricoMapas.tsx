@@ -170,6 +170,8 @@ export default function HistoricoMapas() {
   const { mapas, loading, refetch } = useMapas();
   const { data: goals = [] } = useMetas({ ativo: 'true' });
   const [search, setSearch] = useState('');
+  const [searchMot, setSearchMot] = useState('');
+  const [searchAju, setSearchAju] = useState('');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -210,6 +212,15 @@ export default function HistoricoMapas() {
           m.veiculo?.toLowerCase().includes(s);
         if (!match) return false;
       }
+      if (searchMot) {
+        const s = searchMot.toLowerCase();
+        if (!m.cd_mot?.toLowerCase().includes(s)) return false;
+      }
+      if (searchAju) {
+        const s = searchAju.toLowerCase();
+        const match = m.cd_aju1?.toLowerCase().includes(s) || m.cd_aju2?.toLowerCase().includes(s);
+        if (!match) return false;
+      }
       if (dateFrom && m.data_operacao < dateFrom) return false;
       if (dateTo && m.data_operacao > dateTo) return false;
       if (regiao !== 'all' && m.regiao !== regiao) return false;
@@ -222,11 +233,11 @@ export default function HistoricoMapas() {
       }
       return true;
     });
-  }, [mapas, search, dateFrom, dateTo, regiao, frota, statusFilter, metasMap]);
+  }, [mapas, search, searchMot, searchAju, dateFrom, dateTo, regiao, frota, statusFilter, metasMap]);
 
-  const hasFilters = !!(search || dateFrom || dateTo || regiao !== 'all' || frota !== 'all' || statusFilter !== 'all');
+  const hasFilters = !!(search || searchMot || searchAju || dateFrom || dateTo || regiao !== 'all' || frota !== 'all' || statusFilter !== 'all');
   const clearFilters = () => {
-    setSearch(''); setDateFrom(''); setDateTo(''); setRegiao('all'); setFrota('all'); setStatusFilter('all');
+    setSearch(''); setSearchMot(''); setSearchAju(''); setDateFrom(''); setDateTo(''); setRegiao('all'); setFrota('all'); setStatusFilter('all');
   };
 
   const selectedMapa = selectedIndex !== null ? filtered[selectedIndex] : null;
@@ -298,6 +309,24 @@ export default function HistoricoMapas() {
             placeholder="Buscar mapa, placa, matrícula..."
             value={search}
             onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+        <div className="relative w-44">
+          <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cód. motorista"
+            value={searchMot}
+            onChange={e => setSearchMot(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+        <div className="relative w-44">
+          <PackageX className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cód. ajudante"
+            value={searchAju}
+            onChange={e => setSearchAju(e.target.value)}
             className="pl-9 h-9"
           />
         </div>
