@@ -24,6 +24,7 @@ interface CsvRow {
 
 interface ImportResult {
   success: number;
+  updated: number;
   errors: { nome: string; error: string }[];
 }
 
@@ -83,7 +84,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     reader.readAsText(file, 'utf-8');
   };
 
-  const processRow = async (row: CsvRow, session: any): Promise<{ ok: boolean; nome: string; error?: string }> => {
+  const processRow = async (row: CsvRow, session: any): Promise<{ ok: boolean; updated?: boolean; nome: string; error?: string }> => {
     try {
       const unitId = unidadeId || null;
       const matricula = row.matricula.toUpperCase();
@@ -106,11 +107,20 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
       if (res.error) throw new Error(res.error.message);
       if (res.data?.error) throw new Error(res.data.error);
 
-      if (unitId && res.data?.user_id) {
-        await supabase.from('user_units').insert({ user_id: res.data.user_id, unit_id: unitId });
+      // Vincula unidade apenas em criação. No update, a edge function já cuidou do user_units.
+      if (unitId && res.data?.user_id && !res.data?.updated) {
+        const { data: existingLink } = await supabase
+          .from('user_units')
+          .select('id')
+          .eq('user_id', res.data.user_id)
+          .eq('unit_id', unitId)
+          .maybeSingle();
+        if (!existingLink) {
+          await supabase.from('user_units').insert({ user_id: res.data.user_id, unit_id: unitId });
+        }
       }
 
-      return { ok: true, nome: row.nome };
+      return { ok: true, updated: !!res.data?.updated, nome: row.nome };
     } catch (err: any) {
       return { ok: false, nome: row.nome, error: err.message || 'Erro desconhecido' };
     }
@@ -127,6 +137,7 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     setProgress({ current: 0, total: rows.length });
     const errors: { nome: string; error: string }[] = [];
     let success = 0;
+    let updated = 0;
 
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -135,19 +146,24 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
       const results = await Promise.all(batch.map(row => processRow(row, session)));
       
       for (const r of results) {
-        if (r.ok) success++;
-        else errors.push({ nome: r.nome, error: r.error! });
+        if (r.ok) {
+          success++;
+          if (r.updated) updated++;
+        } else {
+          errors.push({ nome: r.nome, error: r.error! });
+        }
       }
       setProgress({ current: Math.min(i + BATCH_SIZE, rows.length), total: rows.length });
     }
 
-    setResult({ success, errors });
+    setResult({ success, updated, errors });
     setImporting(false);
     qc.invalidateQueries({ queryKey: ['users'] });
     qc.invalidateQueries({ queryKey: ['users-paginated'] });
 
     if (success > 0) {
-      toast({ title: `${success} colaborador(es) importado(s) com sucesso!` });
+      const created = success - updated;
+      toast({ title: `${created} criado(s) e ${updated} atualizado(s) com sucesso!` });
     }
     if (errors.length > 0) {
       toast({ title: `${errors.length} erro(s) na importação`, variant: 'destructive' });
@@ -256,7 +272,9 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  <span className="text-foreground font-medium">{result.success} importado(s) com sucesso</span>
+                  <span className="text-foreground font-medium">
+                    {result.success - result.updated} criado(s) • {result.updated} atualizado(s)
+                  </span>
                 </div>
                 {result.errors.length > 0 && (
                   <div className="flex items-center gap-2 text-sm">
