@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, startOfMonth, subMonths } from 'date-fns';
+import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico } from '@/hooks/useIncentivoDiario';
@@ -22,6 +22,24 @@ import { useCaixasBatidasColaborador } from '@/hooks/useCaixasBatidas';
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+const CANONICAL_INDICATOR_ORDER = ['TML', 'TR', 'TI', 'JL', 'DEVOLUCAO', 'DISP_TEMPO', 'RATING', 'TX_REPOSICAO', 'DEV_PDV', 'PDV_CRITICO'];
+const SUM_INDICATOR_CODES = new Set(['TX_REPOSICAO']);
+const HIGHER_IS_BETTER_CODES = new Set(['RATING']);
+
+const appliesToWorker = (appliesTo: string | undefined | null, workerType: string | null | undefined) => {
+  if (!workerType) return false;
+  const normalized = (appliesTo ?? 'ambos').toLowerCase();
+  if (normalized === 'ambos') return true;
+  return normalized.split(',').map((value) => value.trim()).includes(workerType);
+};
+
+const formatResultValue = (value: number, codigo?: string, unidadeMedida?: string) => {
+  if (codigo === 'TX_REPOSICAO' || unidadeMedida === 'R$') return fmtBRL(value);
+  const formatted = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
+  if (unidadeMedida === '%' || ['DEVOLUCAO', 'DISP_TEMPO', 'REFUGO'].includes(codigo ?? '')) return `${formatted}%`;
+  return formatted;
+};
+
 export default function IncentivoColaborador() {
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -37,6 +55,7 @@ export default function IncentivoColaborador() {
   // Monthly bonus record (stored on first day of month)
   const mesAtual = format(new Date(), 'yyyy-MM');
   const firstDayOfMonth = `${mesAtual}-01`;
+  const lastDayOfMonth = format(endOfMonth(new Date()), 'yyyy-MM-dd');
   const { data: bonusMensal } = useQuery({
     queryKey: ['bonus_mensal', user?.id, mesAtual],
     queryFn: async () => {
@@ -54,6 +73,7 @@ export default function IncentivoColaborador() {
   });
 
   const { data: caixasBatidas } = useCaixasBatidasColaborador(user?.id, mesAtual);
+  const { data: desempenhoMensal = [] } = useDesempenhoDiario(firstDayOfMonth, lastDayOfMonth, { user_id: user?.id });
 
   // ── Histórico mensal (últimos 6 meses) ───
   const meses6 = useMemo(() => {
@@ -128,10 +148,11 @@ export default function IncentivoColaborador() {
     enabled: !!user?.id,
   });
 
-  // Monthly goals with bonificacao > 0 for this user's worker_type
+  // Goals displayed in the monthly bonus breakdown for this user's worker_type
   const metasMensais = useMemo(() => {
     const filtered = metas.filter(m => {
-      if (m.periodo_tipo !== 'mensal' || m.valor_bonificacao <= 0) return false;
+      if (!m.indicators?.codigo || m.indicators.codigo === 'CX_BATIDAS') return false;
+      if (!appliesToWorker(m.indicators?.applies_to_worker_type, user?.worker_type)) return false;
       if (!m.user_id && m.worker_type === user?.worker_type) return true;
       if (!m.user_id && !m.worker_type) return true;
       if (m.user_id === user?.id) return true;
@@ -147,8 +168,55 @@ export default function IncentivoColaborador() {
         map.set(m.indicator_id, m);
       }
     }
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) => {
+      const orderA = CANONICAL_INDICATOR_ORDER.indexOf(a.indicators?.codigo ?? '');
+      const orderB = CANONICAL_INDICATOR_ORDER.indexOf(b.indicators?.codigo ?? '');
+      return (orderA === -1 ? 999 : orderA) - (orderB === -1 ? 999 : orderB);
+    });
   }, [metas, user]);
+
+  const monthlyResults = useMemo(() => {
+    const map = new Map<string, { valor_agregado?: number; atingiu: boolean; bonus: number; atingiu_desafio: boolean; bonus_desafio: number }>();
+
+    for (const m of metasMensais) {
+      const codigo = m.indicators?.codigo ?? '';
+      const detail = bonusMensal?.detalhes_json?.indicadores?.find((ind: any) => ind.indicator_id === m.indicator_id);
+      if (detail) {
+        map.set(m.indicator_id, {
+          valor_agregado: detail.valor_agregado,
+          atingiu: detail.atingiu,
+          bonus: detail.bonus ?? 0,
+          atingiu_desafio: detail.atingiu_desafio ?? false,
+          bonus_desafio: detail.bonus_desafio ?? 0,
+        });
+        continue;
+      }
+
+      const rows = desempenhoMensal.filter((row) => row.indicator_id === m.indicator_id);
+      if (rows.length === 0) {
+        map.set(m.indicator_id, { atingiu: false, bonus: 0, atingiu_desafio: false, bonus_desafio: 0 });
+        continue;
+      }
+
+      const valorAgregado = SUM_INDICATOR_CODES.has(codigo)
+        ? rows.reduce((sum, row) => sum + Number(row.valor ?? 0), 0)
+        : rows.reduce((sum, row) => sum + Number(row.valor ?? 0), 0) / rows.length;
+      const roundedValue = Math.round(valorAgregado * 100) / 100;
+      const higherIsBetter = HIGHER_IS_BETTER_CODES.has(codigo);
+      const atingiu = higherIsBetter ? roundedValue >= m.valor_meta : roundedValue <= m.valor_meta;
+      const atingiuDesafio = atingiu && m.valor_desafio > 0 && (higherIsBetter ? roundedValue >= m.valor_desafio : roundedValue <= m.valor_desafio);
+
+      map.set(m.indicator_id, {
+        valor_agregado: roundedValue,
+        atingiu,
+        bonus: atingiu ? m.valor_bonificacao : 0,
+        atingiu_desafio: atingiuDesafio,
+        bonus_desafio: atingiuDesafio ? m.valor_bonificacao_desafio : 0,
+      });
+    }
+
+    return map;
+  }, [bonusMensal, desempenhoMensal, metasMensais]);
 
   // Filter goals relevant to this user's worker_type and with bonus > 0
   const metasRelevantes = useMemo(() => {
@@ -290,9 +358,7 @@ export default function IncentivoColaborador() {
           </div>
           <div className="divide-y divide-border/40">
             {metasMensais.map((m, i) => {
-              const bonusDetail = bonusMensal?.detalhes_json?.indicadores?.find(
-                (ind: any) => ind.indicator_id === m.indicator_id
-              );
+              const bonusDetail = monthlyResults.get(m.indicator_id);
               const atingiu = bonusDetail?.atingiu ?? false;
               const valorAgregado = bonusDetail?.valor_agregado;
               const bonusValor = (bonusDetail?.bonus ?? 0) + (bonusDetail?.atingiu_desafio ? (bonusDetail?.bonus_desafio ?? 0) : 0);
@@ -316,14 +382,14 @@ export default function IncentivoColaborador() {
                       </div>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-[10px] text-muted-foreground">
-                          Meta: ≤ {m.valor_meta}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                          Meta: {HIGHER_IS_BETTER_CODES.has(m.indicators?.codigo ?? '') ? '≥' : '≤'} {formatResultValue(m.valor_meta, m.indicators?.codigo, m.indicators?.unidade_medida)}
                         </span>
                         {valorAgregado != null && (
                           <span className={cn(
                             'text-[10px] font-bold px-2 py-0.5 rounded-full',
                             atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                           )}>
-                            Resultado: {valorAgregado}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                            Resultado: {formatResultValue(valorAgregado, m.indicators?.codigo, m.indicators?.unidade_medida)}
                           </span>
                         )}
                         {semDados && (
