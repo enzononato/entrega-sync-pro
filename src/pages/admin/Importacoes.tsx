@@ -6,11 +6,15 @@ import { Button } from '@/components/ui/button';
 import Import031805 from '@/components/admin/Import031805';
 import Import031134 from '@/components/admin/Import031134';
 import ImportRating from '@/components/admin/ImportRating';
+import { ImportMapasDialog } from '@/components/admin/ImportMapasDialog';
+import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export default function Importacoes() {
   const [recalculating, setRecalculating] = useState(false);
+  const qc = useQueryClient();
 
   const handleRecalculate = async () => {
     setRecalculating(true);
@@ -39,10 +43,27 @@ export default function Importacoes() {
 
       <Tabs defaultValue="03.18.05" className="w-full">
         <TabsList>
+          <TabsTrigger value="mapas">Mapas</TabsTrigger>
           <TabsTrigger value="03.18.05">03.18.05</TabsTrigger>
           <TabsTrigger value="03.11.34.05">03.11.34.05</TabsTrigger>
           <TabsTrigger value="rating">Rating</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="mapas">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Importação de Mapas (mapa_historico)</h3>
+                <p className="text-sm text-muted-foreground">
+                  CSV da planilha de operação. Detecta duplicidade por mapa+data.
+                </p>
+              </div>
+              <ImportMapasDialog onSuccess={() => qc.invalidateQueries({ queryKey: ['import_batches'] })} />
+            </div>
+            <ImportHistoryPanel tipo="mapas" />
+          </div>
+        </TabsContent>
 
         <TabsContent value="03.18.05">
           <Import031805 />
@@ -54,6 +75,10 @@ export default function Importacoes() {
 
         <TabsContent value="rating">
           <ImportRating />
+        </TabsContent>
+
+        <TabsContent value="historico">
+          <ImportHistoryPanel />
         </TabsContent>
       </Tabs>
     </div>
