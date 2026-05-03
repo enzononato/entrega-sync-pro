@@ -10,6 +10,9 @@ import { formatDate } from '@/lib/formatters';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRangePick } from '@/components/shared/DateRangePick';
+import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
+import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
+import { createImportBatch } from '@/hooks/useImportBatches';
 
 interface ParsedRow {
   unb: string;
@@ -238,6 +241,8 @@ export default function Import031805() {
           <DataTable columns={dbColumns} data={filteredRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
         </CardContent>
       </Card>
+
+      <ImportHistoryPanel tipo="reposicao_031805" />
     </div>
   );
 }
@@ -245,6 +250,8 @@ export default function Import031805() {
 function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [classifications, setClassifications] = useState<{ row: ParsedRow; status: RowStatus; reason?: string }[]>([]);
+  const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
   const [totalOriginal, setTotalOriginal] = useState(0);
@@ -253,9 +260,10 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string;
       const lines = text.split('\n').filter(l => l.trim());
       if (lines.length < 2) { toast.error('CSV vazio'); return; }
@@ -307,17 +315,45 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
 
       setTotalOriginal(lines.length - 1);
       setRows(allRows);
+
+      // Detecção de duplicidade: chave = solicitacao_reposicao + produto
+      const existingSet = new Set<string>();
+      try {
+        const sols = [...new Set(allRows.map(r => r.solicitacao_reposicao).filter(Boolean))];
+        if (sols.length) {
+          const { data } = await (supabase.from('reposicao_031805') as any)
+            .select('solicitacao_reposicao, produto')
+            .in('solicitacao_reposicao', sols);
+          data?.forEach((d: any) => existingSet.add(`${d.solicitacao_reposicao}__${d.produto ?? ''}`));
+        }
+      } catch (e) {
+        console.warn('Falha ao checar duplicidade:', e);
+      }
+
+      const seen = new Set<string>();
+      const cls = allRows.map(r => {
+        const k = `${r.solicitacao_reposicao}__${r.produto ?? ''}`;
+        let status: RowStatus = 'novo';
+        let reason: string | undefined;
+        if (!r.solicitacao_reposicao) { status = 'invalido'; reason = 'Solicitação ausente'; }
+        else if (existingSet.has(k)) { status = 'duplicado'; reason = 'Já existe no banco'; }
+        else if (seen.has(k)) { status = 'duplicado'; reason = 'Repetido no CSV'; }
+        else seen.add(k);
+        return { row: r, status, reason };
+      });
+      setClassifications(cls);
     };
     reader.readAsText(file, 'utf-8');
   };
 
   const handleImport = async () => {
-    if (!rows.length) return;
+    const toInsert = classifications.filter(c => c.status === 'novo').map(c => c.row);
+    if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
     setImporting(true);
     try {
       // Lookup matrículas → user_ids
       const allMatriculas = new Set<string>();
-      rows.forEach(r => {
+      toInsert.forEach(r => {
         const mot = r.motorista_codigo?.trim();
         const aju = r.ajudante_codigo?.trim();
         if (mot && mot !== '0') allMatriculas.add(mot);
@@ -333,13 +369,26 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
         users?.forEach(u => { matriculaToUserId[u.matricula] = u.id; });
       }
 
-      const enriched = rows.map(r => {
+      const uniqueDates = [...new Set(toInsert.map(r => r.data_solicitacao).filter(Boolean))] as string[];
+      const batchId = await createImportBatch({
+        tipo: 'reposicao_031805',
+        arquivo_nome: fileName,
+        total_linhas: classifications.length,
+        linhas_inseridas: toInsert.length,
+        linhas_duplicadas: classifications.filter(c => c.status === 'duplicado').length,
+        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
+        payload_preview: classifications.slice(0, 50).map(c => ({ status: c.status, sol: c.row.solicitacao_reposicao, produto: c.row.produto, valor: c.row.valor })),
+        metadata: { datas: uniqueDates },
+      });
+
+      const enriched = toInsert.map(r => {
         const mot = r.motorista_codigo?.trim();
         const aju = r.ajudante_codigo?.trim();
         return {
           ...r,
           mot_user_id: (mot && mot !== '0') ? matriculaToUserId[mot] || null : null,
           aju_user_id: (aju && aju !== '0') ? matriculaToUserId[aju] || null : null,
+          import_batch_id: batchId,
         };
       });
 
@@ -349,21 +398,20 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
         const batchNum = Math.floor(i / batchSize) + 1;
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length} registros)`);
         const batch = enriched.slice(i, i + batchSize);
-        const { error } = await (supabase.from('reposicao_031805') as any).upsert(batch, { onConflict: 'solicitacao_reposicao,produto' });
+        const { error } = await (supabase.from('reposicao_031805') as any).insert(batch);
         if (error) throw error;
       }
 
       const matched = Object.keys(matriculaToUserId).length;
       const total = allMatriculas.size;
-      toast.success(`${rows.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
+      toast.success(`${toInsert.length} registros importados! (${matched}/${total} matrículas vinculadas)`);
 
       // Auto-calculate all indicators (includes reposição)
       setProgress('Recalculando indicadores...');
       try {
-        const uniqueDates = [...new Set(rows.map(r => r.data_solicitacao).filter(Boolean))];
-        
+        const allDates = [...uniqueDates];
         // FIX: Also include data_operacao from related maps so map-based indicators get recalculated
-        const uniqueMapas = [...new Set(rows.map(r => r.mapa_origem).filter(m => m && m !== '0'))];
+        const uniqueMapas = [...new Set(toInsert.map(r => r.mapa_origem).filter(m => m && m !== '0'))];
         if (uniqueMapas.length > 0) {
           const { data: mapaDates } = await supabase
             .from('mapa_historico')
@@ -371,19 +419,19 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
             .in('mapa', uniqueMapas);
           if (mapaDates) {
             for (const md of mapaDates) {
-              if (md.data_operacao && !uniqueDates.includes(md.data_operacao)) {
-                uniqueDates.push(md.data_operacao);
+              if (md.data_operacao && !allDates.includes(md.data_operacao)) {
+                allDates.push(md.data_operacao);
               }
             }
           }
         }
         
-        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: { data_referencia: uniqueDates } });
+        const { error: calcErr } = await supabase.functions.invoke('calculate-daily-indicators', { body: { data_referencia: allDates } });
         if (calcErr) console.error('Erro ao calcular indicadores:', calcErr);
         else toast.success('Indicadores recalculados automaticamente!');
 
         // Recalcular Caixas Batidas dos meses afetados
-        const mesesAfetados = [...new Set(uniqueDates.map(d => d.slice(0, 7)))];
+        const mesesAfetados = [...new Set(allDates.map(d => d.slice(0, 7)))];
         for (const mes of mesesAfetados) {
           const { error: cbErr } = await supabase.functions.invoke('calculate-caixas-batidas', { body: { mes } });
           if (cbErr) console.error('Erro ao calcular caixas batidas:', cbErr);
@@ -394,6 +442,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       }
 
       setRows([]);
+      setClassifications([]);
       setOpen(false);
       onSuccess();
     } catch (err: any) {
@@ -405,11 +454,11 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setRows([]); setTotalOriginal(0); } }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setRows([]); setClassifications([]); setFileName(''); setTotalOriginal(0); } }}>
       <DialogTrigger asChild>
         <Button><Upload className="h-4 w-4 mr-2" /> Importar CSV</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Importar 03.18.05 (CSV)</DialogTitle>
         </DialogHeader>
@@ -419,41 +468,28 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
             "Produto Avariado" ou "Quebra" serão importados.
           </p>
           <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleFile} className="block w-full text-sm" />
-          {rows.length > 0 && (
+          {classifications.length > 0 && (
             <div className="space-y-3">
               <p className="text-sm font-medium">
-                {totalOriginal} linhas no arquivo → <strong>{rows.length}</strong> registros filtrados
+                {totalOriginal} linhas no arquivo → <strong>{classifications.length}</strong> registros filtrados (justificativas válidas)
               </p>
-              <div className="max-h-48 overflow-auto rounded border text-xs">
-                <table className="w-full">
-                  <thead><tr className="bg-muted">
-                    <th className="p-1">Data</th>
-                    <th className="p-1">Justificativa</th>
-                    <th className="p-1">Cliente</th>
-                    <th className="p-1">Motorista</th>
-                    <th className="p-1">Valor</th>
-                  </tr></thead>
-                  <tbody>
-                    {rows.slice(0, 20).map((r, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="p-1">{r.data_solicitacao ?? '—'}</td>
-                        <td className="p-1">{r.justificativa}</td>
-                        <td className="p-1">{r.nome_cliente}</td>
-                        <td className="p-1">{r.motorista_nome}</td>
-                        <td className="p-1">R$ {r.valor.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {rows.length > 20 && <p className="p-1 text-center text-muted-foreground">... e mais {rows.length - 20}</p>}
-              </div>
+              <ImportPreviewTable
+                rows={classifications}
+                columns={[
+                  { key: 'data_solicitacao', label: 'Data', render: (r) => r.data_solicitacao ?? '—' },
+                  { key: 'justificativa', label: 'Justificativa', render: (r) => r.justificativa },
+                  { key: 'nome_cliente', label: 'Cliente', render: (r) => r.nome_cliente },
+                  { key: 'motorista_nome', label: 'Motorista', render: (r) => r.motorista_nome },
+                  { key: 'valor', label: 'Valor', align: 'right', render: (r) => `R$ ${r.valor.toFixed(2)}` },
+                ]}
+              />
               {importing && progress && <p className="text-xs text-muted-foreground text-center">{progress}</p>}
               <Button onClick={handleImport} disabled={importing} className="w-full">
                 {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</> : <><FileUp className="h-4 w-4 mr-2" /> Confirmar Importação</>}
               </Button>
             </div>
           )}
-          {rows.length === 0 && totalOriginal > 0 && (
+          {classifications.length === 0 && totalOriginal > 0 && (
             <p className="text-sm text-amber-600">
               Nenhum registro com justificativa "Produto Avariado" ou "Quebra" encontrado.
             </p>

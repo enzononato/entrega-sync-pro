@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createImportBatch } from '@/hooks/useImportBatches';
 
 interface Props {
   open: boolean;
@@ -182,6 +183,27 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
 
     const { data: { session } } = await supabase.auth.getSession();
 
+    // Cria batch para permitir desfazer (apenas novos colaboradores serão desativados no undo)
+    let batchId: string | null = null;
+    try {
+      const novos = rows.filter(r => !existingMatriculas.has(r.matricula.toUpperCase()));
+      batchId = await createImportBatch({
+        tipo: 'colaboradores',
+        arquivo_nome: fileName,
+        total_linhas: rows.length,
+        linhas_inseridas: novos.length,
+        linhas_duplicadas: rows.length - novos.length,
+        linhas_invalidas: 0,
+        payload_preview: rows.slice(0, 50).map(r => ({
+          matricula: r.matricula, nome: r.nome,
+          existente: existingMatriculas.has(r.matricula.toUpperCase()),
+        })),
+        metadata: { worker_type: workerType, unidade_id: unidadeId },
+      });
+    } catch (e) {
+      console.warn('Falha ao criar batch (importação seguirá sem undo):', e);
+    }
+
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batch = rows.slice(i, i + BATCH_SIZE);
       const results = await Promise.all(batch.map(row => processRow(row, session)));
@@ -195,6 +217,24 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
         }
       }
       setProgress({ current: Math.min(i + BATCH_SIZE, rows.length), total: rows.length });
+    }
+
+    // Marca os colaboradores recém-criados com o batch_id (apenas os criados, não os atualizados)
+    if (batchId) {
+      const matriculasNovas = rows
+        .filter(r => !existingMatriculas.has(r.matricula.toUpperCase()))
+        .map(r => r.matricula.toUpperCase());
+      if (matriculasNovas.length) {
+        try {
+          await (supabase.from('users') as any)
+            .update({ import_batch_id: batchId })
+            .eq('worker_type', workerType)
+            .in('matricula', matriculasNovas)
+            .is('import_batch_id', null);
+        } catch (e) {
+          console.warn('Falha ao vincular import_batch_id:', e);
+        }
+      }
     }
 
     setResult({ success, updated, errors });

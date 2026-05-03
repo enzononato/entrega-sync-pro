@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 import { formatDate } from '@/lib/formatters';
 import { Input } from '@/components/ui/input';
 import { DateRangePick } from '@/components/shared/DateRangePick';
+import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
+import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
+import { createImportBatch } from '@/hooks/useImportBatches';
 
 interface ParsedRow {
   data_operacao: string | null;
@@ -200,6 +203,8 @@ export default function Import031134() {
           <DataTable columns={dbColumns} data={filteredRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
         </CardContent>
       </Card>
+
+      <ImportHistoryPanel tipo="refugo_031134" />
     </div>
   );
 }
@@ -207,6 +212,8 @@ export default function Import031134() {
 function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [classifications, setClassifications] = useState<{ row: ParsedRow; status: RowStatus; reason?: string }[]>([]);
+  const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -214,9 +221,10 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const buf = ev.target?.result as ArrayBuffer;
       const text = decodeLatin(buf);
       const lines = text.split(/\r?\n/).filter(l => l.trim());
@@ -278,17 +286,47 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
       }
 
       setRows(allRows);
+
+      // Detecção de duplicidade: mapa + data_operacao + item (item importa pois há múltiplas linhas por mapa)
+      const existingSet = new Set<string>();
+      try {
+        const datas = [...new Set(allRows.map(r => r.data_operacao!).filter(Boolean))];
+        const mapas = [...new Set(allRows.map(r => r.mapa))];
+        if (datas.length && mapas.length) {
+          const { data } = await (supabase.from('refugo_031134') as any)
+            .select('mapa, data_operacao, item')
+            .in('mapa', mapas)
+            .in('data_operacao', datas);
+          data?.forEach((d: any) => existingSet.add(`${d.mapa}__${d.data_operacao}__${d.item ?? ''}`));
+        }
+      } catch (e) {
+        console.warn('Falha ao checar duplicidade:', e);
+      }
+
+      const seen = new Set<string>();
+      const cls = allRows.map(r => {
+        const k = `${r.mapa}__${r.data_operacao}__${r.item ?? ''}`;
+        let status: RowStatus = 'novo';
+        let reason: string | undefined;
+        if (!r.mapa || !r.data_operacao) { status = 'invalido'; reason = 'Mapa ou Data ausente'; }
+        else if (existingSet.has(k)) { status = 'duplicado'; reason = 'Já existe no banco'; }
+        else if (seen.has(k)) { status = 'duplicado'; reason = 'Repetido no CSV'; }
+        else seen.add(k);
+        return { row: r, status, reason };
+      });
+      setClassifications(cls);
     };
     reader.readAsArrayBuffer(file);
   };
 
   const handleImport = async () => {
-    if (!rows.length) return;
+    const toInsert = classifications.filter(c => c.status === 'novo').map(c => c.row);
+    if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
     setImporting(true);
     try {
       // Lookup matrículas → user_ids
       const allMatriculas = new Set<string>();
-      rows.forEach(r => {
+      toInsert.forEach(r => {
         const mot = r.cod_motorista?.trim();
         const aju = r.cod_ajudante?.trim();
         if (mot && mot !== '0' && mot !== '00000') allMatriculas.add(mot);
@@ -304,7 +342,19 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
         users?.forEach(u => { matriculaToUserId[u.matricula] = u.id; });
       }
 
-      const enriched = rows.map(r => {
+      const uniqueDates = [...new Set(toInsert.map(r => r.data_operacao!).filter(Boolean))];
+      const batchId = await createImportBatch({
+        tipo: 'refugo_031134',
+        arquivo_nome: fileName,
+        total_linhas: classifications.length,
+        linhas_inseridas: toInsert.length,
+        linhas_duplicadas: classifications.filter(c => c.status === 'duplicado').length,
+        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
+        payload_preview: classifications.slice(0, 50).map(c => ({ status: c.status, mapa: c.row.mapa, data: c.row.data_operacao, item: c.row.item })),
+        metadata: { datas: uniqueDates },
+      });
+
+      const enriched = toInsert.map(r => {
         const mot = r.cod_motorista?.trim();
         const aju = r.cod_ajudante?.trim();
         return {
@@ -312,14 +362,9 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
           mot_user_id: (mot && mot !== '0' && mot !== '00000') ? matriculaToUserId[mot] || null : null,
           aju1_user_id: (aju && aju !== '0' && aju !== '00000') ? matriculaToUserId[aju] || null : null,
           aju2_user_id: null,
+          import_batch_id: batchId,
         };
       });
-
-      // Limpa registros das datas que vão ser reimportadas (substituição)
-      const uniqueDates = [...new Set(rows.map(r => r.data_operacao!).filter(Boolean))];
-      if (uniqueDates.length > 0) {
-        await (supabase.from('refugo_031134') as any).delete().in('data_operacao', uniqueDates);
-      }
 
       const batchSize = 500;
       const totalBatches = Math.ceil(enriched.length / batchSize);
@@ -331,7 +376,7 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
         if (error) throw error;
       }
 
-      toast.success(`${rows.length} registros importados!`);
+      toast.success(`${toInsert.length} registros importados!`);
 
       // Recalcula indicadores das datas afetadas (inclui REFUGO)
       setProgress('Recalculando indicadores...');
@@ -344,6 +389,7 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
       }
 
       setRows([]);
+      setClassifications([]);
       setOpen(false);
       onSuccess();
     } catch (err: any) {
@@ -355,11 +401,11 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setRows([]); }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setRows([]); setClassifications([]); setFileName(''); } }}>
       <DialogTrigger asChild>
         <Button><Upload className="h-4 w-4 mr-2" /> Importar CSV</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Importar 03.11.34.05 (CSV)</DialogTitle>
         </DialogHeader>
@@ -368,34 +414,21 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
             CSV com separador <code>;</code> (encoding latin/Windows-1252). O % Refugo será aplicado aos ajudantes do mapa.
           </p>
           <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleFile} className="block w-full text-sm" />
-          {rows.length > 0 && (
+          {classifications.length > 0 && (
             <div className="space-y-3">
-              <p className="text-sm font-medium"><strong>{rows.length}</strong> registros prontos</p>
-              <div className="max-h-48 overflow-auto rounded border text-xs">
-                <table className="w-full">
-                  <thead><tr className="bg-muted">
-                    <th className="p-1 text-left">Data</th>
-                    <th className="p-1 text-left">Mapa</th>
-                    <th className="p-1 text-left">Motorista</th>
-                    <th className="p-1 text-left">Ajudante</th>
-                    <th className="p-1 text-right">% Refugo</th>
-                  </tr></thead>
-                  <tbody>
-                    {rows.slice(0, 20).map((r, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="p-1">{r.data_operacao}</td>
-                        <td className="p-1">{r.mapa}</td>
-                        <td className="p-1">{r.nome_motorista}</td>
-                        <td className="p-1">{r.nome_ajudante}</td>
-                        <td className="p-1 text-right">{r.pct_refugo.toFixed(2)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ImportPreviewTable
+                rows={classifications}
+                columns={[
+                  { key: 'data_operacao', label: 'Data', render: (r) => r.data_operacao ?? '—' },
+                  { key: 'mapa', label: 'Mapa', render: (r) => r.mapa },
+                  { key: 'nome_motorista', label: 'Motorista', render: (r) => r.nome_motorista },
+                  { key: 'nome_ajudante', label: 'Ajudante', render: (r) => r.nome_ajudante },
+                  { key: 'pct_refugo', label: '% Refugo', align: 'right', render: (r) => `${r.pct_refugo.toFixed(2)}%` },
+                ]}
+              />
               {progress && <p className="text-xs text-muted-foreground">{progress}</p>}
               <Button onClick={handleImport} disabled={importing} className="w-full">
-                {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</> : `Importar ${rows.length} registros`}
+                {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</> : `Confirmar importação`}
               </Button>
             </div>
           )}
