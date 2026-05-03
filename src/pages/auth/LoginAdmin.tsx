@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Eye, EyeOff, Shield, ArrowLeft } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Shield, ArrowLeft, TrendingUp } from 'lucide-react';
 
 export default function LoginAdmin() {
   const { user, loading: authLoading, signIn } = useAuth();
@@ -76,8 +76,8 @@ export default function LoginAdmin() {
           </button>
 
           <div className="flex flex-col items-center mb-8">
-            <div className="h-16 w-16 rounded-2xl overflow-hidden mb-5 shadow-glow-primary ring-1 ring-white/10">
-              <img src="/logo.png" alt="IncentivosPro" className="h-16 w-16 object-cover" />
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 mb-5 shadow-glow-primary ring-1 ring-white/10 flex items-center justify-center">
+              <TrendingUp className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-xl font-bold text-foreground tracking-tight">Painel Administrativo</h1>
             <p className="text-sm text-muted-foreground mt-1">Acesso restrito à liderança</p>
