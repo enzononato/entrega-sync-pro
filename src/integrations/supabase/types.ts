@@ -251,6 +251,60 @@ export type Database = {
           },
         ]
       }
+      import_batches: {
+        Row: {
+          arquivo_nome: string
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          imported_by: string | null
+          linhas_duplicadas: number
+          linhas_inseridas: number
+          linhas_invalidas: number
+          metadata: Json
+          payload_preview: Json
+          status: string
+          tipo: string
+          total_linhas: number
+          undone_at: string | null
+          undone_by: string | null
+        }
+        Insert: {
+          arquivo_nome?: string
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          imported_by?: string | null
+          linhas_duplicadas?: number
+          linhas_inseridas?: number
+          linhas_invalidas?: number
+          metadata?: Json
+          payload_preview?: Json
+          status?: string
+          tipo: string
+          total_linhas?: number
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Update: {
+          arquivo_nome?: string
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          imported_by?: string | null
+          linhas_duplicadas?: number
+          linhas_inseridas?: number
+          linhas_invalidas?: number
+          metadata?: Json
+          payload_preview?: Json
+          status?: string
+          tipo?: string
+          total_linhas?: number
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Relationships: []
+      }
       incentive_deductions: {
         Row: {
           created_at: string
@@ -494,6 +548,7 @@ export type Database = {
           hr_entr: string | null
           hr_sai: string | null
           id: string
+          import_batch_id: string | null
           km_desloc: number | null
           km_entr: number | null
           km_laco: number | null
@@ -545,6 +600,7 @@ export type Database = {
           hr_entr?: string | null
           hr_sai?: string | null
           id?: string
+          import_batch_id?: string | null
           km_desloc?: number | null
           km_entr?: number | null
           km_laco?: number | null
@@ -596,6 +652,7 @@ export type Database = {
           hr_entr?: string | null
           hr_sai?: string | null
           id?: string
+          import_batch_id?: string | null
           km_desloc?: number | null
           km_entr?: number | null
           km_laco?: number | null
@@ -670,6 +727,7 @@ export type Database = {
           detrator: number
           gap: number
           id: string
+          import_batch_id: string | null
           imported_by: string | null
           matricula: string
           meta: number
@@ -693,6 +751,7 @@ export type Database = {
           detrator?: number
           gap?: number
           id?: string
+          import_batch_id?: string | null
           imported_by?: string | null
           matricula: string
           meta?: number
@@ -716,6 +775,7 @@ export type Database = {
           detrator?: number
           gap?: number
           id?: string
+          import_batch_id?: string | null
           imported_by?: string | null
           matricula?: string
           meta?: number
@@ -749,6 +809,7 @@ export type Database = {
           descricao_item: string | null
           faltante: number | null
           id: string
+          import_batch_id: string | null
           imported_by: string | null
           item: string | null
           logomarca_estranha: number | null
@@ -790,6 +851,7 @@ export type Database = {
           descricao_item?: string | null
           faltante?: number | null
           id?: string
+          import_batch_id?: string | null
           imported_by?: string | null
           item?: string | null
           logomarca_estranha?: number | null
@@ -831,6 +893,7 @@ export type Database = {
           descricao_item?: string | null
           faltante?: number | null
           id?: string
+          import_batch_id?: string | null
           imported_by?: string | null
           item?: string | null
           logomarca_estranha?: number | null
@@ -871,6 +934,7 @@ export type Database = {
           descricao_unb: string | null
           hora: string | null
           id: string
+          import_batch_id: string | null
           imported_by: string | null
           justificativa: string | null
           mapa_origem: string | null
@@ -902,6 +966,7 @@ export type Database = {
           descricao_unb?: string | null
           hora?: string | null
           id?: string
+          import_batch_id?: string | null
           imported_by?: string | null
           justificativa?: string | null
           mapa_origem?: string | null
@@ -933,6 +998,7 @@ export type Database = {
           descricao_unb?: string | null
           hora?: string | null
           id?: string
+          import_batch_id?: string | null
           imported_by?: string | null
           justificativa?: string | null
           mapa_origem?: string | null
@@ -1247,6 +1313,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          import_batch_id: string | null
           matricula: string
           nome: string
           role: string
@@ -1262,6 +1329,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          import_batch_id?: string | null
           matricula?: string
           nome: string
           role?: string
@@ -1277,6 +1345,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          import_batch_id?: string | null
           matricula?: string
           nome?: string
           role?: string
