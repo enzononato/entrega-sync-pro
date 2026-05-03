@@ -256,6 +256,8 @@ export default function ImportRating() {
           <DataTable columns={dbColumns} data={filteredRows} loading={loadingDb} emptyMessage="Nenhum dado importado ainda." />
         </CardContent>
       </Card>
+
+      <ImportHistoryPanel tipo="rating" />
     </div>
   );
 }
@@ -263,6 +265,8 @@ export default function ImportRating() {
 function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [classifications, setClassifications] = useState<{ row: ParsedRow; status: RowStatus; reason?: string }[]>([]);
+  const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
   const [workerType, setWorkerType] = useState<'motorista' | 'ajudante'>('motorista');
@@ -279,15 +283,17 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
   const reset = () => {
     setRows([]); setProgress('');
+    setClassifications([]); setFileName('');
     if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = new Uint8Array(ev.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
@@ -341,7 +347,10 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           return;
         }
         setRows(parsed);
-        toast.success(`${parsed.length} colaboradores prontos para importar.`);
+
+        // Detecção de duplicidade — só faz sentido se mês/tipo/unidade já estiverem preenchidos
+        await classify(parsed);
+        toast.success(`${parsed.length} colaboradores carregados.`);
       } catch (err: any) {
         toast.error('Erro ao ler planilha: ' + err.message);
       }
@@ -349,8 +358,48 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
     reader.readAsArrayBuffer(file);
   };
 
+  const classify = async (parsed: ParsedRow[]) => {
+    if (!mesReferencia || !unidade.trim() || !workerType) {
+      // Marca todos como "novo" provisoriamente — re-classifica quando filtros estiverem prontos
+      setClassifications(parsed.map(r => ({ row: r, status: 'novo' as RowStatus })));
+      return;
+    }
+    const { inicio } = monthToRange(mesReferencia);
+    const matriculas = parsed.map(r => r.matricula);
+    const existingSet = new Set<string>();
+    try {
+      const { data } = await (supabase.from('rating_avaliacoes') as any)
+        .select('matricula')
+        .eq('data_referencia_inicio', inicio)
+        .eq('worker_type', workerType)
+        .eq('unidade', unidade.trim())
+        .in('matricula', matriculas);
+      data?.forEach((d: any) => existingSet.add(d.matricula));
+    } catch (e) {
+      console.warn('Falha ao checar duplicidade rating:', e);
+    }
+    const seen = new Set<string>();
+    const cls = parsed.map(r => {
+      let status: RowStatus = 'novo';
+      let reason: string | undefined;
+      if (!r.matricula) { status = 'invalido'; reason = 'Matrícula ausente'; }
+      else if (existingSet.has(r.matricula)) { status = 'duplicado'; reason = 'Já existe para este mês/tipo/unidade'; }
+      else if (seen.has(r.matricula)) { status = 'duplicado'; reason = 'Repetido na planilha'; }
+      else seen.add(r.matricula);
+      return { row: r, status, reason };
+    });
+    setClassifications(cls);
+  };
+
+  // Re-classifica quando os filtros mudam
+  useEffect(() => {
+    if (rows.length) classify(rows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mesReferencia, unidade, workerType]);
+
   const handleImport = async () => {
-    if (!rows.length) return;
+    const toInsert = classifications.filter(c => c.status === 'novo').map(c => c.row);
+    if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
     if (!mesReferencia) { toast.error('Informe o mês de referência.'); return; }
     if (!unidade.trim()) { toast.error('Informe a unidade/revenda.'); return; }
 
@@ -358,7 +407,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
     setImporting(true);
     try {
-      const matriculas = rows.map(r => r.matricula);
+      const matriculas = toInsert.map(r => r.matricula);
       const matriculaToUserId: Record<string, string> = {};
       const { data: users } = await supabase
         .from('users')
@@ -374,13 +423,25 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       const { data: authData } = await supabase.auth.getUser();
       const importedBy = authData.user?.id || null;
 
-      const enriched = rows.map(r => ({
+      const batchId = await createImportBatch({
+        tipo: 'rating',
+        arquivo_nome: fileName,
+        total_linhas: classifications.length,
+        linhas_inseridas: toInsert.length,
+        linhas_duplicadas: classifications.filter(c => c.status === 'duplicado').length,
+        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
+        payload_preview: classifications.slice(0, 50).map(c => ({ status: c.status, matricula: c.row.matricula, nome: c.row.nome, rating: c.row.rating })),
+        metadata: { mes: mesReferencia, worker_type: workerType, unidade: unidade.trim() },
+      });
+
+      const enriched = toInsert.map(r => ({
         data_referencia_inicio: inicio,
         data_referencia_fim: fim,
         worker_type: workerType,
         unidade: unidade.trim(),
         user_id: matriculaToUserId[r.matricula] || null,
         imported_by: importedBy,
+        import_batch_id: batchId,
         ...r,
       }));
 
@@ -390,9 +451,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         const batchNum = Math.floor(i / batchSize) + 1;
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length})`);
         const batch = enriched.slice(i, i + batchSize);
-        const { error } = await (supabase.from('rating_avaliacoes') as any).upsert(batch, {
-          onConflict: 'data_referencia_inicio,worker_type,unidade,matricula',
-        });
+        const { error } = await (supabase.from('rating_avaliacoes') as any).insert(batch);
         if (error) throw error;
       }
 
@@ -437,8 +496,8 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
       const matched = Object.keys(matriculaToUserId).length;
       toast.success(
-        `${rows.length} avaliações importadas/atualizadas! ` +
-        `${matched}/${rows.length} matrículas vinculadas. ` +
+        `${toInsert.length} avaliações importadas! ` +
+        `${matched}/${toInsert.length} matrículas vinculadas. ` +
         `${indicatorsUpserted} indicadores mensais atualizados.`
       );
       reset();
@@ -465,7 +524,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              Reimportar uma planilha do mesmo <strong>mês + tipo + unidade</strong> irá <strong>substituir</strong> os valores existentes (não duplica).
+              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão marcadas como <strong>duplicadas</strong> e ignoradas. Use "Desfazer" no histórico se precisar reimportar.
             </div>
           </div>
 
@@ -515,46 +574,27 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
             </p>
           </div>
 
-          {rows.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">{rows.length} colaboradores prontos para importar</p>
-              <div className="max-h-56 overflow-auto rounded border text-xs">
-                <table className="w-full">
-                  <thead><tr className="bg-muted">
-                    <th className="p-1 text-left">Matrícula</th>
-                    <th className="p-1 text-left">Nome</th>
-                    <th className="p-1 text-right">Avaliações</th>
-                    <th className="p-1 text-right">% Promotor</th>
-                    <th className="p-1 text-right">% Detrator</th>
-                    <th className="p-1 text-right">Rating</th>
-                  </tr></thead>
-                  <tbody>
-                    {rows.slice(0, 30).map((r, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="p-1">{r.matricula}</td>
-                        <td className="p-1">{r.nome}</td>
-                        <td className="p-1 text-right">{r.avaliacoes}</td>
-                        <td className="p-1 text-right">{r.pct_promotor.toFixed(2)}%</td>
-                        <td className="p-1 text-right">{r.pct_detrator.toFixed(2)}%</td>
-                        <td className="p-1 text-right">{r.rating.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {rows.length > 30 && (
-                <p className="text-xs text-muted-foreground">… e mais {rows.length - 30} linhas</p>
-              )}
-            </div>
+          {classifications.length > 0 && (
+            <ImportPreviewTable
+              rows={classifications}
+              columns={[
+                { key: 'matricula', label: 'Matrícula', render: (r) => r.matricula },
+                { key: 'nome', label: 'Nome', render: (r) => r.nome },
+                { key: 'avaliacoes', label: 'Avaliações', align: 'right', render: (r) => String(r.avaliacoes) },
+                { key: 'pct_promotor', label: '% Prom', align: 'right', render: (r) => `${r.pct_promotor.toFixed(2)}%` },
+                { key: 'pct_detrator', label: '% Det', align: 'right', render: (r) => `${r.pct_detrator.toFixed(2)}%` },
+                { key: 'rating', label: 'Rating', align: 'right', render: (r) => r.rating.toFixed(2) },
+              ]}
+            />
           )}
 
           {progress && <p className="text-sm text-primary">{progress}</p>}
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Cancelar</Button>
-            <Button onClick={handleImport} disabled={!rows.length || importing}>
+            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo') || importing}>
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              {importing ? 'Importando...' : `Importar ${rows.length || ''}`}
+              {importing ? 'Importando...' : `Confirmar`}
             </Button>
           </div>
         </div>
