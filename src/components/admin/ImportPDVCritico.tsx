@@ -581,6 +581,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
                   { key: 'categoria', label: 'Categoria', render: (r) => r.categoria ?? '—' },
                 ]}
               />
+              <DuplicatesPanel classifications={classifications} />
             </>
           )}
 
