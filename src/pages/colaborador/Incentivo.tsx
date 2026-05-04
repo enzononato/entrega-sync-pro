@@ -307,6 +307,12 @@ export default function IncentivoColaborador() {
               const bonusValor = (bonusDetail?.bonus ?? 0) + (bonusDetail?.atingiu_desafio ? (bonusDetail?.bonus_desafio ?? 0) : 0);
               const StatusIcon = bonusDetail ? (atingiu ? CheckCircle2 : XCircle) : Minus;
               const statusClr = bonusDetail ? (atingiu ? 'text-success' : 'text-destructive') : 'text-muted-foreground';
+              const codigo = m.indicators?.codigo ?? '';
+              const unidade = (m.indicators as any)?.unidade_medida ?? '';
+              const semPercent = codigo === 'PDV_CRITICO' || unidade === 'qtd' || unidade === 'unidades';
+              const higherBetter = codigo === 'PDV_CRITICO' || codigo === 'RATING';
+              const sufixo = semPercent ? '' : '%';
+              const cmp = higherBetter ? '≥' : '≤';
 
               return (
                 <div key={i} className="px-4 py-3">
@@ -321,16 +327,16 @@ export default function IncentivoColaborador() {
                           {fmtBRL(bonusValor)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
                         <span className="text-[10px] text-muted-foreground">
-                          Meta: ≤ {m.valor_meta}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                          Meta: {cmp} {m.valor_meta}{codigo === 'TX_REPOSICAO' ? '' : sufixo}
                         </span>
                         {valorAgregado != null && (
                           <span className={cn(
                             'text-[10px] font-bold px-2 py-0.5 rounded-full',
                             atingiu ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                           )}>
-                            Resultado: {valorAgregado}{m.indicators?.codigo === 'TX_REPOSICAO' ? '' : '%'}
+                            Resultado: {valorAgregado}{codigo === 'TX_REPOSICAO' ? '' : sufixo}
                           </span>
                         )}
                         {!bonusDetail && (
