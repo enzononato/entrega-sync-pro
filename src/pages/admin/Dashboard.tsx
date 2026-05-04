@@ -15,7 +15,7 @@ import { useCaixasBatidasAdminMes } from '@/hooks/useCaixasBatidas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
-import { DateRangePick } from '@/components/shared/DateRangePick';
+import { DateRangeFilter } from '@/components/shared/DateRangeFilter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -566,7 +566,12 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <DateRangePick from={dateFrom} to={dateTo} onChangeFrom={setDateFrom} onChangeTo={setDateTo} className="w-full sm:w-56" />
+              <DateRangeFilter
+                from={dateFrom}
+                to={dateTo}
+                onChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
+                className="w-full sm:w-56 bg-white/10 border-white/20 text-white hover:bg-white/15 hover:text-white"
+              />
               <Select value={unidadeFilter} onValueChange={v => setUnidadeFilter(v === 'all' ? '' : v)}>
                 <SelectTrigger className="w-full sm:w-44 h-9 text-xs bg-white/10 border-white/20 text-white"><SelectValue placeholder="Unidade" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">Todas</SelectItem>{allowedUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
