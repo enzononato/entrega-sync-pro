@@ -1,93 +1,121 @@
-# Plano — Exibir indicadores mensais (não-mapa) em Desempenho/Home
 
 ## Objetivo
 
-Hoje as telas de desempenho agrupam tudo por `mapa_numero`. Indicadores como o Rating, que são mensais e não estão atrelados a mapa, ficam num bucket "manual" confuso ou somem da visualização. Vamos:
+Criar o indicador **PDV_CRITICO** — exclusivo para motoristas, periodicidade **mensal** (mesmo padrão do RATING) — alimentado por uma nova planilha "Feedback Motorista" (aba `BEES`). Cada motorista é contado pela quantidade de feedbacks com `Estado = "Relevante"`, agrupados por mês e por semana. Meta = 5, Desafio = 15. Lógica "menor é melhor": atinge quando `count <= meta`.
 
-1. Marcar formalmente quais indicadores são **mensais** no banco.
-2. Renderizar uma **seção "Indicadores Mensais"** acima da listagem de mapas, em todas as telas relevantes — admin e colaborador.
-3. Manter a visualização por mapa intacta para os indicadores diários/operacionais.
+## Estrutura da planilha (aba BEES)
 
-A solução já fica preparada para os próximos indicadores não-mapa que você vai adicionar.
+Cabeçalhos relevantes detectados:
+- `Mês` (texto: janeiro…dezembro)
+- `Semana` (1–5)
+- `Motorista` (nome)
+- `Estado` (`Relevante` / `Irrelevante`) — só conta `Relevante`
+- `MATRICULA`
+- `CPF` (formato `031.785.465-88`)
+- `Categoria`, `Status`, `Data Notificação`, etc. (apenas armazenados como referência)
 
-## Mudança no banco
+Vinculação ao usuário: por **CPF normalizado** (somente dígitos) → `users.cpf`. Fallback por matrícula se CPF não bater.
 
-Adicionar coluna `periodicidade` na tabela `indicators`:
+## Mudanças no banco (migration)
 
-- Valores: `'diario'` (default) | `'mensal'`
-- Migrar o indicador **RATING** para `periodicidade = 'mensal'`.
-- Todos os demais indicadores existentes permanecem `'diario'`.
+1. **Inserir o indicador**:
+   ```sql
+   INSERT INTO indicators (codigo, nome, categoria, descricao, applies_to_worker_type, periodicidade)
+   VALUES ('PDV_CRITICO', 'PDV Crítico', 'Qualidade',
+           'Quantidade de feedbacks relevantes recebidos por motorista (BEES)',
+           'motorista', 'mensal');
+   ```
+   `PDV_CRITICO` já consta na ordem canônica em `src/lib/indicatorOrder.ts`, então aparece naturalmente.
 
-Quando você criar futuros indicadores não-mapa (ex: avaliação 360, NPS, etc.), basta marcar `periodicidade = 'mensal'` e eles entram automaticamente na nova seção, sem deploy.
+2. **Nova tabela `pdv_critico_feedbacks`** — fonte bruta (mesmo padrão de `rating_avaliacoes` e `mapa_historico`):
+   ```
+   id uuid pk
+   mes text                  -- 'janeiro'..'dezembro'
+   mes_num int               -- 1..12
+   ano int                   -- inferido (default ano corrente)
+   semana int                -- 0..5
+   data_referencia date      -- 1º dia do mês (para join mensal)
+   codigo_cliente text
+   cliente text
+   motorista_nome text
+   comentario text
+   estado text               -- 'Relevante' | 'Irrelevante'
+   data_notificacao date
+   tratado_por text
+   data_analise date
+   instrucao text
+   categoria text
+   status text
+   tmr numeric
+   matricula text
+   cpf text                  -- normalizado (só dígitos)
+   user_id uuid              -- resolvido por cpf/matricula
+   unidade_id uuid
+   import_batch_id uuid
+   imported_by uuid
+   created_at timestamptz default now()
+   ```
+   - RLS: admin full access; motorista lê os próprios (`user_id = get_user_id(auth.uid())`).
+   - Índices em `(cpf, mes_num, ano)`, `(user_id, data_referencia)`, `(import_batch_id)`.
+   - Constraint única para deduplicar: `(cpf, mes_num, ano, semana, codigo_cliente, comentario)`.
 
-## Telas afetadas
+3. **Metas**: inserir em `goals` para o indicador novo (worker_type = 'motorista', global ou por unidade):
+   - `valor_meta = 5`, `valor_desafio = 15`, `periodo_tipo = 'mensal'`, vigência atual.
 
-```text
-Admin
-  /admin/desempenho          → seção Mensais por colaborador (dentro do card expansível)
-  /admin/colaboradores       → ficha do colaborador: seção Mensais antes dos mapas
+## Importer no admin
 
-Colaborador
-  /colaborador/home          → seção Mensais antes da lista de mapas
-  /colaborador/incentivo     → bloco Mensais somando bônus mensais ao total
-```
+Novo componente `src/components/admin/ImportPDVCritico.tsx` + nova aba "PDV Crítico" em `src/pages/admin/Importacoes.tsx`. Reutiliza o fluxo já existente de **preview + duplicidade + undo** (mesmo padrão do `ImportRating`/`ImportMapasDialog`):
 
-## UX da seção "Indicadores Mensais"
+1. Upload `.xlsx` → ler aba `BEES` (usar `xlsx`/SheetJS — já é o padrão dos outros importers).
+2. Parse:
+   - Normaliza CPF (`replace(/\D/g, '')`).
+   - `mes_num` via mapa `{janeiro:1, fevereiro:2, ...}`.
+   - `data_referencia = ano-mes-01` (ano = ano corrente, ou input do admin).
+   - Resolve `user_id` por CPF; se não achar, tenta matrícula; sinaliza linhas sem vínculo.
+3. **Detecção de duplicidade**: para cada linha, gerar a chave única acima e marcar como duplicada se já existir naquele lote anterior (`status='confirmed'`).
+4. **Preview** em `<ImportPreviewTable>` mostrando: motorista, CPF, mês, semana, estado, categoria, status (vinculado/sem vínculo/duplicado).
+5. **Confirmação**: cria `import_batch` (tipo `'pdv_critico'`), insere `pdv_critico_feedbacks` com `import_batch_id`, dispara cálculo do indicador.
+6. **Undo**: reaproveita `useImportBatches` — ao desfazer, deleta linhas pelo `import_batch_id` e recalcula o indicador.
 
-Bloco visual distinto (card glassmorphism com header próprio), contendo:
+## Cálculo do indicador (mensal + semanal)
 
-- **Cabeçalho**: "Indicadores Mensais" + chip do mês de referência (ex: "Outubro/2026" — DD/MM/AAAA).
-- **Linhas**: uma por indicador mensal disponível no período. Para o Rating mostra:
-  - Valor realizado (ex: 4,98)
-  - Meta 4,95 → badge **Atingiu** (verde)
-  - Desafio 5,00 → badge **Atingiu Desafio** (azul/dourado) quando ≥ 5
-  - Bônus correspondente (R$ 52,50 ou R$ 62,50)
-- **Empty state**: "Nenhum indicador mensal importado para este período" quando não houver dado.
+Função em `src/lib/calcPdvCritico.ts` chamada após confirmar import e em `Importações → Recalcular Indicadores`:
 
-Mantém o padrão binário (Atingiu / Não Atingiu) já consagrado no projeto.
+- Para cada `(user_id, mes, ano)`:
+  - `valor_mensal = COUNT(*) WHERE estado='Relevante'`
+  - `meta = 5`, `desafio = 15`
+  - `status = valor_mensal <= 5 ? 'atingiu' : 'nao_atingiu'` (menor é melhor)
+  - `status_desafio = valor_mensal <= 15 ? 'atingiu' : 'nao_atingiu'`
+- Upsert em `user_indicator_daily` com `data_referencia = primeiro dia do mês`, `indicator_id = PDV_CRITICO`, `origem_dado = 'import_pdv_critico'`.
+- Para a **visão semanal**: armazenar nas mesmas linhas o detalhamento em campo derivado na UI (a tabela bruta já tem `semana`, então o front faz `GROUP BY semana` quando necessário). Não criamos linha por semana em `user_indicator_daily` para manter consistência com `RATING` (mensal puro).
 
-## Regra do filtro de período
+Edge function `calculate-monthly-bonus` precisa reconhecer `PDV_CRITICO` para somar bônus se aplicável (mesma regra binária do RATING).
 
-Quando o usuário seleciona um intervalo de datas:
+## UI — exibição
 
-- Para cada indicador mensal, identificar todo `mês de referência` que tenha **qualquer interseção** com o intervalo selecionado.
-- Mostrar o valor do mês completo, com a chip de mês deixando claro a referência.
-- Se o intervalo cobrir mais de um mês, exibir uma linha por mês (ordenado mais recente primeiro).
+- **Admin → Desempenho / Colaboradores**: já consome `splitByPeriodicidade`, então `PDV_CRITICO` aparece automaticamente na `<MonthlyIndicatorsSection>` ao lado do RATING. Badge binário (Atingiu/Não Atingiu) já vem do status persistido.
+- **Colaborador → Home (motoristas)**: o card mensal aparece automaticamente. Adicionar, abaixo do valor mensal, um mini-breakdown semanal (`Semana 1: 2`, `Semana 2: 4`, …) consultando `pdv_critico_feedbacks` agrupado.
+- **Colaborador → Incentivo**: indicador entra no cálculo do bônus mensal (binário, peso a definir junto com Rating; por padrão `valor_bonificacao` do `goals`).
+- **Ajudantes**: filtrado por `applies_to_worker_type='motorista'` — não exibido para ajudantes, conforme regra atual.
 
-## Detalhes técnicos
+## Arquivos a criar / editar
 
-### Banco
-- `ALTER TABLE indicators ADD COLUMN periodicidade text NOT NULL DEFAULT 'diario'` + check `('diario','mensal')`.
-- `UPDATE indicators SET periodicidade='mensal' WHERE codigo='RATING'`.
+Criar:
+- `supabase/migrations/<timestamp>_pdv_critico.sql`
+- `src/components/admin/ImportPDVCritico.tsx`
+- `src/lib/calcPdvCritico.ts`
+- `src/hooks/usePdvCritico.ts` (consulta agregada por semana p/ Home do motorista)
 
-### Tipos
-- Atualizar `Indicator` em `src/types/index.ts` com `periodicidade: 'diario' | 'mensal'`.
+Editar:
+- `src/pages/admin/Importacoes.tsx` (nova aba)
+- `src/components/admin/ImportHistoryPanel.tsx` (suportar tipo `pdv_critico`)
+- `src/hooks/useImportBatches.ts` (incluir `pdv_critico` no undo: deletar de `pdv_critico_feedbacks` e recalcular)
+- `src/pages/colaborador/Home.tsx` (mini-breakdown semanal só para motoristas)
+- `supabase/functions/calculate-monthly-bonus/index.ts` (incluir PDV_CRITICO no cálculo binário)
+- `src/lib/indicatorOrder.ts` (já contém `PDV_CRITICO` — sem mudança)
 
-### Hook de dados
-- `useDesempenhoDiario` já traz `indicators(...)` no select — incluir `periodicidade` na projeção.
-- Criar helper `splitByPeriodicidade(rows)` em `src/lib/indicatorPeriodicity.ts` retornando `{ diarios, mensais }`.
-- Para `mensais`, agrupar por `(user_id, indicator_id, ano-mês de data_referencia)`; manter o registro mais recente (já que reimport faz upsert no primeiro dia do mês).
+## Pontos de confirmação (responda na mensagem; sigo com defaults se preferir)
 
-### Componente reutilizável
-- Criar `src/components/shared/MonthlyIndicatorsSection.tsx` que recebe `rows` e `workerType` e renderiza o bloco. Usado nas 4 telas para garantir consistência visual.
-- Reutiliza `StatusBadge` e tokens de cor existentes.
-
-### Páginas
-- `src/pages/admin/Desempenho.tsx`: dentro do card expandido de cada colaborador, renderizar `<MonthlyIndicatorsSection>` antes do `Array.from(group.mapas...)`.
-- `src/pages/admin/Colaboradores.tsx`: idem, antes do `groupedByMapa.map(...)`.
-- `src/pages/colaborador/Home.tsx`: antes do `groupedByMapa.map(...)`. O contador de "Mapas" no header continua refletindo só mapas (não conta os mensais).
-- `src/pages/colaborador/Incentivo.tsx`: somar bônus mensais ao total estimado e listar abaixo dos diários.
-
-### Ranking / Bônus mensal
-- O cálculo de bônus mensal (`calculate-monthly-bonus`) já lê `user_indicator_daily`; nenhuma mudança funcional necessária. Apenas validar que o Rating entra corretamente no somatório (deve, pois usamos a mesma tabela com bônus 52,50/62,50).
-
-## Fora do escopo
-
-- Não criamos página dedicada nova; tudo é adicionado nas telas existentes.
-- Não alteramos o agrupamento por mapa atual.
-- Não mexemos em cálculo de gamificação/ranking — esses já consideram qualquer indicador atingido.
-
-## Memória a atualizar (após implementação)
-
-- Atualizar `mem://logic/indicators-and-status` mencionando a coluna `periodicidade` e a separação visual mensal vs diário.
-- Atualizar `mem://features/admin-performance-ui` e `mem://features/collaborator-dashboard` indicando a nova seção de mensais.
+1. **Ano de referência**: deduzimos pelo nome do arquivo (`_2026_3`)? Ou pedimos no formulário do importer? **Default sugerido**: campo `Ano` no importer com pré-seleção do ano corrente.
+2. **Bônus**: o PDV Crítico entra no cálculo de bônus mensal junto com o Rating (mesma estrutura binária)? **Default**: sim, com `valor_bonificacao` configurável em `goals`.
+3. **Vínculo sem CPF**: linhas sem CPF nem matrícula reconhecida — descartar ou importar mesmo assim como "sem vínculo" (não conta no indicador)? **Default**: importar como sem vínculo, exibir aviso no preview.
