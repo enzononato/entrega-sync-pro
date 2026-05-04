@@ -509,6 +509,17 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
         await recalcPdvCritico({ indicatorId, ano, mesesNum: Array.from(new Set(toInsert.map(r => r.mes_num))) });
       }
 
+      // Recalcula bônus mensal (user_incentives_daily) de cada mês afetado
+      const mesesAfetados = Array.from(new Set(toInsert.map(r => `${ano}-${String(r.mes_num).padStart(2, '0')}`)));
+      for (const mes of mesesAfetados) {
+        setProgress(`Recalculando bônus mensal de ${mes}...`);
+        try {
+          await supabase.functions.invoke('calculate-monthly-bonus', { body: { month: mes } });
+        } catch (e) {
+          console.warn('Falha ao recalcular bônus mensal de', mes, e);
+        }
+      }
+
       const matched = enriched.filter(r => r.user_id).length;
       toast.success(
         `${toInsert.length} feedbacks importados! ` +
