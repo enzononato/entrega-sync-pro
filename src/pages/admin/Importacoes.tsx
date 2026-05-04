@@ -8,15 +8,13 @@ import Import031134 from '@/components/admin/Import031134';
 import ImportRating from '@/components/admin/ImportRating';
 import ImportPDVCritico from '@/components/admin/ImportPDVCritico';
 import ImportRelatos from '@/components/admin/ImportRelatos';
-import { ImportMapasDialog } from '@/components/admin/ImportMapasDialog';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
-import { useQueryClient } from '@tanstack/react-query';
+import HistoricoMapas from '@/pages/admin/HistoricoMapas';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export default function Importacoes() {
   const [recalculating, setRecalculating] = useState(false);
-  const qc = useQueryClient();
 
   const handleRecalculate = async () => {
     setRecalculating(true);
@@ -55,18 +53,7 @@ export default function Importacoes() {
         </TabsList>
 
         <TabsContent value="mapas">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Importação de Mapas (mapa_historico)</h3>
-                <p className="text-sm text-muted-foreground">
-                  CSV da planilha de operação. Detecta duplicidade por mapa+data.
-                </p>
-              </div>
-              <ImportMapasDialog onSuccess={() => qc.invalidateQueries({ queryKey: ['import_batches'] })} />
-            </div>
-            <ImportHistoryPanel tipo="mapas" />
-          </div>
+          <HistoricoMapas />
         </TabsContent>
 
         <TabsContent value="03.18.05">
