@@ -1039,6 +1039,84 @@ export type Database = {
         }
         Relationships: []
       }
+      relatos_seguranca: {
+        Row: {
+          ano: number
+          cargo_relatante: string | null
+          classificacao: string | null
+          cpf: string | null
+          created_at: string
+          data_cadastrado: string
+          data_ocorrido: string | null
+          data_referencia: string
+          id: string
+          import_batch_id: string | null
+          imported_by: string | null
+          infracao: string | null
+          local: string | null
+          matricula: string | null
+          mes_num: number
+          prioridade: string | null
+          relato: string | null
+          relato_id: string | null
+          revenda: string | null
+          status: string | null
+          tipo: string | null
+          unidade_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ano: number
+          cargo_relatante?: string | null
+          classificacao?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_cadastrado: string
+          data_ocorrido?: string | null
+          data_referencia: string
+          id?: string
+          import_batch_id?: string | null
+          imported_by?: string | null
+          infracao?: string | null
+          local?: string | null
+          matricula?: string | null
+          mes_num: number
+          prioridade?: string | null
+          relato?: string | null
+          relato_id?: string | null
+          revenda?: string | null
+          status?: string | null
+          tipo?: string | null
+          unidade_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ano?: number
+          cargo_relatante?: string | null
+          classificacao?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_cadastrado?: string
+          data_ocorrido?: string | null
+          data_referencia?: string
+          id?: string
+          import_batch_id?: string | null
+          imported_by?: string | null
+          infracao?: string | null
+          local?: string | null
+          matricula?: string | null
+          mes_num?: number
+          prioridade?: string | null
+          relato?: string | null
+          relato_id?: string | null
+          revenda?: string | null
+          status?: string | null
+          tipo?: string | null
+          unidade_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       reposicao_031805: {
         Row: {
           aju_user_id: string | null

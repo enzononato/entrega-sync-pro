@@ -7,7 +7,8 @@ export type ImportBatchTipo =
   | 'refugo_031134'
   | 'reposicao_031805'
   | 'colaboradores'
-  | 'pdv_critico';
+  | 'pdv_critico'
+  | 'relatos';
 
 export interface ImportBatch {
   id: string;
@@ -34,6 +35,7 @@ const TARGET_TABLE: Record<ImportBatchTipo, string> = {
   reposicao_031805: 'reposicao_031805',
   colaboradores: 'users',
   pdv_critico: 'pdv_critico_feedbacks',
+  relatos: 'relatos_seguranca',
 };
 
 export const TIPO_LABEL: Record<ImportBatchTipo, string> = {
@@ -43,6 +45,7 @@ export const TIPO_LABEL: Record<ImportBatchTipo, string> = {
   reposicao_031805: '03.18.05 (Reposição)',
   colaboradores: 'Colaboradores',
   pdv_critico: 'PDV Crítico',
+  relatos: 'Relatos de Segurança',
 };
 
 export function useImportBatches(tipo?: ImportBatchTipo) {
@@ -144,6 +147,23 @@ export function useUndoImport() {
               .in('data_referencia', meses);
           } catch (e) {
             console.warn('Falha ao limpar indicador PDV Crítico no undo:', e);
+          }
+        }
+      }
+
+      // Relatos de Segurança: limpar entradas de user_indicator_daily geradas pelo lote
+      if (batch.tipo === 'relatos') {
+        const meses: string[] = batch.metadata?.meses ?? [];
+        const indicatorId: string | undefined = batch.metadata?.indicator_id;
+        if (meses.length && indicatorId) {
+          try {
+            await (supabase.from('user_indicator_daily') as any)
+              .delete()
+              .eq('indicator_id', indicatorId)
+              .eq('mapa_numero', 'MENSAL')
+              .in('data_referencia', meses);
+          } catch (e) {
+            console.warn('Falha ao limpar indicador Relatos no undo:', e);
           }
         }
       }
