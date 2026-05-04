@@ -64,7 +64,6 @@ export default function AppRoutes() {
         <Route path="logs-login" element={<LogsLoginAdmin />} />
         <Route path="ranking" element={<RankingAdmin />} />
         <Route path="usuarios" element={<UsuariosAdmin />} />
-        <Route path="historico-mapas" element={<HistoricoMapasAdmin />} />
         <Route path="importacoes" element={<ImportacoesAdmin />} />
       </Route>
 
