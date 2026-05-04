@@ -15,7 +15,8 @@ const isInIframe = (() => {
 const isPreviewHost =
   typeof window !== "undefined" &&
   (window.location.hostname.includes("id-preview--") ||
-    window.location.hostname.includes("lovableproject.com"));
+    window.location.hostname.includes("lovableproject.com") ||
+    window.location.hostname.includes("lovable.app"));
 
 if ("serviceWorker" in navigator) {
   if (isInIframe || isPreviewHost || import.meta.env.DEV) {
@@ -34,11 +35,16 @@ if ("serviceWorker" in navigator) {
           await Promise.all(cacheNames.map((n) => caches.delete(n)));
         }
 
-        // Evita loop de reload usando sessionStorage
-        const RELOAD_KEY = "__sw_cleanup_reloaded__";
+        // Evita loop de reload usando sessionStorage, mas invalida a URL do preview.
+        const RELOAD_KEY = "__sw_cleanup_reloaded_v3__";
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has("previewNoCache")) {
+          url.searchParams.set("previewNoCache", Date.now().toString());
+          window.history.replaceState(null, "", url.toString());
+        }
         if (hadStaleSW && !sessionStorage.getItem(RELOAD_KEY)) {
           sessionStorage.setItem(RELOAD_KEY, "1");
-          window.location.reload();
+          window.location.replace(url.toString());
         }
       } catch {
         // ignore
