@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, startOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, subMonths, parseISO, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIncentivoDiario, useIncentivoDiarioHistorico } from '@/hooks/useIncentivoDiario';
@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CaixasBatidasCard } from '@/components/colaborador/CaixasBatidasCard';
 import { useCaixasBatidasColaborador } from '@/hooks/useCaixasBatidas';
+import { MonthSelector } from '@/components/shared/MonthSelector';
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -27,16 +28,21 @@ export default function IncentivoColaborador() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [showAllDescontos, setShowAllDescontos] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
 
-  const { data: incentivo, isLoading: loadInc } = useIncentivoDiario(user?.id, today);
-  const { data: historico = [], isLoading: loadHist } = useIncentivoDiarioHistorico(user?.id, 30);
+  // Datas de referência derivadas do mês selecionado
+  const mesAtual = selectedMonth;
+  const isCurrentMonth = selectedMonth === format(new Date(), 'yyyy-MM');
+  const firstDayOfMonth = `${selectedMonth}-01`;
+  const lastDayOfMonth = format(endOfMonth(parseISO(firstDayOfMonth)), 'yyyy-MM-dd');
+  // Para o mês atual usamos hoje como referência diária; para meses passados, o último dia do mês.
+  const refDay = isCurrentMonth ? today : lastDayOfMonth;
+
+  const { data: incentivo, isLoading: loadInc } = useIncentivoDiario(user?.id, refDay);
+  const { data: historico = [], isLoading: loadHist } = useIncentivoDiarioHistorico(user?.id, 180);
   const { data: metas = [] } = useMetas({ vigentes: true });
-  const { data: desempenho = [] } = useDesempenhoDiario(today, today, { user_id: user?.id });
-  const { data: descontos = [] } = useDescontosColaborador(user?.id, 60);
-
-  // Monthly bonus record (stored on first day of month)
-  const mesAtual = format(new Date(), 'yyyy-MM');
-  const firstDayOfMonth = `${mesAtual}-01`;
+  const { data: desempenho = [] } = useDesempenhoDiario(refDay, refDay, { user_id: user?.id });
+  const { data: descontos = [] } = useDescontosColaborador(user?.id, 180);
   const { data: bonusMensal } = useQuery({
     queryKey: ['bonus_mensal', user?.id, mesAtual],
     queryFn: async () => {
@@ -198,7 +204,7 @@ export default function IncentivoColaborador() {
   const totalEstimado = breakdown.reduce((s, b) => s + b.valorGerado, 0);
   const valorHoje = incentivo?.valor_estimado ?? totalEstimado;
 
-  const mesAtualStr = format(new Date(), 'yyyy-MM');
+  const mesAtualStr = mesAtual;
   const mesHistorico = useMemo(() => historico.filter(h => h.data_referencia.startsWith(mesAtualStr)), [historico, mesAtualStr]);
   // historico já inclui as linhas agregadas do dia 01 (caixas_batidas e bonus_mensal),
   // portanto basta somar uma vez para obter o bônus acumulado do mês — sem re-adicionar caixas batidas.
@@ -224,11 +230,14 @@ export default function IncentivoColaborador() {
   return (
     <div className="space-y-5 stagger-children pb-2">
       {/* ── Header ─────────────────────────────── */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Remuneração Variável</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Remuneração Variável</h1>
+          <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+            {format(parseISO(firstDayOfMonth), "MMMM 'de' yyyy", { locale: ptBR })}
+          </p>
+        </div>
+        <MonthSelector value={selectedMonth} onChange={setSelectedMonth} className="h-8 w-[180px] rounded-full text-xs" />
       </div>
 
       {/* ── Hero Card ──────────────────────────── */}
@@ -284,8 +293,8 @@ export default function IncentivoColaborador() {
           <div className="px-4 py-3 flex items-center gap-2">
             <Award className="h-4 w-4 text-primary" />
             <span className="text-sm font-bold text-foreground">Bônus Mensal</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">
-              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+            <span className="ml-auto text-[10px] text-muted-foreground capitalize">
+              {format(parseISO(firstDayOfMonth), "MMMM 'de' yyyy", { locale: ptBR })}
             </span>
           </div>
           <div className="divide-y divide-border/40">
