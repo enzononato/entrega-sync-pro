@@ -11,7 +11,7 @@ import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetas } from '@/hooks/useMetas';
-import { useCaixasBatidasAdminMes } from '@/hooks/useCaixasBatidas';
+import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -74,12 +74,25 @@ export default function Dashboard() {
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
   const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
 
-  const mesAtual = format(new Date(), 'yyyy-MM');
-  const mesInicio = mesAtual + '-01';
-  const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-  // Bônus Estimado do mês atual: independe dos filtros do topo (unidade/perfil)
-  const { data: desempenhoMes = [] } = useDesempenhoDiario(mesInicio, mesFim);
-  const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminMes(mesAtual);
+  // Lista de meses (yyyy-MM) cobertos pelo período filtrado.
+  const mesesPeriodo = useMemo(() => {
+    if (!dateFrom || !dateTo) return [format(new Date(), 'yyyy-MM')];
+    const out: string[] = [];
+    const start = new Date(dateFrom.slice(0, 7) + '-01T00:00:00');
+    const end = new Date(dateTo.slice(0, 7) + '-01T00:00:00');
+    const cur = new Date(start);
+    while (cur <= end) {
+      out.push(format(cur, 'yyyy-MM'));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return out;
+  }, [dateFrom, dateTo]);
+  const mesAtual = mesesPeriodo[mesesPeriodo.length - 1] ?? format(new Date(), 'yyyy-MM');
+  const periodoInicio = (mesesPeriodo[0] ?? mesAtual) + '-01';
+  const periodoFim = format(endOfMonth(new Date(mesAtual + '-01T00:00:00')), 'yyyy-MM-dd');
+  // Bônus Estimado: agora respeita o período do filtro de datas (independe de unidade/perfil)
+  const { data: desempenhoMes = [] } = useDesempenhoDiario(periodoInicio, periodoFim);
+  const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
 
   // Bônus mensal pré-calculado pela edge function `calculate-monthly-bonus`.
   // Evita recalcular 6k+ linhas no cliente; lê apenas ~100 linhas agregadas.
@@ -103,12 +116,13 @@ export default function Dashboard() {
     };
   };
   const { data: bonusMensalRows = [], isFetching: isFetchingBonus, refetch: refetchBonusMensal } = useQuery({
-    queryKey: ['bonus-mensal', mesInicio],
+    queryKey: ['bonus-mensal', mesesPeriodo.join(',')],
     queryFn: async () => {
+      const datas = mesesPeriodo.map(m => `${m}-01`);
       const { data, error } = await supabase
         .from('user_incentives_daily')
         .select('user_id, valor_estimado, created_at, detalhes_json')
-        .eq('data_referencia', mesInicio);
+        .in('data_referencia', datas);
       if (error) throw error;
       return ((data ?? []) as unknown as BonusMensalRow[])
         .filter(r => r.detalhes_json?.tipo === 'bonus_mensal');
