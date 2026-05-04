@@ -10,13 +10,11 @@ import ImportPDVCritico from '@/components/admin/ImportPDVCritico';
 import ImportRelatos from '@/components/admin/ImportRelatos';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
 import HistoricoMapas from '@/pages/admin/HistoricoMapas';
-import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export default function Importacoes() {
   const [recalculating, setRecalculating] = useState(false);
-  const qc = useQueryClient();
 
   const handleRecalculate = async () => {
     setRecalculating(true);
