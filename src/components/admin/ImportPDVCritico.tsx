@@ -686,8 +686,10 @@ function DuplicatesPanel({
 /**
  * Recalcula o indicador mensal PDV_CRITICO em user_indicator_daily.
  * Para cada (user_id, mes, ano): conta feedbacks com estado='Relevante'.
- * - status: dentro_meta se valor <= 5; abaixo_meta se > 5 (menor é melhor)
- * - status_desafio: 'atingiu' se valor <= 15; 'nao_atingiu' caso contrário
+ * Lógica MAIOR é melhor:
+ * - status: dentro_meta se valor >= 5; abaixo_meta se < 5
+ * - status_desafio: 'atingiu' se valor >= 15; 'nao_atingiu' caso contrário
+ * Bônus: meta R$ 52,50 + desafio R$ 10,00 (configurado em goals).
  */
 export async function recalcPdvCritico(opts: { indicatorId: string; ano: number; mesesNum: number[] }) {
   const { indicatorId, ano, mesesNum } = opts;
@@ -724,8 +726,8 @@ export async function recalcPdvCritico(opts: { indicatorId: string; ano: number;
   const rows = Array.from(counts.entries()).map(([key, valor]) => {
     const [userId, anoStr, mesStr] = key.split('|');
     const data_referencia = `${anoStr}-${String(parseInt(mesStr, 10)).padStart(2, '0')}-01`;
-    const atingiuMeta = valor <= PDV_META;
-    const atingiuDesafio = valor <= PDV_DESAFIO;
+    const atingiuMeta = valor >= PDV_META;
+    const atingiuDesafio = valor >= PDV_DESAFIO;
     return {
       user_id: userId,
       indicator_id: indicatorId,
@@ -733,7 +735,7 @@ export async function recalcPdvCritico(opts: { indicatorId: string; ano: number;
       valor,
       meta: PDV_META,
       desafio: PDV_DESAFIO,
-      percentual_atingimento: PDV_META > 0 ? Math.max(0, (PDV_META - valor) / PDV_META) * 100 : 0,
+      percentual_atingimento: PDV_META > 0 ? Math.min(100, (valor / PDV_META) * 100) : 0,
       status: atingiuMeta ? 'dentro_meta' : 'abaixo_meta',
       status_desafio: atingiuDesafio ? 'atingiu' : 'nao_atingiu',
       origem_dado: 'import_pdv_critico',
