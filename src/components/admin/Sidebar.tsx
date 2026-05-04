@@ -32,7 +32,6 @@ const sections = [
       { title: 'Metas', url: '/admin/metas', icon: Flag },
       
       { title: 'Descontos', url: '/admin/descontos', icon: TrendingDown },
-      { title: 'Mapas', url: '/admin/historico-mapas', icon: Map },
       { title: 'Importações', url: '/admin/importacoes', icon: Upload },
     ],
   },
