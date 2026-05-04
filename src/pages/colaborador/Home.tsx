@@ -20,6 +20,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { MonthSelector } from '@/components/shared/MonthSelector';
+import { parseISO } from 'date-fns';
 import {
   CheckCircle, XCircle, DollarSign, ClipboardList,
   Trophy, ChevronRight, ChevronDown, Zap, Flame, Target, MapPin,
@@ -59,7 +61,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 
 type PeriodType = 'hoje' | 'semana' | 'mes' | 'custom';
 
-function getDateRange(period: PeriodType, customStart?: Date, customEnd?: Date) {
+function getDateRange(period: PeriodType, customStart?: Date, customEnd?: Date, selectedMonth?: string) {
   const today = new Date();
   switch (period) {
     case 'hoje':
@@ -69,8 +71,14 @@ function getDateRange(period: PeriodType, customStart?: Date, customEnd?: Date) 
       return { start: format(ws, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
     }
     case 'mes': {
-      const ms = startOfMonth(today);
-      return { start: format(ms, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      const ref = selectedMonth ? parseISO(selectedMonth + '-01') : today;
+      const ms = startOfMonth(ref);
+      const me = endOfMonth(ref);
+      const isCurrent = format(ref, 'yyyy-MM') === format(today, 'yyyy-MM');
+      return {
+        start: format(ms, 'yyyy-MM-dd'),
+        end: format(isCurrent ? today : me, 'yyyy-MM-dd'),
+      };
     }
     case 'custom':
       return {
@@ -95,10 +103,11 @@ export default function ColaboradorHome() {
 
   const [period, setPeriod] = useState<PeriodType>('hoje');
   const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
 
   const dateRange = useMemo(() =>
-    getDateRange(period, customRange.from, customRange.to),
-    [period, customRange]
+    getDateRange(period, customRange.from, customRange.to, selectedMonth),
+    [period, customRange, selectedMonth]
   );
 
   const { data: desempenho = [], isLoading: loadDes } = useDesempenhoDiario(dateRange.start, dateRange.end, { user_id: user?.id });
@@ -304,6 +313,13 @@ export default function ColaboradorHome() {
             />
           </PopoverContent>
         </Popover>
+        {period === 'mes' && (
+          <MonthSelector
+            value={selectedMonth}
+            onChange={setSelectedMonth}
+            className="h-8 w-[170px] rounded-full text-xs ml-auto"
+          />
+        )}
       </div>
 
       {/* ── Hero Score ────────────────────────────── */}
