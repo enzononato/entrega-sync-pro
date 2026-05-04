@@ -644,6 +644,8 @@ function DuplicatesPanel({
                 <th className="p-2 text-left">Mês</th>
                 <th className="p-2 text-right">Sem.</th>
                 <th className="p-2 text-left">Cliente</th>
+                <th className="p-2 text-left">Data Análise</th>
+                <th className="p-2 text-right">TMR</th>
                 <th className="p-2 text-left">Comentário</th>
               </tr>
             </thead>
@@ -662,6 +664,8 @@ function DuplicatesPanel({
                   <td className="p-2 truncate max-w-[160px]" title={d.row.cliente ?? ''}>
                     {d.row.cliente ?? '—'}
                   </td>
+                  <td className="p-2">{d.row.data_analise ?? '—'}</td>
+                  <td className="p-2 text-right">{d.row.tmr ?? '—'}</td>
                   <td className="p-2 truncate max-w-[260px]" title={d.row.comentario ?? ''}>
                     {d.row.comentario ?? '—'}
                   </td>
@@ -671,7 +675,7 @@ function DuplicatesPanel({
           </table>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
-          A chave de duplicidade é: <strong>CPF + Mês + Ano + Semana + Código do cliente + Comentário</strong>.
+          A chave de duplicidade é: <strong>CPF + Mês + Ano + Semana + Código do cliente + Comentário + Data Análise + TMR</strong>.
           "Banco" = já foi importado antes. "Planilha" = aparece mais de uma vez no arquivo atual.
         </p>
       </CollapsibleContent>
