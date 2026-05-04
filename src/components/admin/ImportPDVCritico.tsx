@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, Copy } from 'lucide-react';
 import { createImportBatch } from '@/hooks/useImportBatches';
 
 const PDV_CRITICO_INDICATOR_CODE = 'PDV_CRITICO';
@@ -579,6 +581,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
                   { key: 'categoria', label: 'Categoria', render: (r) => r.categoria ?? '—' },
                 ]}
               />
+              <DuplicatesPanel classifications={classifications} />
             </>
           )}
 
@@ -594,6 +597,81 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Recalcula o indicador mensal PDV_CRITICO em user_indicator_daily.
+ */
+function DuplicatesPanel({
+  classifications,
+}: {
+  classifications: { row: ParsedRow; status: RowStatus; reason?: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const dups = classifications.filter(c => c.status === 'duplicado');
+  if (!dups.length) return null;
+
+  const noBanco = dups.filter(c => c.reason === 'Já existe no banco').length;
+  const naPlanilha = dups.filter(c => c.reason === 'Repetido na planilha').length;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full justify-between">
+          <span className="flex items-center gap-2">
+            <Copy className="h-4 w-4 text-warning" />
+            Ver {dups.length} duplicado(s)
+            <span className="text-xs text-muted-foreground">
+              ({noBanco} já no banco · {naPlanilha} repetidos na planilha)
+            </span>
+          </span>
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2">
+        <div className="max-h-64 overflow-auto rounded border text-xs">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-muted z-10">
+              <tr>
+                <th className="p-2 text-left">Motivo</th>
+                <th className="p-2 text-left">Motorista</th>
+                <th className="p-2 text-left">CPF</th>
+                <th className="p-2 text-left">Mês</th>
+                <th className="p-2 text-right">Sem.</th>
+                <th className="p-2 text-left">Cliente</th>
+                <th className="p-2 text-left">Comentário</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dups.map((d, i) => (
+                <tr key={i} className="border-t">
+                  <td className="p-2">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] bg-warning/15 text-warning border-warning/30">
+                      {d.reason === 'Repetido na planilha' ? 'Planilha' : 'Banco'}
+                    </span>
+                  </td>
+                  <td className="p-2">{d.row.motorista_nome ?? '—'}</td>
+                  <td className="p-2">{d.row.cpf || '—'}</td>
+                  <td className="p-2">{d.row.mes}</td>
+                  <td className="p-2 text-right">{d.row.semana ?? '—'}</td>
+                  <td className="p-2 truncate max-w-[160px]" title={d.row.cliente ?? ''}>
+                    {d.row.cliente ?? '—'}
+                  </td>
+                  <td className="p-2 truncate max-w-[260px]" title={d.row.comentario ?? ''}>
+                    {d.row.comentario ?? '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          A chave de duplicidade é: <strong>CPF + Mês + Ano + Semana + Código do cliente + Comentário</strong>.
+          "Banco" = já foi importado antes. "Planilha" = aparece mais de uma vez no arquivo atual.
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
