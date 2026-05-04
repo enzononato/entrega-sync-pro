@@ -282,6 +282,11 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
 
         const parsed: ParsedRow[] = [];
         for (const r of json) {
+          const cpfRaw = String(r['CPF'] ?? r['cpf'] ?? '').trim();
+          const matRaw = String(r['MATRÍCULA'] ?? r['MATRICULA'] ?? r['Matrícula'] ?? r['Matricula'] ?? '').trim();
+          // Ignora linhas onde CPF ou matrícula é literalmente "0"
+          if (/^0+$/.test(cpfRaw.replace(/\D/g, '')) && cpfRaw !== '') continue;
+          if (/^0+$/.test(matRaw) && matRaw !== '') continue;
           const cpf = normalizeCpf(r['CPF'] ?? r['cpf']);
           const matricula = normalizeMatricula(r['MATRÍCULA'] ?? r['MATRICULA'] ?? r['Matrícula'] ?? r['Matricula']);
           if (!cpf && !matricula) continue;
