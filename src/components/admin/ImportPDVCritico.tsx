@@ -343,7 +343,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
     const existingKeys = new Set<string>();
     try {
       const { data } = await (supabase.from('pdv_critico_feedbacks' as any) as any)
-        .select('cpf, mes_num, ano, semana, codigo_cliente, comentario')
+        .select('cpf, mes_num, ano, semana, codigo_cliente, comentario, data_analise, tmr')
         .eq('ano', anoRef)
         .in('mes_num', mesesNum);
       data?.forEach((d: any) => {
@@ -355,6 +355,8 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
           d.codigo_cliente || '',
           // hash leve do comentário
           (d.comentario || '').slice(0, 60),
+          d.data_analise || '',
+          d.tmr ?? '',
         ].join('|');
         existingKeys.add(key);
       });
@@ -371,6 +373,8 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
         row.semana ?? 0,
         row.codigo_cliente || '',
         (row.comentario || '').slice(0, 60),
+        row.data_analise || '',
+        row.tmr ?? '',
       ].join('|');
 
       let status: RowStatus = 'novo';
@@ -536,7 +540,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              Apenas linhas com <strong>Estado = Relevante</strong> contam para o indicador. Vínculo é feito por <strong>CPF</strong> (com fallback para matrícula). Linhas iguais (mesmo CPF + mês + semana + cliente + comentário) já existentes serão marcadas como <strong>duplicadas</strong> e ignoradas.
+              Apenas linhas com <strong>Estado = Relevante</strong> contam para o indicador. Vínculo é feito por <strong>CPF</strong> (com fallback para matrícula). Linhas iguais (mesmo CPF + mês + semana + cliente + comentário + data análise + TMR) já existentes serão marcadas como <strong>duplicadas</strong> e ignoradas.
             </div>
           </div>
 
