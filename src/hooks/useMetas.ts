@@ -70,3 +70,39 @@ export function useToggleMetaAtivo() {
     onError: () => { toast({ title: 'Erro ao atualizar.', variant: 'destructive' }); },
   });
 }
+
+/**
+ * Versão enxuta para dashboards: só os campos usados pelos cálculos de
+ * bônus/desafio (sem `units`, sem `users`, sem timestamps). Reduz payload
+ * e tempo de parse quando há muitas metas ativas.
+ */
+export interface GoalSlim {
+  id: string;
+  indicator_id: string;
+  unidade_id: string | null;
+  worker_type: string | null;
+  user_id: string | null;
+  valor_meta: number;
+  valor_bonificacao: number;
+  valor_desafio: number;
+  valor_bonificacao_desafio: number;
+  periodo_tipo: string;
+  indicators: { codigo: string; nome: string; applies_to_worker_type?: string } | null;
+}
+export function useMetasDashboard() {
+  return useQuery({
+    queryKey: ['goals_slim_dashboard'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('goals')
+        .select('id, indicator_id, unidade_id, worker_type, user_id, valor_meta, valor_bonificacao, valor_desafio, valor_bonificacao_desafio, periodo_tipo, indicators(codigo, nome, applies_to_worker_type)')
+        .eq('ativo', true)
+        .lte('vigencia_inicio', today)
+        .or(`vigencia_fim.is.null,vigencia_fim.gte.${today}`);
+      if (error) throw error;
+      return (data ?? []) as unknown as GoalSlim[];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
