@@ -718,6 +718,90 @@ export type Database = {
           },
         ]
       }
+      pdv_critico_feedbacks: {
+        Row: {
+          ano: number
+          categoria: string | null
+          cliente: string | null
+          codigo_cliente: string | null
+          comentario: string | null
+          cpf: string | null
+          created_at: string
+          data_analise: string | null
+          data_notificacao: string | null
+          data_referencia: string
+          estado: string | null
+          id: string
+          import_batch_id: string | null
+          imported_by: string | null
+          instrucao: string | null
+          matricula: string | null
+          mes: string
+          mes_num: number
+          motorista_nome: string | null
+          semana: number | null
+          status: string | null
+          tmr: number | null
+          tratado_por: string | null
+          unidade_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ano: number
+          categoria?: string | null
+          cliente?: string | null
+          codigo_cliente?: string | null
+          comentario?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_analise?: string | null
+          data_notificacao?: string | null
+          data_referencia: string
+          estado?: string | null
+          id?: string
+          import_batch_id?: string | null
+          imported_by?: string | null
+          instrucao?: string | null
+          matricula?: string | null
+          mes: string
+          mes_num: number
+          motorista_nome?: string | null
+          semana?: number | null
+          status?: string | null
+          tmr?: number | null
+          tratado_por?: string | null
+          unidade_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ano?: number
+          categoria?: string | null
+          cliente?: string | null
+          codigo_cliente?: string | null
+          comentario?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_analise?: string | null
+          data_notificacao?: string | null
+          data_referencia?: string
+          estado?: string | null
+          id?: string
+          import_batch_id?: string | null
+          imported_by?: string | null
+          instrucao?: string | null
+          matricula?: string | null
+          mes?: string
+          mes_num?: number
+          motorista_nome?: string | null
+          semana?: number | null
+          status?: string | null
+          tmr?: number | null
+          tratado_por?: string | null
+          unidade_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
