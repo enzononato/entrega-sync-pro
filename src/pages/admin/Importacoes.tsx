@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import Import031805 from '@/components/admin/Import031805';
 import Import031134 from '@/components/admin/Import031134';
 import ImportRating from '@/components/admin/ImportRating';
+import ImportPDVCritico from '@/components/admin/ImportPDVCritico';
 import { ImportMapasDialog } from '@/components/admin/ImportMapasDialog';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
 import { useQueryClient } from '@tanstack/react-query';
@@ -47,6 +48,7 @@ export default function Importacoes() {
           <TabsTrigger value="03.18.05">03.18.05</TabsTrigger>
           <TabsTrigger value="03.11.34.05">03.11.34.05</TabsTrigger>
           <TabsTrigger value="rating">Rating</TabsTrigger>
+          <TabsTrigger value="pdv_critico">PDV Crítico</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
@@ -75,6 +77,10 @@ export default function Importacoes() {
 
         <TabsContent value="rating">
           <ImportRating />
+        </TabsContent>
+
+        <TabsContent value="pdv_critico">
+          <ImportPDVCritico />
         </TabsContent>
 
         <TabsContent value="historico">
