@@ -1,0 +1,1 @@
+UPDATE public.indicators SET periodicidade = 'mensal' WHERE codigo = 'PDV_CRITICO';
