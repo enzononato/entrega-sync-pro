@@ -320,7 +320,7 @@ export default function Metas() {
                           if (g.valor_meta > 200) return formatMinutesHHMM(g.valor_meta);
                           const unidade = g.indicators?.unidade_medida;
                           if (unidade === 'R$') return `R$ ${g.valor_meta.toFixed(2).replace('.', ',')}`;
-                          if (codigo === 'PDV_CRITICO' || unidade === 'qtd' || unidade === 'unidades') return `${g.valor_meta}`;
+                          if (codigo === 'PDV_CRITICO' || codigo === 'RELATOS' || unidade === 'qtd' || unidade === 'unidades') return `${g.valor_meta}`;
                           return `${g.valor_meta}%`;
                         })()}
                       </span>
@@ -349,7 +349,7 @@ export default function Metas() {
                             if (g.valor_desafio > 200) return formatMinutesHHMM(g.valor_desafio);
                             const unidade = g.indicators?.unidade_medida;
                             if (unidade === 'R$') return `R$ ${g.valor_desafio.toFixed(2).replace('.', ',')}`;
-                            if (codigo === 'PDV_CRITICO' || unidade === 'qtd' || unidade === 'unidades') return `${g.valor_desafio}`;
+                            if (codigo === 'PDV_CRITICO' || codigo === 'RELATOS' || unidade === 'qtd' || unidade === 'unidades') return `${g.valor_desafio}`;
                             return `${g.valor_desafio}%`;
                           })()}
                         </span>
