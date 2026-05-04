@@ -87,6 +87,78 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
   });
 }
 
+/**
+ * Versão enxuta para dashboards: pula o join `users` e baixa apenas os
+ * campos necessários para contagens / gráficos (status, indicator, datas,
+ * desafio). Reduz dramaticamente o payload em períodos longos.
+ */
+export interface DesempenhoSlim {
+  indicator_id: string;
+  data_referencia: string;
+  status: string | null;
+  status_desafio: string | null;
+  desafio: number | null;
+  indicators: { nome: string; codigo: string; periodicidade?: 'diario' | 'mensal' } | null;
+}
+export function useDesempenhoDashboard(
+  dataInicio: string,
+  dataFim: string,
+  filters?: { unidade_id?: string; worker_type?: string },
+) {
+  return useQuery({
+    queryKey: ['user_indicator_daily_slim', dataInicio, dataFim, filters],
+    queryFn: async () => {
+      let preFilteredUserIds: string[] | null = null;
+      if (filters?.unidade_id || filters?.worker_type) {
+        let uq = supabase.from('users').select('id');
+        if (filters?.unidade_id) uq = uq.eq('unidade_id', filters.unidade_id);
+        if (filters?.worker_type) uq = uq.eq('worker_type', filters.worker_type);
+        const { data: uList, error: uErr } = await uq;
+        if (uErr) throw uErr;
+        preFilteredUserIds = (uList ?? []).map(u => u.id);
+        if (preFilteredUserIds.length === 0) return [] as DesempenhoSlim[];
+      }
+      const startOfMonth = (d: string) => `${d.slice(0, 7)}-01`;
+      const endOfMonth = (d: string) => {
+        const [y, m] = d.split('-').map(Number);
+        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        return `${d.slice(0, 7)}-${String(last).padStart(2, '0')}`;
+      };
+      const fetchFrom = startOfMonth(dataInicio);
+      const fetchTo = endOfMonth(dataFim);
+
+      const PAGE_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+      while (true) {
+        let q = supabase.from('user_indicator_daily')
+          .select('indicator_id, data_referencia, status, status_desafio, desafio, indicators(nome, codigo, periodicidade)')
+          .gte('data_referencia', fetchFrom)
+          .lte('data_referencia', fetchTo)
+          .range(from, from + PAGE_SIZE - 1);
+        if (preFilteredUserIds) q = q.in('user_id', preFilteredUserIds);
+        const { data: page, error } = await q;
+        if (error) throw error;
+        if (!page || page.length === 0) break;
+        allRows = allRows.concat(page);
+        if (page.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      const inicioYM = dataInicio.slice(0, 7);
+      const fimYM = dataFim.slice(0, 7);
+      return (allRows as DesempenhoSlim[]).filter(r => {
+        const isMonthly = r.indicators?.periodicidade === 'mensal';
+        if (isMonthly) {
+          const ym = (r.data_referencia ?? '').slice(0, 7);
+          return ym >= inicioYM && ym <= fimYM;
+        }
+        return r.data_referencia >= dataInicio && r.data_referencia <= dataFim;
+      });
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useDesempenhoPorColaborador(userId: string | undefined, dataInicio: string, dataFim: string) {
   return useQuery({
     queryKey: ['user_indicator_daily', 'byUser', userId, dataInicio, dataFim],
