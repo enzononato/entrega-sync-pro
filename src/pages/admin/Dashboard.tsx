@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
-import { useDesempenhoDiario } from '@/hooks/useDesempenho';
+import { useDesempenhoDiario, useDesempenhoDashboard } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetas } from '@/hooks/useMetas';
 import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
@@ -67,7 +67,7 @@ export default function Dashboard() {
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
   const { data: planos = [] } = usePlanosDeAcao();
-  const { data: desempenho = [] } = useDesempenhoDiario(dateFrom, dateTo, {
+  const { data: desempenho = [] } = useDesempenhoDashboard(dateFrom, dateTo, {
     unidade_id: unidadeFilter || undefined,
     worker_type: tipoFilter || undefined,
   });
