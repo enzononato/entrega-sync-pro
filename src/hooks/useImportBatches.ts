@@ -6,7 +6,8 @@ export type ImportBatchTipo =
   | 'rating'
   | 'refugo_031134'
   | 'reposicao_031805'
-  | 'colaboradores';
+  | 'colaboradores'
+  | 'pdv_critico';
 
 export interface ImportBatch {
   id: string;
@@ -32,6 +33,7 @@ const TARGET_TABLE: Record<ImportBatchTipo, string> = {
   refugo_031134: 'refugo_031134',
   reposicao_031805: 'reposicao_031805',
   colaboradores: 'users',
+  pdv_critico: 'pdv_critico_feedbacks',
 };
 
 export const TIPO_LABEL: Record<ImportBatchTipo, string> = {
@@ -40,6 +42,7 @@ export const TIPO_LABEL: Record<ImportBatchTipo, string> = {
   refugo_031134: '03.11.34 (Refugo)',
   reposicao_031805: '03.18.05 (Reposição)',
   colaboradores: 'Colaboradores',
+  pdv_critico: 'PDV Crítico',
 };
 
 export function useImportBatches(tipo?: ImportBatchTipo) {
@@ -118,13 +121,30 @@ export function useUndoImport() {
 
       // Recalcular indicadores quando aplicável
       const datasAfetadas: string[] = batch.metadata?.datas ?? [];
-      if (datasAfetadas.length && batch.tipo !== 'colaboradores' && batch.tipo !== 'rating') {
+      if (datasAfetadas.length && batch.tipo !== 'colaboradores' && batch.tipo !== 'rating' && batch.tipo !== 'pdv_critico') {
         try {
           await supabase.functions.invoke('calculate-daily-indicators', {
             body: { data_referencia: datasAfetadas },
           });
         } catch (e) {
           console.warn('Falha ao recalcular indicadores no undo:', e);
+        }
+      }
+
+      // PDV Crítico: limpar entradas de user_indicator_daily geradas pelo lote
+      if (batch.tipo === 'pdv_critico') {
+        const meses: string[] = batch.metadata?.meses ?? [];
+        const indicatorId: string | undefined = batch.metadata?.indicator_id;
+        if (meses.length && indicatorId) {
+          try {
+            await (supabase.from('user_indicator_daily') as any)
+              .delete()
+              .eq('indicator_id', indicatorId)
+              .eq('mapa_numero', 'MENSAL')
+              .in('data_referencia', meses);
+          } catch (e) {
+            console.warn('Falha ao limpar indicador PDV Crítico no undo:', e);
+          }
         }
       }
     },
