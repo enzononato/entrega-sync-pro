@@ -27,6 +27,7 @@ const SUM_INDICATORS = new Set([INDICATOR_IDS.TX_REPOSICAO]);
 // All others: lower is better (atingiu when valor <= meta)
 const HIGHER_IS_BETTER = new Set<string>([
   "853beb35-febb-48b9-b3ae-be7173bfc6fc", // RATING
+  "7eb7d062-98b4-48ee-bb39-ab350ee69d5b", // PDV_CRITICO
 ]);
 
 Deno.serve(async (req) => {
