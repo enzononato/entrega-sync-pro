@@ -76,7 +76,9 @@ export default function IncentivoColaborador() {
   }, []);
 
   const { data: historicoMensal = [] } = useQuery({
-    queryKey: ['incentivo_historico_mensal', user?.id, meses6.map(m => m.value).join(',')],
+    queryKey: ['incentivo_historico_mensal', user?.id, meses6.map(m => m.value).join(','), selectedMonth],
+    refetchOnMount: 'always',
+    staleTime: 0,
     queryFn: async () => {
       if (!user?.id) return [];
       const firstDays = meses6.map(m => m.firstDay);
