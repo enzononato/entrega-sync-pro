@@ -605,7 +605,11 @@ export default function Dashboard() {
           <HeroStat
             icon={<DollarSign className="h-4 w-4" />}
             value={fmtBRL(bonusTotalMes)}
-            label={`Bônus Estimado · ${format(new Date(), 'MMMM', { locale: ptBR })}`}
+            label={`Bônus Estimado · ${
+              mesesPeriodo.length === 1
+                ? format(new Date(mesesPeriodo[0] + '-01T00:00:00'), 'MMMM', { locale: ptBR })
+                : `${mesesPeriodo.length} meses`
+            }`}
             sub={`Metas ${fmtBRL(bonusMes)} + Cx. Batidas ${fmtBRL(caixasBatidasTotal)}`}
             isSmall
             onClick={() => setBonusDetailOpen(true)}
