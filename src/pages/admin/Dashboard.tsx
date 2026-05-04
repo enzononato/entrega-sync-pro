@@ -10,7 +10,7 @@ import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
 import { useDesempenhoDiario, useDesempenhoDashboard } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
-import { useMetas } from '@/hooks/useMetas';
+import { useMetasDashboard } from '@/hooks/useMetas';
 import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -72,7 +72,7 @@ export default function Dashboard() {
     worker_type: tipoFilter || undefined,
   });
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
-  const { data: metasAtivas = [] } = useMetas({ ativo: 'true' });
+  const { data: metasAtivas = [] } = useMetasDashboard();
 
   // Lista de meses (yyyy-MM) cobertos pelo período filtrado.
   const mesesPeriodo = useMemo(() => {
