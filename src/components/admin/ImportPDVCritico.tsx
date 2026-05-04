@@ -373,8 +373,11 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
 
       let status: RowStatus = 'novo';
       let reason: string | undefined;
+      const estadoNorm = (row.estado || '').trim().toLowerCase();
       if (!row.cpf && !row.matricula) {
         status = 'invalido'; reason = 'Sem CPF nem matrícula';
+      } else if (estadoNorm !== 'relevante') {
+        status = 'invalido'; reason = `Estado "${row.estado || '—'}" (não conta no indicador)`;
       } else if (existingKeys.has(key)) {
         status = 'duplicado'; reason = 'Já existe no banco';
       } else if (seen.has(key)) {
