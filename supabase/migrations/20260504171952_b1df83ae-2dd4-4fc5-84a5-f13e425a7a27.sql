@@ -1,0 +1,2 @@
+ALTER TABLE public.import_batches DROP CONSTRAINT import_batches_tipo_check;
+ALTER TABLE public.import_batches ADD CONSTRAINT import_batches_tipo_check CHECK (tipo = ANY (ARRAY['mapas'::text, '03.18.05'::text, '03.11.34.05'::text, 'rating'::text, 'pdv_critico'::text, 'relatos'::text, 'colaboradores'::text, 'matriculas'::text, 'desempenho'::text, 'caixas_batidas'::text]));
