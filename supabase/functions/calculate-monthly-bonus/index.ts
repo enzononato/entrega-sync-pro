@@ -28,6 +28,7 @@ const SUM_INDICATORS = new Set([INDICATOR_IDS.TX_REPOSICAO]);
 const HIGHER_IS_BETTER = new Set<string>([
   "853beb35-febb-48b9-b3ae-be7173bfc6fc", // RATING
   "7eb7d062-98b4-48ee-bb39-ab350ee69d5b", // PDV_CRITICO
+  "8d6d8371-be03-441b-ba7b-f634d75177e9", // RELATOS
 ]);
 
 Deno.serve(async (req) => {
