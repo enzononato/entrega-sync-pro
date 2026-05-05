@@ -284,7 +284,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setRows([]); setClassifications([]); setFileName(''); } }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setRows([]); setClassifications([]); setFileName(''); setInvalidLines([]); setSkipped({}); setDetectedCols([]); } }}>
       <DialogTrigger asChild>
         <Button><Upload className="h-4 w-4 mr-2" /> Importar CSV</Button>
       </DialogTrigger>
