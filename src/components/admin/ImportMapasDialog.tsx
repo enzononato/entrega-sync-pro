@@ -221,6 +221,26 @@ export function ImportMapasDialog({ onSuccess }: Props) {
 
       const uniqueDates = [...new Set(toInsert.map(r => String((r as any).data_operacao)))].filter(Boolean);
 
+      // Cria o batch ANTES para vincular import_batch_id (necessário para o undo).
+      // Em caso de erro abaixo, removemos o batch para não ficar "confirmado" sem dados.
+      batchId = await createImportBatch({
+        tipo: 'mapas',
+        arquivo_nome: fileName,
+        total_linhas: classifications.length,
+        linhas_inseridas: 0,
+        linhas_duplicadas: classifications.filter(c => c.status === 'duplicado').length,
+        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
+        payload_preview: classifications.slice(0, 200).map(c => ({
+          status: c.status,
+          reason: c.reason,
+          mapa: (c.row as any).mapa,
+          data: (c.row as any).data_operacao,
+          placa: (c.row as any).placa,
+          cd_mot: (c.row as any).cd_mot,
+        })),
+        metadata: { datas: uniqueDates },
+      });
+
       const enriched = toInsert.map(r => {
         const mot = String(r.cd_mot || '').trim();
         const a1 = String(r.cd_aju1 || '').trim();
@@ -230,6 +250,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
           mot_user_id: (mot && mot !== '0') ? motMap[mot] || null : null,
           aju1_user_id: (a1 && a1 !== '0') ? ajuMap[a1] || null : null,
           aju2_user_id: (a2 && a2 !== '0') ? ajuMap[a2] || null : null,
+          import_batch_id: batchId,
         };
       });
 
@@ -253,26 +274,15 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         duplicadosNoInsert += batch.length - got;
       }
 
-      // Cria o batch SOMENTE após o insert bem-sucedido, com contagens reais.
+      // Atualiza contagens reais no batch
       const totalDuplicadas =
         classifications.filter(c => c.status === 'duplicado').length + duplicadosNoInsert;
-      batchId = await createImportBatch({
-        tipo: 'mapas',
-        arquivo_nome: fileName,
-        total_linhas: classifications.length,
-        linhas_inseridas: inseridos,
-        linhas_duplicadas: totalDuplicadas,
-        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
-        payload_preview: classifications.slice(0, 200).map(c => ({
-          status: c.status,
-          reason: c.reason,
-          mapa: (c.row as any).mapa,
-          data: (c.row as any).data_operacao,
-          placa: (c.row as any).placa,
-          cd_mot: (c.row as any).cd_mot,
-        })),
-        metadata: { datas: uniqueDates },
-      });
+      await (supabase.from('import_batches' as any) as any)
+        .update({
+          linhas_inseridas: inseridos,
+          linhas_duplicadas: totalDuplicadas,
+        })
+        .eq('id', batchId);
 
       // Recalcular indicadores apenas para as datas importadas
       setProgress('Recalculando indicadores...');
@@ -297,6 +307,10 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       setOpen(false);
       onSuccess();
     } catch (err: any) {
+      // Se o batch foi criado mas o insert falhou, remove para não ficar "confirmado" sem dados
+      if (batchId) {
+        try { await (supabase.from('import_batches' as any) as any).delete().eq('id', batchId); } catch {}
+      }
       toast.error('Erro na importação: ' + err.message);
     } finally {
       setImporting(false);
