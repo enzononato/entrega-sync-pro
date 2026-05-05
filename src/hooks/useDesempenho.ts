@@ -93,8 +93,10 @@ export function useDesempenhoDiario(dataInicio: string, dataFim: string, filters
  * desafio). Reduz dramaticamente o payload em períodos longos.
  */
 export interface DesempenhoSlim {
+  user_id: string;
   indicator_id: string;
   data_referencia: string;
+  valor: number;
   status: string | null;
   status_desafio: string | null;
   desafio: number | null;
@@ -110,7 +112,7 @@ export function useDesempenhoDashboard(
     queryFn: async () => {
       let preFilteredUserIds: string[] | null = null;
       if (filters?.unidade_id || filters?.worker_type) {
-        let uq = supabase.from('users').select('id');
+        let uq = supabase.from('users').select('id').eq('ativo', true);
         if (filters?.unidade_id) uq = uq.eq('unidade_id', filters.unidade_id);
         if (filters?.worker_type) uq = uq.eq('worker_type', filters.worker_type);
         const { data: uList, error: uErr } = await uq;
@@ -152,7 +154,7 @@ export function useDesempenhoDashboard(
         while (true) {
           let q = supabase
             .from('user_indicator_daily')
-            .select('indicator_id, data_referencia, status, status_desafio, desafio');
+            .select('user_id, indicator_id, data_referencia, valor, status, status_desafio, desafio');
           q = build(q);
           if (preFilteredUserIds) q = q.in('user_id', preFilteredUserIds);
           q = q.range(from, from + PAGE_SIZE - 1);
