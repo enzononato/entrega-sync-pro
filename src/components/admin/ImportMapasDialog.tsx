@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { createImportBatch } from '@/hooks/useImportBatches';
+import { parseFlexibleDate } from '@/lib/dateParser';
 
 const CSV_COLUMNS = [
   'Data','Transp','Entrega','CargaAtual','Frota','CustoSpot','Regiao','Veiculo','Placa','Mapa',
@@ -30,20 +31,8 @@ const NUMERIC_COLS = new Set([
 ]);
 const INT_COLS = new Set(['transp','entregas']);
 
-function parseDate(raw: string): string {
-  const s = raw.trim();
-  if (s.includes('/')) {
-    const [d, m, y] = s.split('/');
-    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  }
-  if (!s.includes('-') && /^\d{7,8}$/.test(s)) {
-    const padded = s.padStart(8, '0');
-    const dd = padded.slice(0, 2);
-    const mm = padded.slice(2, 4);
-    const yyyy = padded.slice(4, 8);
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  return s;
+function parseDate(raw: string): string | null {
+  return parseFlexibleDate(raw);
 }
 
 function parseBrNum(raw: string): number {
@@ -122,18 +111,19 @@ export function ImportMapasDialog({ onSuccess }: Props) {
           if (csvIdx < 0) return;
           const dbCol = DB_COLUMNS[csvIdx];
           const val = cols[idx] ?? '';
-          if (dbCol === 'data_operacao') row[dbCol] = parseDate(val);
+          if (dbCol === 'data_operacao') row[dbCol] = parseDate(val); // null se inválida
           else if (INT_COLS.has(dbCol)) row[dbCol] = parseInt(val) || 0;
           else if (NUMERIC_COLS.has(dbCol)) row[dbCol] = parseBrNum(val);
           else row[dbCol] = val;
         });
-        // Validar data
-        const dataStr = String(row.data_operacao ?? '');
-        const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(dataStr);
+        // Validar data (parser já retorna null para entradas inválidas/cabeçalho)
+        const dataStr = row.data_operacao as string | null;
+        const dataOk = !!dataStr && /^\d{4}-\d{2}-\d{2}$/.test(dataStr);
         if (!row.mapa) {
           pushInvalid(lineNum, 'Mapa vazio', lines[i]);
         } else if (!dataOk) {
-          pushInvalid(lineNum, `Data inválida ("${dataStr}")`, lines[i]);
+          const rawDate = (cols[header.findIndex(h => h.toLowerCase() === 'data')] || '').slice(0, 30);
+          pushInvalid(lineNum, `Data inválida ("${rawDate}")`, lines[i]);
         } else {
           parsed.push(row);
         }
