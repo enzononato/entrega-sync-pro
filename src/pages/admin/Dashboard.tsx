@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
-import { useDesempenhoMesSlim, useDesempenhoDashboard } from '@/hooks/useDesempenho';
+import { useDesempenhoDashboard } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetasDashboard } from '@/hooks/useMetas';
 import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
@@ -67,10 +67,6 @@ export default function Dashboard() {
   const { data: usuarios = [] } = useUsuarios();
   const { data: feedbacks = [] } = useFeedbacks({ unidade_id: unidadeFilter || undefined });
   const { data: planos = [] } = usePlanosDeAcao();
-  const { data: desempenho = [], isFetching: isFetchingDesempenho } = useDesempenhoDashboard(dateFrom, dateTo, {
-    unidade_id: unidadeFilter || undefined,
-    worker_type: tipoFilter || undefined,
-  });
   const { allowedUnits, allowedUnitIds } = useAllowedUnits();
   const { data: metasAtivas = [] } = useMetasDashboard();
 
@@ -90,12 +86,32 @@ export default function Dashboard() {
   const mesAtual = mesesPeriodo[mesesPeriodo.length - 1] ?? format(new Date(), 'yyyy-MM');
   const periodoInicio = (mesesPeriodo[0] ?? mesAtual) + '-01';
   const periodoFim = format(endOfMonth(new Date(mesAtual + '-01T00:00:00')), 'yyyy-MM-dd');
-  // Bônus Estimado: respeita o período + filtros de unidade/perfil.
-  // Usa versão slim (sem join, só 4 colunas) — tipicamente <300ms mesmo em mês cheio.
-  const { data: desempenhoMes = [] } = useDesempenhoMesSlim(periodoInicio, periodoFim, {
-    unidade_id: unidadeFilter || undefined,
-    worker_type: tipoFilter || undefined,
-  });
+  // UNIFICADO: 1 única query cobre o mês inteiro e atende tanto os cards/charts
+  // (filtrados a [dateFrom, dateTo]) quanto agregações mensais (Bônus, Desafios).
+  const { data: desempenhoFull = [], isFetching: isFetchingDesempenho } = useDesempenhoDashboard(
+    periodoInicio,
+    periodoFim,
+    {
+      unidade_id: unidadeFilter || undefined,
+      worker_type: tipoFilter || undefined,
+    },
+  );
+  // `desempenhoMes` = todos os registros do mês (input das agregações mensais).
+  const desempenhoMes = desempenhoFull;
+  // `desempenho` = recorte ao intervalo [dateFrom, dateTo] respeitando regra de
+  // periodicidade (mensais por interseção de mês).
+  const desempenho = useMemo(() => {
+    const inicioYM = dateFrom.slice(0, 7);
+    const fimYM = dateTo.slice(0, 7);
+    return desempenhoFull.filter(r => {
+      const isMonthly = r.indicators?.periodicidade === 'mensal';
+      if (isMonthly) {
+        const ym = (r.data_referencia ?? '').slice(0, 7);
+        return ym >= inicioYM && ym <= fimYM;
+      }
+      return r.data_referencia >= dateFrom && r.data_referencia <= dateTo;
+    });
+  }, [desempenhoFull, dateFrom, dateTo]);
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
 
   // Computed early so bonus/caixas-batidas memos can apply unit/type filter.
