@@ -94,6 +94,19 @@ export default function Dashboard() {
   const { data: desempenhoMes = [] } = useDesempenhoDiario(periodoInicio, periodoFim);
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
 
+  // Computed early so bonus/caixas-batidas memos can apply unit/type filter.
+  const filteredUsersEarly = useMemo(() => {
+    let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
+    list = list.filter(u => !u.unidade_id || allowedUnitIds.has(u.unidade_id));
+    if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
+    if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
+    return list;
+  }, [usuarios, unidadeFilter, tipoFilter, allowedUnitIds]);
+  const filteredUserIdsEarly = useMemo(
+    () => new Set(filteredUsersEarly.map(u => u.id)),
+    [filteredUsersEarly],
+  );
+
   // Bônus mensal pré-calculado pela edge function `calculate-monthly-bonus`.
   // Evita recalcular 6k+ linhas no cliente; lê apenas ~100 linhas agregadas.
   type BonusMensalRow = {
@@ -193,6 +206,7 @@ export default function Dashboard() {
       const breakdownMap = new Map<string, Breakdown>();
       let total = 0;
       for (const row of bonusMensalRows) {
+        if (!filteredUserIdsEarly.has(row.user_id)) continue;
         total += Number(row.valor_estimado) || 0;
         for (const det of row.detalhes_json?.indicadores ?? []) {
           if (!det.atingiu) continue;
@@ -308,6 +322,7 @@ export default function Dashboard() {
       return row;
     };
     for (const user of activeCollaborators) {
+      if (!filteredUserIdsEarly.has(user.id)) continue;
       for (const indId of goalIndicatorIds) {
         const goal = findGoal(indId, user.worker_type!);
         if (!goal || Number(goal.valor_bonificacao) <= 0) continue;
@@ -350,14 +365,16 @@ export default function Dashboard() {
     }
     const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
     return { total, breakdown };
-  }, [metasAtivas, desempenhoMes, allCollaborators, bonusMensalRows]);
+  }, [metasAtivas, desempenhoMes, allCollaborators, bonusMensalRows, filteredUserIdsEarly]);
 
   const bonusMes = bonusMesData.total;
 
-  // Caixas Batidas: soma de todos os colaboradores no mês (já com teto aplicado)
+  // Caixas Batidas: soma dos colaboradores visíveis no filtro (já com teto aplicado)
   const caixasBatidasTotal = useMemo(
-    () => caixasBatidasMes.reduce((s, c) => s + Number(c.valor_final || 0), 0),
-    [caixasBatidasMes],
+    () => caixasBatidasMes
+      .filter(c => filteredUserIdsEarly.has((c as any).user_id))
+      .reduce((s, c) => s + Number(c.valor_final || 0), 0),
+    [caixasBatidasMes, filteredUserIdsEarly],
   );
 
   // Total geral estimado para pagamento aos colaboradores no mês
