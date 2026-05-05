@@ -71,6 +71,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
   const [fileName, setFileName] = useState('');
   const [skipped, setSkipped] = useState<Record<string, number>>({});
   const [detectedCols, setDetectedCols] = useState<{ name: string; mapped: boolean }[]>([]);
+  const [invalidLines, setInvalidLines] = useState<{ line: number; reason: string; preview?: string }[]>([]);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,11 +98,17 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       setDetectedCols(detected);
 
       const skipReasons: Record<string, number> = {};
+      const invalids: { line: number; reason: string; preview?: string }[] = [];
+      const pushInvalid = (lineNum: number, reason: string, raw: string) => {
+        invalids.push({ line: lineNum, reason, preview: raw.slice(0, 120) });
+        skipReasons[reason] = (skipReasons[reason] || 0) + 1;
+      };
       const parsed: Record<string, unknown>[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
+        const lineNum = i + 1;
         if (cols.length < 10) {
-          skipReasons['Linha incompleta (< 10 campos)'] = (skipReasons['Linha incompleta (< 10 campos)'] || 0) + 1;
+          pushInvalid(lineNum, 'Linha incompleta (< 10 campos)', lines[i]);
           continue;
         }
         // Pular linhas de cabeçalho repetidas (algumas exportações duplicam o header)
@@ -120,11 +127,20 @@ export function ImportMapasDialog({ onSuccess }: Props) {
           else if (NUMERIC_COLS.has(dbCol)) row[dbCol] = parseBrNum(val);
           else row[dbCol] = val;
         });
-        if (row.mapa) parsed.push(row);
-        else skipReasons['Mapa vazio'] = (skipReasons['Mapa vazio'] || 0) + 1;
+        // Validar data
+        const dataStr = String(row.data_operacao ?? '');
+        const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(dataStr);
+        if (!row.mapa) {
+          pushInvalid(lineNum, 'Mapa vazio', lines[i]);
+        } else if (!dataOk) {
+          pushInvalid(lineNum, `Data inválida ("${dataStr}")`, lines[i]);
+        } else {
+          parsed.push(row);
+        }
       }
       setRows(parsed);
       setSkipped(skipReasons);
+      setInvalidLines(invalids);
 
       // Detectar duplicidade: mesma combinação mapa+data já existe no banco
       const keys = parsed.map(r => `${r.mapa}__${r.data_operacao}`);
@@ -289,6 +305,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
                 skippedCount={Object.values(skipped).reduce((a, b) => a + b, 0)}
                 skippedReasons={skipped}
                 detectedColumns={detectedCols}
+                invalidLines={invalidLines}
                 columns={[
                   { key: 'data_operacao', label: 'Data', render: (r: any) => String(r.data_operacao) },
                   { key: 'mapa', label: 'Mapa', render: (r: any) => String(r.mapa) },
