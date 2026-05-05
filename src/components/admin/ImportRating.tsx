@@ -506,6 +506,13 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       onSuccess();
     } catch (err: any) {
       toast.error('Erro na importação: ' + err.message);
+      if (batchId) {
+        try {
+          await (supabase.from('import_batches' as any) as any).delete().eq('id', batchId);
+        } catch (e) {
+          console.warn('Falha ao remover batch após erro:', e);
+        }
+      }
     } finally {
       setImporting(false);
       setProgress('');
