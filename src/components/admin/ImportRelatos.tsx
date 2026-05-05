@@ -368,8 +368,6 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
       let reason: string | undefined;
       if (!row.cpf && !row.matricula) {
         status = 'invalido'; reason = 'Sem CPF nem matrícula';
-      } else if ((row.classificacao || '').trim().toLowerCase() === 'não informado' || (row.classificacao || '').trim().toLowerCase() === 'nao informado') {
-        status = 'invalido'; reason = 'Classificação "Não informado"';
       } else if (row.relato_id && existingIds.has(row.relato_id)) {
         status = 'duplicado'; reason = 'Já existe no banco (mesmo ID)';
       } else if (!row.relato_id && existingFallback.has(fallbackKey)) {
