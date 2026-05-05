@@ -18,6 +18,7 @@ interface Props<T> {
   skippedReasons?: Record<string, number>;
   detectedColumns?: { name: string; mapped: boolean }[];
   fileName?: string;
+  invalidLines?: { line: number; reason: string; preview?: string }[];
 }
 
 const STATUS_BADGE: Record<RowStatus, { label: string; className: string; icon: React.ElementType }> = {
@@ -26,7 +27,7 @@ const STATUS_BADGE: Record<RowStatus, { label: string; className: string; icon: 
   invalido: { label: 'Inválido', className: 'bg-destructive/15 text-destructive border-destructive/30', icon: AlertTriangle },
 };
 
-export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedCount = 0, skippedReasons, detectedColumns, fileName }: Props<T>) {
+export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedCount = 0, skippedReasons, detectedColumns, fileName, invalidLines }: Props<T>) {
   const novos = rows.filter(r => r.status === 'novo').length;
   const dups = rows.filter(r => r.status === 'duplicado').length;
   const inv = rows.filter(r => r.status === 'invalido').length;
@@ -139,6 +140,42 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
         <p className="text-xs text-muted-foreground">
           Linhas inválidas (campos obrigatórios faltando) serão <strong>ignoradas</strong>.
         </p>
+      )}
+
+      {invalidLines && invalidLines.length > 0 && (
+        <details className="rounded border border-destructive/30 bg-destructive/5 p-2 text-xs" open>
+          <summary className="cursor-pointer font-medium text-destructive">
+            <AlertTriangle className="inline h-3 w-3 mr-1" />
+            {invalidLines.length} linha(s) com erro — clique para ver detalhes
+          </summary>
+          <div className="mt-2 max-h-48 overflow-auto rounded border bg-background">
+            <table className="w-full text-[11px]">
+              <thead className="sticky top-0 bg-muted">
+                <tr>
+                  <th className="p-1.5 text-left w-16">Linha</th>
+                  <th className="p-1.5 text-left">Motivo</th>
+                  <th className="p-1.5 text-left">Conteúdo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invalidLines.slice(0, 100).map((l, idx) => (
+                  <tr key={idx} className="border-t">
+                    <td className="p-1.5 font-mono">{l.line}</td>
+                    <td className="p-1.5 text-destructive">{l.reason}</td>
+                    <td className="p-1.5 font-mono text-muted-foreground truncate max-w-xs" title={l.preview}>
+                      {l.preview ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {invalidLines.length > 100 && (
+              <p className="p-1.5 text-center text-muted-foreground border-t">
+                … e mais {invalidLines.length - 100} linhas
+              </p>
+            )}
+          </div>
+        </details>
       )}
     </div>
   );
