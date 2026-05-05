@@ -1579,6 +1579,15 @@ export type Database = {
         Args: { _target_user_id: string }
         Returns: boolean
       }
+      dashboard_metrics: {
+        Args: {
+          p_fim: string
+          p_inicio: string
+          p_unidade_id?: string
+          p_worker_type?: string
+        }
+        Returns: Json
+      }
       get_user_id: { Args: { check_auth_id: string }; Returns: string }
       has_role: {
         Args: {

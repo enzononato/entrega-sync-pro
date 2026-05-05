@@ -12,6 +12,7 @@ import { useDesempenhoDashboard } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetasDashboard } from '@/hooks/useMetas';
 import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -86,9 +87,20 @@ export default function Dashboard() {
   const mesAtual = mesesPeriodo[mesesPeriodo.length - 1] ?? format(new Date(), 'yyyy-MM');
   const periodoInicio = (mesesPeriodo[0] ?? mesAtual) + '-01';
   const periodoFim = format(endOfMonth(new Date(mesAtual + '-01T00:00:00')), 'yyyy-MM-dd');
-  // UNIFICADO: 1 única query cobre o mês inteiro e atende tanto os cards/charts
-  // (filtrados a [dateFrom, dateTo]) quanto agregações mensais (Bônus, Desafios).
-  const { data: desempenhoFull = [], isFetching: isFetchingDesempenho } = useDesempenhoDashboard(
+  // RPC agregada (servidor faz a conta). Alimenta os cards de Metas Atingidas,
+  // Desafio diário, gráfico de barras e Top Críticos com 1 round-trip.
+  const { data: dashMetrics, isFetching: isFetchingMetrics } = useDashboardMetrics(
+    dateFrom,
+    dateTo,
+    {
+      unidade_id: unidadeFilter || undefined,
+      worker_type: tipoFilter || undefined,
+    },
+  );
+  // Fetch mensal pesado: ainda necessário para `desafioStatsMes` (agregação por
+  // user/indicador no mês) e como fallback de bônus quando a edge function ainda
+  // não rodou. Os cards diários não dependem mais dele.
+  const { data: desempenhoFull = [] } = useDesempenhoDashboard(
     periodoInicio,
     periodoFim,
     {
@@ -400,20 +412,15 @@ export default function Dashboard() {
   // Total geral estimado para pagamento aos colaboradores no mês
   const bonusTotalMes = bonusMes + caixasBatidasTotal;
 
-  // Desafio stats (período filtrado): % das metas atingidas que também atingiram desafio
+  // Desafio stats (período filtrado) — vem da RPC dashboard_metrics.
   const desafioStats = useMemo(() => {
-    const withDesafio = desempenho.filter(d => d.desafio != null && Number(d.desafio) > 0);
-    const metasAtingidas = withDesafio.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta');
-    const desafiosAtingidos = metasAtingidas.filter(d => d.status_desafio === 'atingiu');
-    const percentual = metasAtingidas.length > 0 ? Math.round((desafiosAtingidos.length / metasAtingidas.length) * 100) : 0;
-
-    return {
-      totalComDesafio: withDesafio.length,
-      metasAtingidas: metasAtingidas.length,
-      desafiosAtingidos: desafiosAtingidos.length,
-      percentual,
-    };
-  }, [desempenho]);
+    const totalComDesafio = dashMetrics?.desafios_total ?? 0;
+    const desafiosAtingidos = dashMetrics?.desafios_atingidos ?? 0;
+    // metasAtingidas (com desafio) == desafios_total na RPC.
+    const metasAtingidas = totalComDesafio;
+    const percentual = metasAtingidas > 0 ? Math.round((desafiosAtingidos / metasAtingidas) * 100) : 0;
+    return { totalComDesafio, metasAtingidas, desafiosAtingidos, percentual };
+  }, [dashMetrics]);
 
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
@@ -541,23 +548,21 @@ export default function Dashboard() {
   const planosPendentes = filteredPlanos.filter(p => ['aberto', 'em_andamento'].includes(p.status)).length;
   const planosAtrasados = filteredPlanos.filter(p => p.prazo && p.prazo < todayStr && !['concluido', 'cancelado'].includes(p.status)).length;
 
-  const dentroMeta = filteredDesempenho.filter(d => d.status === 'dentro_meta' || d.status === 'acima_meta').length;
-  const abaixoMeta = filteredDesempenho.filter(d => d.status === 'abaixo_meta').length;
-  const totalMetasDash = dentroMeta + abaixoMeta;
+  // Métricas de metas vêm direto da RPC (agregação no Postgres).
+  const dentroMeta = dashMetrics?.metas_atingidas ?? 0;
+  const abaixoMeta = dashMetrics?.abaixo_meta ?? 0;
+  const totalMetasDash = dashMetrics?.metas_total ?? 0;
   const pctAtingidas = totalMetasDash > 0 ? Math.round((dentroMeta / totalMetasDash) * 100) : 0;
 
   const barData = useMemo(() => {
-    const byInd: Record<string, { codigo: string; nome: string; total: number; atingiu: number }> = {};
-    filteredDesempenho.forEach(d => {
-      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { codigo: d.indicators?.codigo ?? '', nome: d.indicators?.nome ?? '', total: 0, atingiu: 0 };
-      byInd[d.indicator_id].total++;
-      if (d.status === 'dentro_meta' || d.status === 'acima_meta') byInd[d.indicator_id].atingiu++;
-    });
-    return Object.values(byInd).map(v => ({
-      indicador: v.codigo, nome: v.nome,
-      media: v.total > 0 ? Math.round((v.atingiu / v.total) * 100) : 0,
-    })).sort((a, b) => a.media - b.media);
-  }, [filteredDesempenho]);
+    return (dashMetrics?.por_indicador ?? [])
+      .map(v => ({
+        indicador: v.codigo,
+        nome: v.nome,
+        media: v.total > 0 ? Math.round((v.atingidas / v.total) * 100) : 0,
+      }))
+      .sort((a, b) => a.media - b.media);
+  }, [dashMetrics]);
 
   const pieData = useMemo(() => {
     const byUrg: Record<string, number> = { baixa: 0, media: 0, alta: 0, critica: 0 };
@@ -567,18 +572,18 @@ export default function Dashboard() {
   const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   const topCritical = useMemo(() => {
-    const byInd: Record<string, { nome: string; codigo: string; total: number; falhas: number }> = {};
-    filteredDesempenho.forEach(d => {
-      if (!byInd[d.indicator_id]) byInd[d.indicator_id] = { nome: d.indicators?.nome ?? '', codigo: d.indicators?.codigo ?? '', total: 0, falhas: 0 };
-      byInd[d.indicator_id].total++;
-      if (d.status === 'abaixo_meta') byInd[d.indicator_id].falhas++;
-    });
-    return Object.values(byInd)
-      .map(v => ({ nome: v.nome, codigo: v.codigo, media: v.total > 0 ? Math.round((1 - v.falhas / v.total) * 100) : 100, gap: v.total > 0 ? -Math.round((v.falhas / v.total) * 100) : 0, afetados: v.total }))
+    return (dashMetrics?.por_indicador ?? [])
+      .map(v => ({
+        nome: v.nome,
+        codigo: v.codigo,
+        media: v.total > 0 ? Math.round((v.atingidas / v.total) * 100) : 100,
+        gap: v.total > 0 ? -Math.round((v.abaixo / v.total) * 100) : 0,
+        afetados: v.total,
+      }))
       .filter(v => v.gap < 0)
       .sort((a, b) => a.gap - b.gap)
       .slice(0, 5);
-  }, [filteredDesempenho]);
+  }, [dashMetrics]);
 
   const recentFeedbacks = useMemo(() =>
     filteredFeedbacks.filter(f => ['aberto', 'em_analise'].includes(f.status)).slice(0, 5),
@@ -638,7 +643,7 @@ export default function Dashboard() {
         {/* Hero stats strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
-          <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} loading={isFetchingDesempenho} />
+          <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} loading={isFetchingMetrics} />
           <HeroStat
             icon={<DollarSign className="h-4 w-4" />}
             value={fmtBRL(bonusTotalMes)}
