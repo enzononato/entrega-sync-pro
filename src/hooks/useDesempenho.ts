@@ -146,9 +146,7 @@ export function useDesempenhoDashboard(
       }
 
       const PAGE_SIZE = 1000;
-      const fetchPaged = async (
-        build: (q: ReturnType<typeof supabase.from<any>>['select']) => any,
-      ): Promise<any[]> => {
+      const fetchPaged = async (build: (q: any) => any): Promise<any[]> => {
         const out: any[] = [];
         let from = 0;
         while (true) {
