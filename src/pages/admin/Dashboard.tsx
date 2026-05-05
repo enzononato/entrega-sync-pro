@@ -100,7 +100,7 @@ export default function Dashboard() {
   // Fetch mensal pesado: ainda necessário para `desafioStatsMes` (agregação por
   // user/indicador no mês) e como fallback de bônus quando a edge function ainda
   // não rodou. Os cards diários não dependem mais dele.
-  const { data: desempenhoFull = [], isFetching: isFetchingDesempenho } = useDesempenhoDashboard(
+  const { data: desempenhoFull = [] } = useDesempenhoDashboard(
     periodoInicio,
     periodoFim,
     {
