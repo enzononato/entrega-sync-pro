@@ -12,6 +12,7 @@ import { useDesempenhoDashboard } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetasDashboard } from '@/hooks/useMetas';
 import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ProgressBar } from '@/components/shared/ProgressBar';
@@ -86,15 +87,23 @@ export default function Dashboard() {
   const mesAtual = mesesPeriodo[mesesPeriodo.length - 1] ?? format(new Date(), 'yyyy-MM');
   const periodoInicio = (mesesPeriodo[0] ?? mesAtual) + '-01';
   const periodoFim = format(endOfMonth(new Date(mesAtual + '-01T00:00:00')), 'yyyy-MM-dd');
-  // UNIFICADO: 1 única query cobre o mês inteiro e atende tanto os cards/charts
-  // (filtrados a [dateFrom, dateTo]) quanto agregações mensais (Bônus, Desafios).
-  const { data: desempenhoFull = [], isFetching: isFetchingDesempenho } = useDesempenhoDashboard(
-    periodoInicio,
-    periodoFim,
+  // RPC agregada (servidor faz a conta). Substitui o uso pesado de
+  // `desempenhoFull` para os cards de Metas Atingidas, Desafio diário,
+  // gráfico de barras e Top Críticos.
+  const { data: dashMetrics, isFetching: isFetchingMetrics } = useDashboardMetrics(
+    dateFrom,
+    dateTo,
     {
       unidade_id: unidadeFilter || undefined,
       worker_type: tipoFilter || undefined,
     },
+  );
+  // Fetch pesado mantido apenas como FALLBACK quando o bônus mensal pré-calculado
+  // ainda não existe (edge function não rodou). Caso contrário, fica desabilitado.
+  // Será re-habilitado mais abaixo via `bonusFallbackNeeded` em um segundo render.
+  const metasComBonusCount = useMemo(
+    () => metasAtivas.filter(m => Number(m.valor_bonificacao) > 0).length,
+    [metasAtivas],
   );
   // `desempenhoMes` = todos os registros do mês (input das agregações mensais).
   const desempenhoMes = desempenhoFull;
