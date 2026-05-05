@@ -1,123 +1,48 @@
+# Corrigir duplicidade no importador PDV Crítico
 
-## Objetivo
+## Causa do erro
 
-Criar um novo indicador mensal **Relatos de Segurança** (código `RELATOS`), exclusivo para **ajudantes** (`applies_to_worker_type='ajudante'`), com lógica idêntica à do PDV Crítico:
+O toast "duplicate key value violates unique constraint `pdv_critico_feedbacks_uniq`" acontece porque o **banco rejeita** uma linha que o front considerou "nova". Há dois bugs no `classify` de `src/components/admin/ImportPDVCritico.tsx`:
 
-- **Maior é melhor** • Meta: **5** relatos/mês • Desafio: **15** relatos/mês
-- Bônus: **R$ 52,50** ao bater meta + **R$ 10,00** extra ao bater desafio (total R$ 62,50)
-- Vínculo do colaborador: **CPF** (com fallback para matrícula), só ajudantes
-- Linhas com CPF e matrícula iguais a `0` são **ignoradas** (já é coberto pela validação de "sem CPF nem matrícula", mas também filtramos explicitamente o literal `"0"`)
-- Mês de referência vem da coluna **"Data Cadastrado"** (formato `dd-mm-aaaa`)
+### Bug 1 — limite de 1000 registros na pré-checagem
+A query que carrega chaves existentes (linha 345) usa só `.eq('ano').in('mes_num', ...)` sem paginação. O Supabase corta em 1000 linhas por padrão. Quando o mês já tem mais de 1000 feedbacks no banco, parte das chaves não é carregada → o front marca como "novo" → o índice único `pdv_critico_feedbacks_uniq` rejeita no insert. É exatamente o mesmo problema que corrigimos no importador de Relatos.
 
-## 1. Banco de dados (migration)
+### Bug 2 — chave do front diferente da chave do índice único
+O índice único usa `md5(COALESCE(comentario, ''))` (comentário **inteiro**). O código usa `(comentario || '').slice(0, 60)`. Dois registros com mesmos primeiros 60 chars mas comentário completo diferente podem bater como "duplicado" no front e serem aceitos no banco — ou o contrário. Precisamos alinhar a chave de comparação à do índice (comentário inteiro).
 
-### Tabela `relatos_seguranca` (similar a `pdv_critico_feedbacks`)
+## Mudanças
 
-```sql
-create table public.relatos_seguranca (
-  id uuid primary key default gen_random_uuid(),
-  -- referência temporal
-  data_cadastrado date not null,        -- coluna "Data Cadastrado"
-  mes_num int not null,                 -- 1..12
-  ano int not null,
-  data_referencia date not null,        -- primeiro dia do mês (yyyy-mm-01)
-  -- relato
-  relato_id text,                       -- coluna "ID" da planilha
-  cargo_relatante text,
-  revenda text,
-  tipo text,
-  local text,
-  infracao text,
-  relato text,
-  status text,
-  classificacao text,
-  prioridade text,
-  data_ocorrido date,
-  -- pessoa
-  cpf text,
-  matricula text,
-  user_id uuid,                         -- resolvido por CPF/matrícula (só ajudantes)
-  unidade_id uuid,
-  -- importação
-  import_batch_id uuid,
-  imported_by uuid,
-  created_at timestamptz not null default now()
-);
+**Arquivo: `src/components/admin/ImportPDVCritico.tsx`**
 
-create index on public.relatos_seguranca (user_id, ano, mes_num);
-create index on public.relatos_seguranca (cpf);
-create index on public.relatos_seguranca (matricula);
-create index on public.relatos_seguranca (import_batch_id);
+1. Em `classify(parsed, anoRef)`:
+   - Substituir a query única por um loop manual paginado (`.range(from, from+999)`) até a página retornar menos de 1000 registros, igual ao padrão já usado em `ImportRelatos.tsx` e definido na memória de paginação.
+   - Filtrar por `ano = anoRef` e `mes_num IN (mesesNum)`.
+   - Selecionar `cpf, mes_num, ano, semana, codigo_cliente, comentario, data_analise, tmr`.
 
-alter table public.relatos_seguranca enable row level security;
+2. Trocar `(comentario || '').slice(0, 60)` por `(comentario || '')` em **ambos** os pontos onde a chave é montada (existingKeys e seen) para bater 1:1 com o índice único.
 
--- Admins: acesso total
-create policy "Admins full access relatos_seguranca"
-on public.relatos_seguranca for all to authenticated
-using (has_role(auth.uid(),'admin')) with check (has_role(auth.uid(),'admin'));
+3. Atualizar o texto de ajuda (linha ~554) removendo a menção a "primeiros 60 chars" — apenas dizer "mesmo comentário".
 
--- Ajudante vê os próprios
-create policy "Users read own relatos_seguranca"
-on public.relatos_seguranca for select to authenticated
-using (user_id = get_user_id(auth.uid()));
+## Detalhes técnicos
+
+Pseudo-código da paginação:
+
+```text
+const PAGE = 1000
+let from = 0
+while true:
+  data = supabase.from('pdv_critico_feedbacks')
+    .select('cpf,mes_num,ano,semana,codigo_cliente,comentario,data_analise,tmr')
+    .eq('ano', anoRef).in('mes_num', mesesNum)
+    .range(from, from + PAGE - 1)
+  data.forEach(addToExistingKeys)
+  if data.length < PAGE: break
+  from += PAGE
 ```
 
-### Indicator + Goal
+Não é necessário chunkar por `IN` aqui (mesesNum tem no máximo 12 valores).
 
-```sql
-insert into public.indicators (codigo, nome, categoria, descricao, applies_to_worker_type, periodicidade, unidade_medida)
-values ('RELATOS', 'Relatos de Segurança', 'Segurança',
-        'Quantidade de relatos de segurança cadastrados no mês (maior é melhor).',
-        'ajudante', 'mensal', 'relatos')
-on conflict do nothing;
+## Fora de escopo
 
-insert into public.goals (indicator_id, worker_type, valor_meta, valor_desafio,
-                          valor_bonificacao, valor_bonificacao_desafio, periodo_tipo, ativo)
-select id, 'ajudante', 5, 15, 52.50, 10.00, 'mensal', true
-from public.indicators where codigo = 'RELATOS'
-and not exists (select 1 from public.goals g where g.indicator_id = indicators.id and g.worker_type='ajudante' and g.ativo);
-```
-
-## 2. Edge function `calculate-monthly-bonus`
-
-Adicionar o id do indicator `RELATOS` ao set `HIGHER_IS_BETTER` (mesmo tratamento do PDV_CRITICO/RATING). Após criar o indicator, leio o id e atualizo o array em `supabase/functions/calculate-monthly-bonus/index.ts` (logo após o id do PDV_CRITICO).
-
-## 3. Componente `src/components/admin/ImportRelatos.tsx` (novo)
-
-Espelhado em `ImportPDVCritico.tsx`, com estas diferenças:
-
-- Aceita `.xlsx`, lê a aba **"Riscos"** (com fallback: primeira aba que tenha as colunas esperadas).
-- Mapeia colunas (do upload): `CPF`, `MATRÍCULA`, `ID`, `Data Cadastrado`, `Cargo Relatante`, `Revenda`, `Tipo`, `Local`, `Infração`, `Relato`, `Status`, `Classificação`, `Prioridade`, `Data Ocorrido`.
-- Parse de datas em `dd-mm-aaaa` (e Date/serial Excel como fallback).
-- Filtros de validade da linha:
-  - Ignora se CPF normalizado vazio **ou** `"0"` **e** matrícula vazia **ou** `"0"`.
-  - Ignora se `Data Cadastrado` inválida.
-- Mês/ano vêm de `Data Cadastrado` (não há campo "Ano" manual — removo o input de ano que existia no PDV).
-- Chave de duplicidade: `relato_id` (ID da planilha) quando presente; senão `cpf|data_cadastrado|hash(relato[:60])|local|infracao`.
-- Vínculo: busca em `users` por CPF e por matrícula filtrando `worker_type = 'ajudante'`.
-- Após o insert, chama `recalcRelatos` (análoga a `recalcPdvCritico`):
-  - Conta por `(user_id, ano, mes_num)` os relatos importados.
-  - Upsert em `user_indicator_daily` com `mapa_numero='MENSAL'`, `data_referencia` no dia 1 do mês, `meta=5`, `desafio=15`, `status='dentro_meta'` se `valor>=5` e `status_desafio='atingiu'` se `valor>=15`.
-- Em seguida invoca `calculate-monthly-bonus` para cada mês afetado.
-- UI: card "Relatos Importados" com filtros: busca (nome/CPF/matrícula), filtro de mês (`type=month`), filtro por `Cargo Relatante`. Painel `ImportHistoryPanel tipo="relatos"`.
-
-## 4. `src/pages/admin/Importacoes.tsx`
-
-Adicionar nova aba **"Relatos"** entre "PDV Crítico" e "Histórico", renderizando `<ImportRelatos />`.
-
-## 5. Memória
-
-Criar `mem://logic/relatos-seguranca` com a regra (maior é melhor, ajudante, meta 5/desafio 15, R$52,50 + R$10,00, fonte = aba Riscos coluna "Data Cadastrado", chave de duplicidade) e adicionar referência em `mem://index.md`.
-
-## Pontos que NÃO mudam
-
-- Lógica binária de bônus, fluxo do `calculate-monthly-bonus`, layout das demais abas e RLS de outras tabelas.
-- UI de desempenho do colaborador renderiza automaticamente o novo indicador a partir do `status` em `user_indicator_daily` (igual ao PDV).
-
-## Arquivos
-
-- **migration nova**: cria `relatos_seguranca`, RLS, `indicators` e `goals` para `RELATOS`.
-- **novo**: `src/components/admin/ImportRelatos.tsx`.
-- **editado**: `src/pages/admin/Importacoes.tsx` (nova aba).
-- **editado**: `supabase/functions/calculate-monthly-bonus/index.ts` (incluir id do `RELATOS` em `HIGHER_IS_BETTER`).
-- **memória**: `mem://logic/relatos-seguranca` + `mem://index.md`.
+- Sem migrações de banco. O índice único está correto e é exatamente a fonte de verdade.
+- Outros importadores (031805, 031134, rating) não têm índice único equivalente, então não sofrem desse erro específico — não mexer neles agora.
