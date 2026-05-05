@@ -1570,6 +1570,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_can_access_auth_user: {
+        Args: { _auth_id: string }
+        Returns: boolean
+      }
       admin_can_access_unit: { Args: { _unit_id: string }; Returns: boolean }
       admin_can_access_user: {
         Args: { _target_user_id: string }
@@ -1584,6 +1588,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { check_user_id: string }; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "colaborador"
