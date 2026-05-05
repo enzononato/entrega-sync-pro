@@ -333,27 +333,57 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
   };
 
   const classify = async (parsed: ParsedRow[]) => {
-    // Carrega chaves existentes (relato_id) e fallback (cpf|data|relato)
-    const relatoIds = parsed.map(r => r.relato_id).filter(Boolean) as string[];
+    // Carrega chaves existentes (relato_id) e fallback (cpf|data|relato).
+    // IMPORTANTE: Supabase limita 1000 linhas por query. Para evitar truncamento
+    // em planilhas grandes, fazemos chunk do .in() (em blocos de 500) e
+    // paginação manual com .range() dentro de cada chunk.
+    const relatoIds = Array.from(new Set(parsed.map(r => r.relato_id).filter(Boolean) as string[]));
     const existingIds = new Set<string>();
     const existingFallback = new Set<string>();
+
+    const IN_CHUNK = 500;
+    const PAGE = 1000;
+
+    const fetchAllChunked = async (
+      values: string[],
+      column: string,
+      select: string,
+      onRow: (row: any) => void,
+    ) => {
+      for (let i = 0; i < values.length; i += IN_CHUNK) {
+        const slice = values.slice(i, i + IN_CHUNK);
+        let from = 0;
+        while (true) {
+          const { data, error } = await (supabase.from('relatos_seguranca' as any) as any)
+            .select(select)
+            .in(column, slice)
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          if (data) data.forEach(onRow);
+          if (!data || data.length < PAGE) break;
+          from += PAGE;
+        }
+      }
+    };
+
     try {
       if (relatoIds.length) {
-        const { data } = await (supabase.from('relatos_seguranca' as any) as any)
-          .select('relato_id')
-          .in('relato_id', relatoIds);
-        data?.forEach((d: any) => d.relato_id && existingIds.add(String(d.relato_id)));
+        await fetchAllChunked(relatoIds, 'relato_id', 'relato_id', (d: any) => {
+          if (d.relato_id) existingIds.add(String(d.relato_id));
+        });
       }
-      // Fallback: busca por (cpf, data) recentes para detecção sem ID
+      // Fallback por CPF para registros sem ID
       const cpfs = Array.from(new Set(parsed.filter(r => !r.relato_id).map(r => r.cpf).filter(Boolean)));
       if (cpfs.length) {
-        const { data } = await (supabase.from('relatos_seguranca' as any) as any)
-          .select('cpf, data_cadastrado, relato, local, infracao')
-          .in('cpf', cpfs);
-        data?.forEach((d: any) => {
-          const k = [d.cpf || '', d.data_cadastrado || '', (d.relato || '').slice(0, 60), d.local || '', d.infracao || ''].join('|');
-          existingFallback.add(k);
-        });
+        await fetchAllChunked(
+          cpfs,
+          'cpf',
+          'cpf, data_cadastrado, relato, local, infracao',
+          (d: any) => {
+            const k = [d.cpf || '', d.data_cadastrado || '', (d.relato || '').slice(0, 60), d.local || '', d.infracao || ''].join('|');
+            existingFallback.add(k);
+          },
+        );
       }
     } catch (e) {
       console.warn('Falha ao checar duplicidade relatos:', e);
