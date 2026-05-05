@@ -69,6 +69,8 @@ export function ImportMapasDialog({ onSuccess }: Props) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [classifications, setClassifications] = useState<{ row: Record<string, unknown>; status: RowStatus; reason?: string }[]>([]);
   const [fileName, setFileName] = useState('');
+  const [skipped, setSkipped] = useState<Record<string, number>>({});
+  const [detectedCols, setDetectedCols] = useState<{ name: string; mapped: boolean }[]>([]);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -87,12 +89,26 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       const mapaIdx = header.findIndex(h => h.toLowerCase() === 'mapa');
       if (mapaIdx < 0) { toast.error('Coluna "Mapa" não encontrada no cabeçalho'); return; }
 
+      // Resumo de colunas detectadas vs reconhecidas
+      const detected = header.map(h => {
+        const csvIdx = CSV_COLUMNS.findIndex(c => stripAccents(c.toLowerCase()) === stripAccents(h.toLowerCase()));
+        return { name: h, mapped: csvIdx >= 0 };
+      });
+      setDetectedCols(detected);
+
+      const skipReasons: Record<string, number> = {};
       const parsed: Record<string, unknown>[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
-        if (cols.length < 10) continue;
+        if (cols.length < 10) {
+          skipReasons['Linha incompleta (< 10 campos)'] = (skipReasons['Linha incompleta (< 10 campos)'] || 0) + 1;
+          continue;
+        }
         // Pular linhas de cabeçalho repetidas (algumas exportações duplicam o header)
-        if ((cols[0] || '').trim().toLowerCase() === 'data') continue;
+        if ((cols[0] || '').trim().toLowerCase() === 'data') {
+          skipReasons['Cabeçalho repetido'] = (skipReasons['Cabeçalho repetido'] || 0) + 1;
+          continue;
+        }
         const row: Record<string, unknown> = {};
         header.forEach((h, idx) => {
           const csvIdx = CSV_COLUMNS.findIndex(c => stripAccents(c.toLowerCase()) === stripAccents(h.toLowerCase()));
@@ -105,8 +121,10 @@ export function ImportMapasDialog({ onSuccess }: Props) {
           else row[dbCol] = val;
         });
         if (row.mapa) parsed.push(row);
+        else skipReasons['Mapa vazio'] = (skipReasons['Mapa vazio'] || 0) + 1;
       }
       setRows(parsed);
+      setSkipped(skipReasons);
 
       // Detectar duplicidade: mesma combinação mapa+data já existe no banco
       const keys = parsed.map(r => `${r.mapa}__${r.data_operacao}`);
@@ -267,6 +285,10 @@ export function ImportMapasDialog({ onSuccess }: Props) {
             <div className="space-y-3">
               <ImportPreviewTable
                 rows={classifications}
+                fileName={fileName}
+                skippedCount={Object.values(skipped).reduce((a, b) => a + b, 0)}
+                skippedReasons={skipped}
+                detectedColumns={detectedCols}
                 columns={[
                   { key: 'data_operacao', label: 'Data', render: (r: any) => String(r.data_operacao) },
                   { key: 'mapa', label: 'Mapa', render: (r: any) => String(r.mapa) },
