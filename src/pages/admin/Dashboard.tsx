@@ -87,9 +87,8 @@ export default function Dashboard() {
   const mesAtual = mesesPeriodo[mesesPeriodo.length - 1] ?? format(new Date(), 'yyyy-MM');
   const periodoInicio = (mesesPeriodo[0] ?? mesAtual) + '-01';
   const periodoFim = format(endOfMonth(new Date(mesAtual + '-01T00:00:00')), 'yyyy-MM-dd');
-  // RPC agregada (servidor faz a conta). Substitui o uso pesado de
-  // `desempenhoFull` para os cards de Metas Atingidas, Desafio diário,
-  // gráfico de barras e Top Críticos.
+  // RPC agregada (servidor faz a conta). Alimenta os cards de Metas Atingidas,
+  // Desafio diário, gráfico de barras e Top Críticos com 1 round-trip.
   const { data: dashMetrics, isFetching: isFetchingMetrics } = useDashboardMetrics(
     dateFrom,
     dateTo,
@@ -98,12 +97,16 @@ export default function Dashboard() {
       worker_type: tipoFilter || undefined,
     },
   );
-  // Fetch pesado mantido apenas como FALLBACK quando o bônus mensal pré-calculado
-  // ainda não existe (edge function não rodou). Caso contrário, fica desabilitado.
-  // Será re-habilitado mais abaixo via `bonusFallbackNeeded` em um segundo render.
-  const metasComBonusCount = useMemo(
-    () => metasAtivas.filter(m => Number(m.valor_bonificacao) > 0).length,
-    [metasAtivas],
+  // Fetch mensal pesado: ainda necessário para `desafioStatsMes` (agregação por
+  // user/indicador no mês) e como fallback de bônus quando a edge function ainda
+  // não rodou. Os cards diários não dependem mais dele.
+  const { data: desempenhoFull = [], isFetching: isFetchingDesempenho } = useDesempenhoDashboard(
+    periodoInicio,
+    periodoFim,
+    {
+      unidade_id: unidadeFilter || undefined,
+      worker_type: tipoFilter || undefined,
+    },
   );
   // `desempenhoMes` = todos os registros do mês (input das agregações mensais).
   const desempenhoMes = desempenhoFull;
