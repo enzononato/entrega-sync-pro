@@ -546,6 +546,7 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
 
           {classifications.length > 0 && (
             <>
+              <SummaryPanel classifications={classifications} />
               <ImportPreviewTable
                 rows={classifications}
                 columns={[
@@ -577,6 +578,54 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SummaryPanel({
+  classifications,
+}: {
+  classifications: { row: ParsedRow; status: RowStatus; reason?: string }[];
+}) {
+  const total = classifications.length;
+  const novos = classifications.filter(c => c.status === 'novo').length;
+  const duplicados = classifications.filter(c => c.status === 'duplicado').length;
+  const invalidos = classifications.filter(c => c.status === 'invalido');
+
+  const motivos = new Map<string, number>();
+  for (const c of invalidos) {
+    const key = c.reason || 'Sem motivo';
+    motivos.set(key, (motivos.get(key) ?? 0) + 1);
+  }
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="px-2 py-1 rounded border bg-background">
+          Total: <strong>{total}</strong>
+        </span>
+        <span className="px-2 py-1 rounded border bg-success/10 text-success border-success/30">
+          A importar: <strong>{novos}</strong>
+        </span>
+        <span className="px-2 py-1 rounded border bg-warning/10 text-warning border-warning/30">
+          Duplicados: <strong>{duplicados}</strong>
+        </span>
+        <span className="px-2 py-1 rounded border bg-destructive/10 text-destructive border-destructive/30">
+          Inválidos: <strong>{invalidos.length}</strong>
+        </span>
+      </div>
+      {motivos.size > 0 && (
+        <div className="text-xs text-muted-foreground">
+          <p className="font-medium mb-1">Motivos de inválidos:</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            {Array.from(motivos.entries()).map(([motivo, count]) => (
+              <li key={motivo}>
+                <span className="text-foreground">{motivo}</span>: <strong>{count}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
