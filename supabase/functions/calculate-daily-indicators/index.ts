@@ -575,10 +575,10 @@ Deno.serve(async (req) => {
       if (months.length > 0) {
         console.log(`Triggering calculate-monthly-bonus for months: ${months.join(", ")}`);
         await Promise.all(
-          months.map((mes) =>
+          months.map((month) =>
             supabase.functions
-              .invoke("calculate-monthly-bonus", { body: { mes } })
-              .catch((e) => console.warn(`monthly-bonus ${mes} failed:`, e?.message ?? e))
+              .invoke("calculate-monthly-bonus", { body: { month } })
+              .catch((e) => console.warn(`monthly-bonus ${month} failed:`, e?.message ?? e))
           )
         );
       }
