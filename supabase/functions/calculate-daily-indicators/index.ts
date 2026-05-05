@@ -565,6 +565,27 @@ Deno.serve(async (req) => {
     }
     console.log(`REFUGO: ${refugoUpserts.length} records`);
 
+    // ── Encadear cálculo do bônus mensal para os meses afetados ──
+    try {
+      const monthsSet = new Set<string>();
+      for (const d of dates) {
+        if (typeof d === "string" && d.length >= 7) monthsSet.add(d.slice(0, 7));
+      }
+      const months = Array.from(monthsSet);
+      if (months.length > 0) {
+        console.log(`Triggering calculate-monthly-bonus for months: ${months.join(", ")}`);
+        await Promise.all(
+          months.map((mes) =>
+            supabase.functions
+              .invoke("calculate-monthly-bonus", { body: { mes } })
+              .catch((e) => console.warn(`monthly-bonus ${mes} failed:`, e?.message ?? e))
+          )
+        );
+      }
+    } catch (e: any) {
+      console.warn("Failed to chain calculate-monthly-bonus:", e?.message ?? e);
+    }
+
     return new Response(
       JSON.stringify({ success: true, total_inserted: totalInserted, dates_processed: dates.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
