@@ -47,13 +47,22 @@ Deno.serve(async (req) => {
     const tetoMot = Number(cfg.teto_motorista ?? 624);
     const tetoAju = Number(cfg.teto_ajudante ?? 416);
 
-    // 2. Read all maps in month
-    const { data: mapas, error: mapErr } = await supabase
-      .from('mapa_historico')
-      .select('id, mapa, data_operacao, cx_entreg, mot_user_id, aju1_user_id, aju2_user_id')
-      .gte('data_operacao', firstDay)
-      .lte('data_operacao', lastDay);
-    if (mapErr) throw mapErr;
+    // 2. Read all maps in month (paginated to bypass 1000-row limit)
+    const mapas: any[] = [];
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data: chunk, error: mapErr } = await supabase
+        .from('mapa_historico')
+        .select('id, mapa, data_operacao, cx_entreg, mot_user_id, aju1_user_id, aju2_user_id')
+        .gte('data_operacao', firstDay)
+        .lte('data_operacao', lastDay)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (mapErr) throw mapErr;
+      if (!chunk || chunk.length === 0) break;
+      mapas.push(...chunk);
+      if (chunk.length < PAGE) break;
+    }
 
     // 3. Aggregate per user
     type UserAgg = {
