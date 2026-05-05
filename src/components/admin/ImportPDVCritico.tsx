@@ -342,24 +342,31 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
     const mesesNum = Array.from(new Set(parsed.map(r => r.mes_num)));
     const existingKeys = new Set<string>();
     try {
-      const { data } = await (supabase.from('pdv_critico_feedbacks' as any) as any)
-        .select('cpf, mes_num, ano, semana, codigo_cliente, comentario, data_analise, tmr')
-        .eq('ano', anoRef)
-        .in('mes_num', mesesNum);
-      data?.forEach((d: any) => {
-        const key = [
-          d.cpf || '',
-          d.mes_num,
-          d.ano,
-          d.semana ?? 0,
-          d.codigo_cliente || '',
-          // hash leve do comentário
-          (d.comentario || '').slice(0, 60),
-          d.data_analise || '',
-          d.tmr ?? '',
-        ].join('|');
-        existingKeys.add(key);
-      });
+      const PAGE = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await (supabase.from('pdv_critico_feedbacks' as any) as any)
+          .select('cpf, mes_num, ano, semana, codigo_cliente, comentario, data_analise, tmr')
+          .eq('ano', anoRef)
+          .in('mes_num', mesesNum)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        (data || []).forEach((d: any) => {
+          const key = [
+            d.cpf || '',
+            d.mes_num,
+            d.ano,
+            d.semana ?? 0,
+            d.codigo_cliente || '',
+            d.comentario || '',
+            d.data_analise || '',
+            d.tmr ?? '',
+          ].join('|');
+          existingKeys.add(key);
+        });
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+      }
     } catch (e) {
       console.warn('Falha ao checar duplicidade pdv_critico:', e);
     }
@@ -372,7 +379,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
         anoRef,
         row.semana ?? 0,
         row.codigo_cliente || '',
-        (row.comentario || '').slice(0, 60),
+        row.comentario || '',
         row.data_analise || '',
         row.tmr ?? '',
       ].join('|');
