@@ -546,6 +546,7 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
 
           {classifications.length > 0 && (
             <>
+              <SummaryPanel classifications={classifications} />
               <ImportPreviewTable
                 rows={classifications}
                 columns={[
