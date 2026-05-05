@@ -406,6 +406,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
     const { inicio, fim } = monthToRange(mesReferencia);
 
     setImporting(true);
+    let batchId: string | null = null;
     try {
       const matriculas = toInsert.map(r => r.matricula);
       const matriculaToUserId: Record<string, string> = {};
@@ -423,7 +424,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       const { data: authData } = await supabase.auth.getUser();
       const importedBy = authData.user?.id || null;
 
-      const batchId = await createImportBatch({
+      batchId = await createImportBatch({
         tipo: 'rating',
         arquivo_nome: fileName,
         total_linhas: classifications.length,
@@ -505,6 +506,13 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       onSuccess();
     } catch (err: any) {
       toast.error('Erro na importação: ' + err.message);
+      if (batchId) {
+        try {
+          await (supabase.from('import_batches' as any) as any).delete().eq('id', batchId);
+        } catch (e) {
+          console.warn('Falha ao remover batch após erro:', e);
+        }
+      }
     } finally {
       setImporting(false);
       setProgress('');
