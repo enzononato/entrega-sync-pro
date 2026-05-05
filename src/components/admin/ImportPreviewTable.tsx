@@ -14,6 +14,10 @@ interface Props<T> {
   rows: { row: T; status: RowStatus; reason?: string }[];
   columns: PreviewColumn<T>[];
   maxPreview?: number;
+  skippedCount?: number;
+  skippedReasons?: Record<string, number>;
+  detectedColumns?: { name: string; mapped: boolean }[];
+  fileName?: string;
 }
 
 const STATUS_BADGE: Record<RowStatus, { label: string; className: string; icon: React.ElementType }> = {
@@ -22,14 +26,43 @@ const STATUS_BADGE: Record<RowStatus, { label: string; className: string; icon: 
   invalido: { label: 'Inválido', className: 'bg-destructive/15 text-destructive border-destructive/30', icon: AlertTriangle },
 };
 
-export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50 }: Props<T>) {
+export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedCount = 0, skippedReasons, detectedColumns, fileName }: Props<T>) {
   const novos = rows.filter(r => r.status === 'novo').length;
   const dups = rows.filter(r => r.status === 'duplicado').length;
   const inv = rows.filter(r => r.status === 'invalido').length;
   const visible = rows.slice(0, maxPreview);
+  const mappedCols = detectedColumns?.filter(c => c.mapped) ?? [];
+  const unmappedCols = detectedColumns?.filter(c => !c.mapped) ?? [];
 
   return (
     <div className="space-y-3">
+      {fileName && (
+        <p className="text-xs text-muted-foreground truncate">
+          Arquivo: <span className="font-mono">{fileName}</span>
+        </p>
+      )}
+
+      {detectedColumns && detectedColumns.length > 0 && (
+        <div className="rounded border bg-muted/30 p-2 space-y-1.5 text-xs">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="bg-success/15 text-success border-success/30">
+              {mappedCols.length} colunas reconhecidas
+            </Badge>
+            {unmappedCols.length > 0 && (
+              <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30">
+                {unmappedCols.length} ignoradas
+              </Badge>
+            )}
+          </div>
+          {unmappedCols.length > 0 && (
+            <p className="text-muted-foreground">
+              <strong>Não mapeadas:</strong>{' '}
+              <span className="font-mono">{unmappedCols.map(c => c.name).join(', ')}</span>
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <Badge variant="outline" className={STATUS_BADGE.novo.className}>
           <CheckCircle2 className="h-3 w-3 mr-1" /> {novos} novos
@@ -40,8 +73,21 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50 }: Props<
         <Badge variant="outline" className={STATUS_BADGE.invalido.className}>
           <AlertTriangle className="h-3 w-3 mr-1" /> {inv} inválidos
         </Badge>
+        {skippedCount > 0 && (
+          <Badge variant="outline" className="bg-muted text-muted-foreground">
+            {skippedCount} linhas puladas
+          </Badge>
+        )}
         <Badge variant="outline">Total: {rows.length}</Badge>
       </div>
+
+      {skippedReasons && Object.keys(skippedReasons).length > 0 && (
+        <ul className="text-[11px] text-muted-foreground space-y-0.5 pl-4 list-disc">
+          {Object.entries(skippedReasons).map(([reason, count]) => (
+            <li key={reason}>{reason}: <strong>{count}</strong></li>
+          ))}
+        </ul>
+      )}
 
       <div className="max-h-72 overflow-auto rounded border text-xs">
         <table className="w-full">
