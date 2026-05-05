@@ -98,6 +98,16 @@ export function useUndoImport() {
     mutationFn: async (batch: ImportBatch) => {
       const tableName = TARGET_TABLE[batch.tipo];
 
+      // Para rating: capturar user_ids antes de deletar para limpar indicadores depois
+      let ratingUserIds: string[] = [];
+      if (batch.tipo === 'rating') {
+        const { data: ratingRows } = await (supabase.from('rating_avaliacoes') as any)
+          .select('user_id')
+          .eq('import_batch_id', batch.id)
+          .not('user_id', 'is', null);
+        ratingUserIds = Array.from(new Set((ratingRows ?? []).map((r: any) => r.user_id).filter(Boolean)));
+      }
+
       // Para Colaboradores, NÃO deletamos usuários (poderia quebrar referências).
       // Em vez disso desativamos os criados naquele lote.
       if (batch.tipo === 'colaboradores') {
@@ -139,16 +149,16 @@ export function useUndoImport() {
       if (batch.tipo === 'rating') {
         const mes: string | undefined = batch.metadata?.mes;
         const RATING_INDICATOR_ID = '853beb35-febb-48b9-b3ae-be7173bfc6fc';
-        if (mes) {
+        if (mes && ratingUserIds.length) {
           const [y, m] = mes.split('-').map(Number);
           const inicio = `${y}-${String(m).padStart(2, '0')}-01`;
           try {
-            // Apenas linhas oriundas dessa importação
             await (supabase.from('user_indicator_daily') as any)
               .delete()
               .eq('indicator_id', RATING_INDICATOR_ID)
               .eq('data_referencia', inicio)
-              .eq('origem_dado', 'import_rating');
+              .eq('origem_dado', 'import_rating')
+              .in('user_id', ratingUserIds);
           } catch (e) {
             console.warn('Falha ao limpar indicador Rating no undo:', e);
           }
