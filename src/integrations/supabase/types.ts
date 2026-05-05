@@ -1570,6 +1570,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_can_access_unit: { Args: { _unit_id: string }; Returns: boolean }
+      admin_can_access_user: {
+        Args: { _target_user_id: string }
+        Returns: boolean
+      }
       get_user_id: { Args: { check_auth_id: string }; Returns: string }
       has_role: {
         Args: {
