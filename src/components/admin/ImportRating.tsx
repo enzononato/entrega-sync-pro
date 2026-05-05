@@ -365,16 +365,28 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
     const { inicio } = monthToRange(mesReferencia);
-    const matriculas = parsed.map(r => r.matricula);
+    const matriculas = parsed.map(r => r.matricula).filter(Boolean);
     const existingSet = new Set<string>();
     try {
-      const { data } = await (supabase.from('rating_avaliacoes') as any)
-        .select('matricula')
-        .eq('data_referencia_inicio', inicio)
-        .eq('worker_type', workerType)
-        .eq('unidade', unidade.trim())
-        .in('matricula', matriculas);
-      data?.forEach((d: any) => existingSet.add(d.matricula));
+      // Pagina em chunks para não cair no limite de 1000 do PostgREST
+      const CHUNK = 300, PAGE = 1000;
+      for (let i = 0; i < matriculas.length; i += CHUNK) {
+        const slice = matriculas.slice(i, i + CHUNK);
+        let from = 0;
+        while (true) {
+          const { data, error } = await (supabase.from('rating_avaliacoes') as any)
+            .select('matricula')
+            .eq('data_referencia_inicio', inicio)
+            .eq('worker_type', workerType)
+            .eq('unidade', unidade.trim())
+            .in('matricula', slice)
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          (data ?? []).forEach((d: any) => existingSet.add(d.matricula));
+          if (!data || data.length < PAGE) break;
+          from += PAGE;
+        }
+      }
     } catch (e) {
       console.warn('Falha ao checar duplicidade rating:', e);
     }
