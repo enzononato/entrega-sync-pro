@@ -206,7 +206,7 @@ export default function Dashboard() {
       const breakdownMap = new Map<string, Breakdown>();
       let total = 0;
       for (const row of bonusMensalRows) {
-        if (!filteredUserIds.has(row.user_id)) continue;
+        if (!filteredUserIdsEarly.has(row.user_id)) continue;
         total += Number(row.valor_estimado) || 0;
         for (const det of row.detalhes_json?.indicadores ?? []) {
           if (!det.atingiu) continue;
@@ -322,7 +322,7 @@ export default function Dashboard() {
       return row;
     };
     for (const user of activeCollaborators) {
-      if (!filteredUserIds.has(user.id)) continue;
+      if (!filteredUserIdsEarly.has(user.id)) continue;
       for (const indId of goalIndicatorIds) {
         const goal = findGoal(indId, user.worker_type!);
         if (!goal || Number(goal.valor_bonificacao) <= 0) continue;
@@ -365,16 +365,16 @@ export default function Dashboard() {
     }
     const breakdown = [...breakdownMap.values()].sort((a, b) => b.total - a.total);
     return { total, breakdown };
-  }, [metasAtivas, desempenhoMes, allCollaborators, bonusMensalRows, filteredUserIds]);
+  }, [metasAtivas, desempenhoMes, allCollaborators, bonusMensalRows, filteredUserIdsEarly]);
 
   const bonusMes = bonusMesData.total;
 
   // Caixas Batidas: soma dos colaboradores visíveis no filtro (já com teto aplicado)
   const caixasBatidasTotal = useMemo(
     () => caixasBatidasMes
-      .filter(c => filteredUserIds.has((c as any).user_id))
+      .filter(c => filteredUserIdsEarly.has((c as any).user_id))
       .reduce((s, c) => s + Number(c.valor_final || 0), 0),
-    [caixasBatidasMes, filteredUserIds],
+    [caixasBatidasMes, filteredUserIdsEarly],
   );
 
   // Total geral estimado para pagamento aos colaboradores no mês
