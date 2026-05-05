@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { useFeedbacks } from '@/hooks/useFeedbacks';
 import { usePlanosDeAcao } from '@/hooks/usePlanosDeAcao';
-import { useDesempenhoDiario, useDesempenhoDashboard } from '@/hooks/useDesempenho';
+import { useDesempenhoMesSlim, useDesempenhoDashboard } from '@/hooks/useDesempenho';
 import { useAllowedUnits } from '@/hooks/useAllowedUnits';
 import { useMetasDashboard } from '@/hooks/useMetas';
 import { useCaixasBatidasAdminPeriodo } from '@/hooks/useCaixasBatidas';
@@ -90,8 +90,12 @@ export default function Dashboard() {
   const mesAtual = mesesPeriodo[mesesPeriodo.length - 1] ?? format(new Date(), 'yyyy-MM');
   const periodoInicio = (mesesPeriodo[0] ?? mesAtual) + '-01';
   const periodoFim = format(endOfMonth(new Date(mesAtual + '-01T00:00:00')), 'yyyy-MM-dd');
-  // Bônus Estimado: agora respeita o período do filtro de datas (independe de unidade/perfil)
-  const { data: desempenhoMes = [] } = useDesempenhoDiario(periodoInicio, periodoFim);
+  // Bônus Estimado: respeita o período + filtros de unidade/perfil.
+  // Usa versão slim (sem join, só 4 colunas) — tipicamente <300ms mesmo em mês cheio.
+  const { data: desempenhoMes = [] } = useDesempenhoMesSlim(periodoInicio, periodoFim, {
+    unidade_id: unidadeFilter || undefined,
+    worker_type: tipoFilter || undefined,
+  });
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
 
   // Computed early so bonus/caixas-batidas memos can apply unit/type filter.
