@@ -91,6 +91,8 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
         if (cols.length < 10) continue;
+        // Pular linhas de cabeçalho repetidas (algumas exportações duplicam o header)
+        if ((cols[0] || '').trim().toLowerCase() === 'data') continue;
         const row: Record<string, unknown> = {};
         header.forEach((h, idx) => {
           const csvIdx = CSV_COLUMNS.findIndex(c => stripAccents(c.toLowerCase()) === stripAccents(h.toLowerCase()));
