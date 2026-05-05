@@ -106,10 +106,11 @@ export function useUndoImport() {
           .eq('import_batch_id', batch.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from(tableName as any) as any)
-          .delete()
+        const { error, count } = await (supabase.from(tableName as any) as any)
+          .delete({ count: 'exact' })
           .eq('import_batch_id', batch.id);
         if (error) throw error;
+        (batch as any)._deletedCount = count ?? 0;
       }
 
       const { data: authData } = await supabase.auth.getUser();
@@ -131,6 +132,26 @@ export function useUndoImport() {
           });
         } catch (e) {
           console.warn('Falha ao recalcular indicadores no undo:', e);
+        }
+      }
+
+      // Rating: limpar user_indicator_daily mensal gerados pelo lote
+      if (batch.tipo === 'rating') {
+        const mes: string | undefined = batch.metadata?.mes;
+        const RATING_INDICATOR_ID = '853beb35-febb-48b9-b3ae-be7173bfc6fc';
+        if (mes) {
+          const [y, m] = mes.split('-').map(Number);
+          const inicio = `${y}-${String(m).padStart(2, '0')}-01`;
+          try {
+            // Apenas linhas oriundas dessa importação
+            await (supabase.from('user_indicator_daily') as any)
+              .delete()
+              .eq('indicator_id', RATING_INDICATOR_ID)
+              .eq('data_referencia', inicio)
+              .eq('origem_dado', 'import_rating');
+          } catch (e) {
+            console.warn('Falha ao limpar indicador Rating no undo:', e);
+          }
         }
       }
 
