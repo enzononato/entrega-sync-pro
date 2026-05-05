@@ -118,42 +118,73 @@ export function useDesempenhoDashboard(
         preFilteredUserIds = (uList ?? []).map(u => u.id);
         if (preFilteredUserIds.length === 0) return [] as DesempenhoSlim[];
       }
-      const startOfMonth = (d: string) => `${d.slice(0, 7)}-01`;
-      const endOfMonth = (d: string) => {
-        const [y, m] = d.split('-').map(Number);
-        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-        return `${d.slice(0, 7)}-${String(last).padStart(2, '0')}`;
-      };
-      const fetchFrom = startOfMonth(dataInicio);
-      const fetchTo = endOfMonth(dataFim);
-
-      const PAGE_SIZE = 1000;
-      let allRows: any[] = [];
-      let from = 0;
-      while (true) {
-        let q = supabase.from('user_indicator_daily')
-          .select('indicator_id, data_referencia, status, status_desafio, desafio, indicators(nome, codigo, periodicidade)')
-          .gte('data_referencia', fetchFrom)
-          .lte('data_referencia', fetchTo)
-          .range(from, from + PAGE_SIZE - 1);
-        if (preFilteredUserIds) q = q.in('user_id', preFilteredUserIds);
-        const { data: page, error } = await q;
-        if (error) throw error;
-        if (!page || page.length === 0) break;
-        allRows = allRows.concat(page);
-        if (page.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+      // Lookup leve (cached) de indicadores: evita o join pesado por linha.
+      const { data: indicatorsList, error: indErr } = await supabase
+        .from('indicators')
+        .select('id, nome, codigo, periodicidade');
+      if (indErr) throw indErr;
+      const indMap = new Map<string, { nome: string; codigo: string; periodicidade?: 'diario' | 'mensal' }>();
+      for (const i of indicatorsList ?? []) {
+        indMap.set(i.id, { nome: i.nome, codigo: i.codigo, periodicidade: i.periodicidade as any });
       }
+      const monthlyIds = new Set(
+        (indicatorsList ?? []).filter(i => i.periodicidade === 'mensal').map(i => i.id),
+      );
+
+      // Query enxuta: SEM join, só colunas necessárias, e janela exata.
+      // Diários: [dataInicio, dataFim]. Mensais: dia 01 dos meses do intervalo.
       const inicioYM = dataInicio.slice(0, 7);
       const fimYM = dataFim.slice(0, 7);
-      return (allRows as DesempenhoSlim[]).filter(r => {
-        const isMonthly = r.indicators?.periodicidade === 'mensal';
-        if (isMonthly) {
-          const ym = (r.data_referencia ?? '').slice(0, 7);
-          return ym >= inicioYM && ym <= fimYM;
+      const monthlyDates: string[] = [];
+      {
+        const cur = new Date(inicioYM + '-01T00:00:00Z');
+        const end = new Date(fimYM + '-01T00:00:00Z');
+        while (cur <= end) {
+          monthlyDates.push(`${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-01`);
+          cur.setUTCMonth(cur.getUTCMonth() + 1);
         }
-        return r.data_referencia >= dataInicio && r.data_referencia <= dataFim;
-      });
+      }
+
+      const PAGE_SIZE = 1000;
+      const fetchPaged = async (build: (q: any) => any): Promise<any[]> => {
+        const out: any[] = [];
+        let from = 0;
+        while (true) {
+          let q = supabase
+            .from('user_indicator_daily')
+            .select('indicator_id, data_referencia, status, status_desafio, desafio');
+          q = build(q);
+          if (preFilteredUserIds) q = q.in('user_id', preFilteredUserIds);
+          q = q.range(from, from + PAGE_SIZE - 1);
+          const { data: page, error } = await q;
+          if (error) throw error;
+          if (!page || page.length === 0) break;
+          out.push(...page);
+          if (page.length < PAGE_SIZE) break;
+          from += PAGE_SIZE;
+        }
+        return out;
+      };
+
+      // Diários: estritamente no intervalo.
+      const dailyRows = await fetchPaged(q =>
+        q.gte('data_referencia', dataInicio).lte('data_referencia', dataFim),
+      );
+      // Mensais: só os dias 01 do(s) mês(es) cobertos.
+      const monthlyRows = monthlyDates.length
+        ? await fetchPaged(q => q.in('data_referencia', monthlyDates))
+        : [];
+
+      const merged = [
+        ...dailyRows.filter(r => !monthlyIds.has(r.indicator_id)),
+        ...monthlyRows.filter(r => monthlyIds.has(r.indicator_id)),
+      ];
+
+      // Anexa metadados de indicador a partir do mapa local.
+      return merged.map(r => ({
+        ...r,
+        indicators: indMap.get(r.indicator_id) ?? null,
+      })) as DesempenhoSlim[];
     },
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
