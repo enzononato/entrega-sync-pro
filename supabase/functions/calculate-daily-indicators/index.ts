@@ -581,9 +581,17 @@ Deno.serve(async (req) => {
               .catch((e) => console.warn(`monthly-bonus ${month} failed:`, e?.message ?? e))
           )
         );
+        console.log(`Triggering calculate-caixas-batidas for months: ${months.join(", ")}`);
+        await Promise.all(
+          months.map((month) =>
+            supabase.functions
+              .invoke("calculate-caixas-batidas", { body: { month } })
+              .catch((e) => console.warn(`caixas-batidas ${month} failed:`, e?.message ?? e))
+          )
+        );
       }
     } catch (e: any) {
-      console.warn("Failed to chain calculate-monthly-bonus:", e?.message ?? e);
+      console.warn("Failed to chain monthly recalculations:", e?.message ?? e);
     }
 
     return new Response(
