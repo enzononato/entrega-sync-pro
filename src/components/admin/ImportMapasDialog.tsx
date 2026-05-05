@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { createImportBatch } from '@/hooks/useImportBatches';
 import { parseFlexibleDate } from '@/lib/dateParser';
+import { fetchAllIn } from '@/lib/supabasePaginate';
 
 const CSV_COLUMNS = [
   'Data','Transp','Entrega','CargaAtual','Frota','CustoSpot','Regiao','Veiculo','Placa','Mapa',
@@ -139,12 +140,20 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         const mapas = [...new Set(parsed.map(r => String(r.mapa)))];
         const datas = [...new Set(parsed.map(r => String(r.data_operacao)))];
         if (mapas.length && datas.length) {
-          const { data } = await supabase
-            .from('mapa_historico')
-            .select('mapa, data_operacao')
-            .in('mapa', mapas)
-            .in('data_operacao', datas);
-          data?.forEach(d => existingSet.add(`${d.mapa}__${d.data_operacao}`));
+          // Pagina sobre chunks de mapas para evitar o limite de 1000 linhas
+          const datasSet = new Set(datas);
+          const data = await fetchAllIn<{ mapa: string; data_operacao: string }>(
+            (chunk) => supabase
+              .from('mapa_historico')
+              .select('mapa, data_operacao')
+              .in('mapa', chunk),
+            mapas,
+          );
+          data.forEach(d => {
+            if (datasSet.has(String(d.data_operacao))) {
+              existingSet.add(`${d.mapa}__${d.data_operacao}`);
+            }
+          });
         }
       } catch (e) {
         console.warn('Falha ao checar duplicidade de mapas:', e);
@@ -182,6 +191,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       return;
     }
     setImporting(true);
+    let batchId: string | null = null;
     try {
       // Buscar mapa matrícula → user_id
       const allMatriculas = new Set<string>();
@@ -209,18 +219,7 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         });
       }
 
-      // Criar batch primeiro para vincular import_batch_id
       const uniqueDates = [...new Set(toInsert.map(r => String((r as any).data_operacao)))].filter(Boolean);
-      const batchId = await createImportBatch({
-        tipo: 'mapas',
-        arquivo_nome: fileName,
-        total_linhas: classifications.length,
-        linhas_inseridas: toInsert.length,
-        linhas_duplicadas: classifications.filter(c => c.status === 'duplicado').length,
-        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
-        payload_preview: classifications.slice(0, 50).map(c => ({ status: c.status, mapa: (c.row as any).mapa, data: (c.row as any).data_operacao })),
-        metadata: { datas: uniqueDates },
-      });
 
       const enriched = toInsert.map(r => {
         const mot = String(r.cd_mot || '').trim();
@@ -231,19 +230,49 @@ export function ImportMapasDialog({ onSuccess }: Props) {
           mot_user_id: (mot && mot !== '0') ? motMap[mot] || null : null,
           aju1_user_id: (a1 && a1 !== '0') ? ajuMap[a1] || null : null,
           aju2_user_id: (a2 && a2 !== '0') ? ajuMap[a2] || null : null,
-          import_batch_id: batchId,
         };
       });
 
       const batchSize = 500;
       const totalBatches = Math.ceil(enriched.length / batchSize);
+      let inseridos = 0;
+      let duplicadosNoInsert = 0;
       for (let i = 0; i < enriched.length; i += batchSize) {
         const batchNum = Math.floor(i / batchSize) + 1;
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length} registros)`);
         const batch = enriched.slice(i, i + batchSize);
-        const { error } = await supabase.from('mapa_historico').insert(batch as any);
+        // upsert com ignoreDuplicates evita falha quando algum registro
+        // já existe (rede de segurança contra a constraint mapa+data).
+        const { data: ins, error } = await supabase
+          .from('mapa_historico')
+          .upsert(batch as any, { onConflict: 'mapa,data_operacao', ignoreDuplicates: true })
+          .select('id');
         if (error) throw error;
+        const got = ins?.length ?? 0;
+        inseridos += got;
+        duplicadosNoInsert += batch.length - got;
       }
+
+      // Cria o batch SOMENTE após o insert bem-sucedido, com contagens reais.
+      const totalDuplicadas =
+        classifications.filter(c => c.status === 'duplicado').length + duplicadosNoInsert;
+      batchId = await createImportBatch({
+        tipo: 'mapas',
+        arquivo_nome: fileName,
+        total_linhas: classifications.length,
+        linhas_inseridas: inseridos,
+        linhas_duplicadas: totalDuplicadas,
+        linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
+        payload_preview: classifications.slice(0, 200).map(c => ({
+          status: c.status,
+          reason: c.reason,
+          mapa: (c.row as any).mapa,
+          data: (c.row as any).data_operacao,
+          placa: (c.row as any).placa,
+          cd_mot: (c.row as any).cd_mot,
+        })),
+        metadata: { datas: uniqueDates },
+      });
 
       // Recalcular indicadores apenas para as datas importadas
       setProgress('Recalculando indicadores...');
@@ -260,7 +289,9 @@ export function ImportMapasDialog({ onSuccess }: Props) {
         (acc, r: any) => acc + (r.mot_user_id ? 1 : 0) + (r.aju1_user_id ? 1 : 0) + (r.aju2_user_id ? 1 : 0),
         0,
       );
-      toast.success(`${toInsert.length} registros importados! (${matchedCount} vínculos motorista/ajudante)`);
+      toast.success(
+        `${inseridos} registros importados${duplicadosNoInsert ? ` (${duplicadosNoInsert} já existiam e foram ignorados)` : ''}. ${matchedCount} vínculos motorista/ajudante.`,
+      );
       setRows([]);
       setClassifications([]);
       setOpen(false);
