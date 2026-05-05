@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
     const PAGE = 1000;
     let totalInserted = 0;
 
-    for (const date of dates) {
+    const processDate = async (date: string) => {
       let allMapas: any[] = [];
       let offset = 0;
       while (true) {
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
         if (chunk.length < PAGE) break;
         offset += PAGE;
       }
-      if (allMapas.length === 0) continue;
+      if (allMapas.length === 0) return;
 
       const updates: { id: string; field: string; userId: string }[] = [];
       for (const row of allMapas) {
@@ -226,11 +226,13 @@ Deno.serve(async (req) => {
         tryLink(row.cd_aju1, "aju1_user_id", ajuMatriculaMap);
         tryLink(row.cd_aju2, "aju2_user_id", ajuMatriculaMap);
       }
-      for (const field of ["mot_user_id", "aju1_user_id", "aju2_user_id"]) {
-        const fieldUpdates = updates.filter(u => u.field === field);
-        for (const u of fieldUpdates) {
-          await supabase.from("mapa_historico").update({ [field]: u.userId }).eq("id", u.id);
-        }
+      // Paralelizar updates em chunks de 25 para não estourar o tempo da função.
+      const CHUNK = 25;
+      for (let i = 0; i < updates.length; i += CHUNK) {
+        const slice = updates.slice(i, i + CHUNK);
+        await Promise.all(slice.map(u =>
+          supabase.from("mapa_historico").update({ [u.field]: u.userId }).eq("id", u.id)
+        ));
       }
 
       const upserts: any[] = [];
@@ -282,6 +284,12 @@ Deno.serve(async (req) => {
         }
         totalInserted += dedupedUpserts.length;
       }
+    };
+
+    // Processar datas com concorrência limitada (3 simultâneas).
+    const CONCURRENCY = 3;
+    for (let i = 0; i < dates.length; i += CONCURRENCY) {
+      await Promise.all(dates.slice(i, i + CONCURRENCY).map(processDate));
     }
 
     // ── TX_REPOSICAO from reposicao_031805 ──
