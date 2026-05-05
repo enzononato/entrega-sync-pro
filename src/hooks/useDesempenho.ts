@@ -222,6 +222,60 @@ export function useDesempenhoPorColaborador(userId: string | undefined, dataInic
   });
 }
 
+/**
+ * Versão ultra enxuta usada nos cards de bônus/desafio do Dashboard.
+ * Retorna apenas as 4 colunas necessárias para agregação no cliente,
+ * sem join, com filtros de unidade/worker_type aplicados no servidor.
+ */
+export interface DesempenhoMesSlim {
+  user_id: string;
+  indicator_id: string;
+  data_referencia: string;
+  valor: number;
+}
+export function useDesempenhoMesSlim(
+  dataInicio: string,
+  dataFim: string,
+  filters?: { unidade_id?: string; worker_type?: string },
+) {
+  return useQuery({
+    queryKey: ['user_indicator_daily_mes_slim', dataInicio, dataFim, filters],
+    queryFn: async () => {
+      let preFilteredUserIds: string[] | null = null;
+      if (filters?.unidade_id || filters?.worker_type) {
+        let uq = supabase.from('users').select('id').eq('ativo', true);
+        if (filters?.unidade_id) uq = uq.eq('unidade_id', filters.unidade_id);
+        if (filters?.worker_type) uq = uq.eq('worker_type', filters.worker_type);
+        const { data: uList, error: uErr } = await uq;
+        if (uErr) throw uErr;
+        preFilteredUserIds = (uList ?? []).map(u => u.id);
+        if (preFilteredUserIds.length === 0) return [] as DesempenhoMesSlim[];
+      }
+      const PAGE_SIZE = 1000;
+      const out: DesempenhoMesSlim[] = [];
+      let from = 0;
+      while (true) {
+        let q = supabase
+          .from('user_indicator_daily')
+          .select('user_id, indicator_id, data_referencia, valor')
+          .gte('data_referencia', dataInicio)
+          .lte('data_referencia', dataFim)
+          .range(from, from + PAGE_SIZE - 1);
+        if (preFilteredUserIds) q = q.in('user_id', preFilteredUserIds);
+        const { data: page, error } = await q;
+        if (error) throw error;
+        if (!page || page.length === 0) break;
+        out.push(...(page as DesempenhoMesSlim[]));
+        if (page.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return out;
+    },
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
 function calcStatus(valor: number, meta: number) {
   const pct = meta > 0 ? (valor / meta) * 100 : 0;
   const status = pct >= 100 ? 'acima_meta' : pct >= 90 ? 'dentro_meta' : 'abaixo_meta';
