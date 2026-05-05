@@ -643,7 +643,7 @@ export default function Dashboard() {
         {/* Hero stats strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10 bg-white/[0.06] backdrop-blur-sm">
           <HeroStat icon={<Users className="h-4 w-4" />} value={filteredUsers.length} label="Colaboradores" sub={`${motoristas} mot · ${ajudantes} aj`} />
-          <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} loading={isFetchingDesempenho} />
+          <HeroStat icon={<Target className="h-4 w-4" />} value={`${pctAtingidas}%`} label="Metas Atingidas" sub={`${dentroMeta} de ${totalMetasDash}`} loading={isFetchingMetrics} />
           <HeroStat
             icon={<DollarSign className="h-4 w-4" />}
             value={fmtBRL(bonusTotalMes)}
