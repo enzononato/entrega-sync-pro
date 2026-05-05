@@ -13,6 +13,7 @@ import { DateRangePick } from '@/components/shared/DateRangePick';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
 import { createImportBatch } from '@/hooks/useImportBatches';
+import { fetchAllIn, fetchAllPaginated } from '@/lib/supabasePaginate';
 
 interface ParsedRow {
   unb: string;
@@ -321,10 +322,13 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       try {
         const sols = [...new Set(allRows.map(r => r.solicitacao_reposicao).filter(Boolean))];
         if (sols.length) {
-          const { data } = await (supabase.from('reposicao_031805') as any)
-            .select('solicitacao_reposicao, produto')
-            .in('solicitacao_reposicao', sols);
-          data?.forEach((d: any) => existingSet.add(`${d.solicitacao_reposicao}__${d.produto ?? ''}`));
+          const data = await fetchAllIn<{ solicitacao_reposicao: string; produto: string | null }>(
+            (chunk) => (supabase.from('reposicao_031805') as any)
+              .select('solicitacao_reposicao, produto')
+              .in('solicitacao_reposicao', chunk),
+            sols as string[],
+          );
+          data.forEach((d: any) => existingSet.add(`${d.solicitacao_reposicao}__${d.produto ?? ''}`));
         }
       } catch (e) {
         console.warn('Falha ao checar duplicidade:', e);
@@ -413,15 +417,13 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
         // FIX: Also include data_operacao from related maps so map-based indicators get recalculated
         const uniqueMapas = [...new Set(toInsert.map(r => r.mapa_origem).filter(m => m && m !== '0'))];
         if (uniqueMapas.length > 0) {
-          const { data: mapaDates } = await supabase
-            .from('mapa_historico')
-            .select('data_operacao')
-            .in('mapa', uniqueMapas);
-          if (mapaDates) {
-            for (const md of mapaDates) {
-              if (md.data_operacao && !allDates.includes(md.data_operacao)) {
-                allDates.push(md.data_operacao);
-              }
+          const mapaDates = await fetchAllIn<{ data_operacao: string }>(
+            (chunk) => supabase.from('mapa_historico').select('data_operacao').in('mapa', chunk),
+            uniqueMapas as string[],
+          );
+          for (const md of mapaDates) {
+            if (md.data_operacao && !allDates.includes(md.data_operacao)) {
+              allDates.push(md.data_operacao);
             }
           }
         }
