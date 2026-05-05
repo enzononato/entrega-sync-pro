@@ -94,6 +94,19 @@ export default function Dashboard() {
   const { data: desempenhoMes = [] } = useDesempenhoDiario(periodoInicio, periodoFim);
   const { data: caixasBatidasMes = [] } = useCaixasBatidasAdminPeriodo(mesesPeriodo);
 
+  // Computed early so bonus/caixas-batidas memos can apply unit/type filter.
+  const filteredUsersEarly = useMemo(() => {
+    let list = usuarios.filter(u => u.ativo && u.role === 'colaborador');
+    list = list.filter(u => !u.unidade_id || allowedUnitIds.has(u.unidade_id));
+    if (unidadeFilter) list = list.filter(u => u.unidade_id === unidadeFilter);
+    if (tipoFilter) list = list.filter(u => u.worker_type === tipoFilter);
+    return list;
+  }, [usuarios, unidadeFilter, tipoFilter, allowedUnitIds]);
+  const filteredUserIdsEarly = useMemo(
+    () => new Set(filteredUsersEarly.map(u => u.id)),
+    [filteredUsersEarly],
+  );
+
   // Bônus mensal pré-calculado pela edge function `calculate-monthly-bonus`.
   // Evita recalcular 6k+ linhas no cliente; lê apenas ~100 linhas agregadas.
   type BonusMensalRow = {
