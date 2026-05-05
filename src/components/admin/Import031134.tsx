@@ -12,6 +12,7 @@ import { DateRangePick } from '@/components/shared/DateRangePick';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
 import { createImportBatch } from '@/hooks/useImportBatches';
+import { fetchAllIn } from '@/lib/supabasePaginate';
 
 interface ParsedRow {
   data_operacao: string | null;
@@ -293,11 +294,18 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
         const datas = [...new Set(allRows.map(r => r.data_operacao!).filter(Boolean))];
         const mapas = [...new Set(allRows.map(r => r.mapa))];
         if (datas.length && mapas.length) {
-          const { data } = await (supabase.from('refugo_031134') as any)
-            .select('mapa, data_operacao, item')
-            .in('mapa', mapas)
-            .in('data_operacao', datas);
-          data?.forEach((d: any) => existingSet.add(`${d.mapa}__${d.data_operacao}__${d.item ?? ''}`));
+          const datasSet = new Set(datas as string[]);
+          const data = await fetchAllIn<{ mapa: string; data_operacao: string; item: string | null }>(
+            (chunk) => (supabase.from('refugo_031134') as any)
+              .select('mapa, data_operacao, item')
+              .in('mapa', chunk),
+            mapas as string[],
+          );
+          data.forEach((d: any) => {
+            if (datasSet.has(String(d.data_operacao))) {
+              existingSet.add(`${d.mapa}__${d.data_operacao}__${d.item ?? ''}`);
+            }
+          });
         }
       } catch (e) {
         console.warn('Falha ao checar duplicidade:', e);
