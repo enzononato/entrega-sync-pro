@@ -296,16 +296,29 @@ Deno.serve(async (req) => {
     const TX_REPOSICAO_ID = INDICATOR_IDS["TX_REPOSICAO"];
     const repoMeta = getMetaForWorker(metas, "TX_REPOSICAO", "motorista");
 
-    // FIX Problema 4: Only fetch mapa_historico rows for mapas present in reposição data
-    // First, fetch all reposição rows
-    let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null; motorista_codigo: string | null }[] = [];
-    {
+    // Quando datas específicas são pedidas, restringe no banco para acelerar o recálculo.
+    // Mapas das datas pedidas (para também alcançar reposição vinculada por mapa_origem).
+    const datesProvided = !!data_referencia;
+    let mapasDasDatas: string[] = [];
+    if (datesProvided && dates.length > 0) {
       let offset = 0;
       while (true) {
-        const { data: chunk, error: rErr } = await supabase.from("reposicao_031805")
-          .select("mot_user_id, data_solicitacao, valor, mapa_origem, motorista_codigo")
-          .not("data_solicitacao", "is", null)
+        const { data: chunk } = await supabase.from("mapa_historico")
+          .select("mapa").in("data_operacao", dates)
           .range(offset, offset + PAGE - 1);
+        if (!chunk || chunk.length === 0) break;
+        mapasDasDatas.push(...chunk.map((r: any) => r.mapa).filter(Boolean));
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
+      }
+      mapasDasDatas = [...new Set(mapasDasDatas)];
+    }
+
+    let allRepoRows: { mot_user_id: string; data_solicitacao: string; valor: number; mapa_origem: string | null; motorista_codigo: string | null }[] = [];
+    const collectRepo = async (q: any) => {
+      let offset = 0;
+      while (true) {
+        const { data: chunk, error: rErr } = await q.range(offset, offset + PAGE - 1);
         if (rErr) throw rErr;
         if (!chunk || chunk.length === 0) break;
         for (const r of chunk) {
@@ -326,6 +339,40 @@ Deno.serve(async (req) => {
         if (chunk.length < PAGE) break;
         offset += PAGE;
       }
+    };
+
+    if (datesProvided) {
+      // Reposição cuja data_solicitacao está nas datas pedidas
+      await collectRepo(
+        supabase.from("reposicao_031805")
+          .select("mot_user_id, data_solicitacao, valor, mapa_origem, motorista_codigo")
+          .in("data_solicitacao", dates)
+      );
+      // OU vinculada por mapa_origem aos mapas dessas datas
+      if (mapasDasDatas.length > 0) {
+        for (let i = 0; i < mapasDasDatas.length; i += 200) {
+          const batch = mapasDasDatas.slice(i, i + 200);
+          await collectRepo(
+            supabase.from("reposicao_031805")
+              .select("mot_user_id, data_solicitacao, valor, mapa_origem, motorista_codigo")
+              .not("data_solicitacao", "is", null)
+              .in("mapa_origem", batch)
+          );
+        }
+      }
+      // Deduplicar (uma linha pode aparecer nos dois caminhos)
+      const seen = new Set<string>();
+      allRepoRows = allRepoRows.filter(r => {
+        const k = `${r.mot_user_id}|${r.data_solicitacao}|${r.mapa_origem ?? ''}|${r.valor}`;
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      });
+    } else {
+      await collectRepo(
+        supabase.from("reposicao_031805")
+          .select("mot_user_id, data_solicitacao, valor, mapa_origem, motorista_codigo")
+          .not("data_solicitacao", "is", null)
+      );
     }
 
     // FIX Problema 4: Build mapa lookup only for relevant mapas
@@ -432,9 +479,10 @@ Deno.serve(async (req) => {
     {
       let offset = 0;
       while (true) {
-        const { data: chunk, error: rErr } = await supabase.from("refugo_031134")
-          .select("mapa, data_operacao, pct_refugo")
-          .range(offset, offset + PAGE - 1);
+        let q = supabase.from("refugo_031134")
+          .select("mapa, data_operacao, pct_refugo");
+        if (datesProvided && dates.length > 0) q = q.in("data_operacao", dates);
+        const { data: chunk, error: rErr } = await q.range(offset, offset + PAGE - 1);
         if (rErr) throw rErr;
         if (!chunk || chunk.length === 0) break;
         for (const r of chunk) {
