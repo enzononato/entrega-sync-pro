@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertTriangle, Copy } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Copy, X } from 'lucide-react';
 
 export type RowStatus = 'novo' | 'duplicado' | 'invalido';
 
@@ -31,9 +32,15 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
   const novos = rows.filter(r => r.status === 'novo').length;
   const dups = rows.filter(r => r.status === 'duplicado').length;
   const inv = rows.filter(r => r.status === 'invalido').length;
-  const visible = rows.slice(0, maxPreview);
+  const [filter, setFilter] = useState<RowStatus | null>(null);
+  const filtered = filter ? rows.filter(r => r.status === filter) : rows;
+  const visible = filtered.slice(0, maxPreview);
   const mappedCols = detectedColumns?.filter(c => c.mapped) ?? [];
   const unmappedCols = detectedColumns?.filter(c => !c.mapped) ?? [];
+
+  const toggle = (s: RowStatus) => setFilter(prev => (prev === s ? null : s));
+  const btnBase = 'transition cursor-pointer hover:opacity-80';
+  const activeRing = (s: RowStatus) => (filter === s ? 'ring-2 ring-offset-1 ring-primary' : '');
 
   return (
     <div className="space-y-3">
@@ -65,21 +72,32 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className={STATUS_BADGE.novo.className}>
-          <CheckCircle2 className="h-3 w-3 mr-1" /> {novos} novos
-        </Badge>
-        <Badge variant="outline" className={STATUS_BADGE.duplicado.className}>
-          <Copy className="h-3 w-3 mr-1" /> {dups} duplicados
-        </Badge>
-        <Badge variant="outline" className={STATUS_BADGE.invalido.className}>
-          <AlertTriangle className="h-3 w-3 mr-1" /> {inv} inválidos
-        </Badge>
+        <button type="button" onClick={() => toggle('novo')} className={`${btnBase} ${activeRing('novo')} rounded`}>
+          <Badge variant="outline" className={STATUS_BADGE.novo.className}>
+            <CheckCircle2 className="h-3 w-3 mr-1" /> {novos} novos
+          </Badge>
+        </button>
+        <button type="button" onClick={() => toggle('duplicado')} className={`${btnBase} ${activeRing('duplicado')} rounded`}>
+          <Badge variant="outline" className={STATUS_BADGE.duplicado.className}>
+            <Copy className="h-3 w-3 mr-1" /> {dups} duplicados
+          </Badge>
+        </button>
+        <button type="button" onClick={() => toggle('invalido')} className={`${btnBase} ${activeRing('invalido')} rounded`}>
+          <Badge variant="outline" className={STATUS_BADGE.invalido.className}>
+            <AlertTriangle className="h-3 w-3 mr-1" /> {inv} inválidos
+          </Badge>
+        </button>
         {skippedCount > 0 && (
           <Badge variant="outline" className="bg-muted text-muted-foreground">
             {skippedCount} linhas puladas
           </Badge>
         )}
         <Badge variant="outline">Total: {rows.length}</Badge>
+        {filter && (
+          <button type="button" onClick={() => setFilter(null)} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+            <X className="h-3 w-3" /> limpar filtro
+          </button>
+        )}
       </div>
 
       {skippedReasons && Object.keys(skippedReasons).length > 0 && (
@@ -101,6 +119,9 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
             </tr>
           </thead>
           <tbody>
+            {visible.length === 0 && (
+              <tr><td colSpan={columns.length + 1} className="p-3 text-center text-muted-foreground">Nenhuma linha neste filtro.</td></tr>
+            )}
             {visible.map((entry, i) => {
               const cfg = STATUS_BADGE[entry.status];
               const Icon = cfg.icon;
@@ -124,9 +145,9 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
             })}
           </tbody>
         </table>
-        {rows.length > maxPreview && (
+        {filtered.length > maxPreview && (
           <p className="p-2 text-center text-muted-foreground border-t">
-            … e mais {rows.length - maxPreview} linhas
+            … e mais {filtered.length - maxPreview} linhas
           </p>
         )}
       </div>
