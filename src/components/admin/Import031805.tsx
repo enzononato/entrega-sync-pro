@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DateRangePick } from '@/components/shared/DateRangePick';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 import { fetchAllIn, fetchAllPaginated } from '@/lib/supabasePaginate';
 
 interface ParsedRow {
@@ -354,6 +354,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
     const toInsert = classifications.filter(c => c.status === 'novo').map(c => c.row);
     if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
     setImporting(true);
+    let batchId: string | null = null;
     try {
       // Lookup matrículas → user_ids
       const allMatriculas = new Set<string>();
@@ -374,7 +375,7 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       }
 
       const uniqueDates = [...new Set(toInsert.map(r => r.data_solicitacao).filter(Boolean))] as string[];
-      const batchId = await createImportBatch({
+      batchId = await createImportBatch({
         tipo: 'reposicao_031805',
         arquivo_nome: fileName,
         total_linhas: classifications.length,
@@ -448,7 +449,10 @@ function Import031805Dialog({ onSuccess }: { onSuccess: () => void }) {
       setOpen(false);
       onSuccess();
     } catch (err: any) {
-      toast.error('Erro na importação: ' + err.message);
+      const errMsg = err?.message || String(err);
+      if (batchId) await markImportBatchFailed(batchId, errMsg);
+      else await createFailedImportBatch({ tipo: 'reposicao_031805', arquivo_nome: fileName, total_linhas: classifications.length, error_message: errMsg });
+      toast.error('Erro na importação: ' + errMsg);
     } finally {
       setImporting(false);
       setProgress('');
