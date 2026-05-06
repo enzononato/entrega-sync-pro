@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 
 const RELATOS_INDICATOR_CODE = 'RELATOS';
 const RELATOS_META = 5;
@@ -417,6 +417,7 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
     if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
 
     setImporting(true);
+    let batchId: string | null = null;
     try {
       const cpfs = Array.from(new Set(toInsert.map(r => r.cpf).filter(Boolean)));
       const matriculas = Array.from(new Set(toInsert.map(r => r.matricula).filter(Boolean)));
@@ -453,7 +454,7 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
 
       const mesesUnicos = Array.from(new Set(toInsert.map(r => r.data_referencia)));
 
-      const batchId = await createImportBatch({
+      batchId = await createImportBatch({
         tipo: 'relatos',
         arquivo_nome: fileName,
         total_linhas: classifications.length,
@@ -539,7 +540,10 @@ function ImportRelatosDialog({ onSuccess }: { onSuccess: () => void }) {
       setOpen(false);
       onSuccess();
     } catch (err: any) {
-      toast.error('Erro na importação: ' + err.message);
+      const errMsg = err?.message || String(err);
+      if (batchId) await markImportBatchFailed(batchId, errMsg);
+      else await createFailedImportBatch({ tipo: 'relatos', arquivo_nome: fileName, total_linhas: classifications.length, error_message: errMsg });
+      toast.error('Erro na importação: ' + errMsg);
     } finally {
       setImporting(false);
       setProgress('');
