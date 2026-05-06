@@ -5,7 +5,7 @@ import { Upload, FileUp, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 import { parseFlexibleDate } from '@/lib/dateParser';
 import { fetchAllIn } from '@/lib/supabasePaginate';
 
