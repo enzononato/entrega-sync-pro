@@ -5,7 +5,7 @@ import { Upload, FileUp, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 import { parseFlexibleDate } from '@/lib/dateParser';
 import { fetchAllIn } from '@/lib/supabasePaginate';
 
@@ -307,11 +307,19 @@ export function ImportMapasDialog({ onSuccess }: Props) {
       setOpen(false);
       onSuccess();
     } catch (err: any) {
-      // Se o batch foi criado mas o insert falhou, remove para não ficar "confirmado" sem dados
+      // Mantém o batch no histórico como "falha" para auditoria
+      const errMsg = err?.message || String(err);
       if (batchId) {
-        try { await (supabase.from('import_batches' as any) as any).delete().eq('id', batchId); } catch {}
+        await markImportBatchFailed(batchId, errMsg);
+      } else {
+        await createFailedImportBatch({
+          tipo: 'mapas',
+          arquivo_nome: fileName,
+          total_linhas: classifications.length,
+          error_message: errMsg,
+        });
       }
-      toast.error('Erro na importação: ' + err.message);
+      toast.error('Erro na importação: ' + errMsg);
     } finally {
       setImporting(false);
       setProgress('');

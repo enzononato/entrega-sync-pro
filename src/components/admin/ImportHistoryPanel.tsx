@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { History, Undo2, Loader2 } from 'lucide-react';
+import { History, Undo2, Loader2, AlertCircle, User } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -108,10 +108,12 @@ export function ImportHistoryPanel({ tipo, undoWindowHours = 24 }: Props) {
                     <th className="p-2 text-left">Data/Hora</th>
                     {!tipo && <th className="p-2 text-left">Tipo</th>}
                     <th className="p-2 text-left">Arquivo</th>
+                    <th className="p-2 text-left">Importado por</th>
                     <th className="p-2 text-right">Inseridas</th>
                     <th className="p-2 text-right">Duplicadas</th>
                     <th className="p-2 text-right">Inválidas</th>
                     <th className="p-2 text-left">Status</th>
+                    <th className="p-2 text-left">Desfeita por</th>
                     <th className="p-2 text-right">Ação</th>
                   </tr>
                 </thead>
@@ -121,6 +123,12 @@ export function ImportHistoryPanel({ tipo, undoWindowHours = 24 }: Props) {
                       <td className="p-2 whitespace-nowrap">{formatDateTime(b.created_at)}</td>
                       {!tipo && <td className="p-2">{TIPO_LABEL[b.tipo]}</td>}
                       <td className="p-2 max-w-[220px] truncate" title={b.arquivo_nome}>{b.arquivo_nome || '—'}</td>
+                      <td className="p-2 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 text-xs">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {b.imported_by_nome || (b.imported_by ? '—' : 'Sistema')}
+                        </span>
+                      </td>
                       <td className="p-2 text-right">{renderCount(b, 'inserido', b.linhas_inseridas)}</td>
                       <td className="p-2 text-right">{renderCount(b, 'duplicado', b.linhas_duplicadas)}</td>
                       <td className="p-2 text-right">{renderCount(b, 'invalido', b.linhas_invalidas)}</td>
@@ -128,6 +136,31 @@ export function ImportHistoryPanel({ tipo, undoWindowHours = 24 }: Props) {
                         {b.status === 'confirmed' && <Badge variant="outline" className="bg-success/15 text-success border-success/30">Confirmada</Badge>}
                         {b.status === 'undone' && <Badge variant="outline" className="bg-muted">Desfeita</Badge>}
                         {b.status === 'preview' && <Badge variant="outline">Preview</Badge>}
+                        {b.status === 'failed' && (
+                          <Badge
+                            variant="outline"
+                            className="bg-destructive/15 text-destructive border-destructive/30 inline-flex items-center gap-1 cursor-help"
+                            title={b.error_message ?? 'Erro desconhecido'}
+                          >
+                            <AlertCircle className="h-3 w-3" /> Falhou
+                          </Badge>
+                        )}
+                        {b.status === 'failed' && b.error_message && (
+                          <div className="text-[10px] text-destructive mt-1 max-w-[260px] line-clamp-2" title={b.error_message}>
+                            {b.error_message}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-2 whitespace-nowrap text-xs">
+                        {b.undone_at ? (
+                          <div>
+                            <div className="inline-flex items-center gap-1">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              {b.undone_by_nome || '—'}
+                            </div>
+                            <div className="text-muted-foreground">{formatDateTime(b.undone_at)}</div>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="p-2 text-right">
                         {canUndo(b) ? (

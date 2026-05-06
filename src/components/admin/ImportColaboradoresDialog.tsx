@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 
 interface Props {
   open: boolean;
@@ -248,6 +248,12 @@ export function ImportColaboradoresDialog({ open, onOpenChange }: Props) {
     }
     if (errors.length > 0) {
       toast({ title: `${errors.length} erro(s) na importação`, variant: 'destructive' });
+      // Se todos falharam, marca o batch como failed para o histórico
+      if (success === 0) {
+        const summary = `${errors.length} linhas falharam: ${errors.slice(0, 3).map(e => `${e.nome} (${e.error})`).join('; ')}${errors.length > 3 ? '…' : ''}`;
+        if (batchId) await markImportBatchFailed(batchId, summary);
+        else await createFailedImportBatch({ tipo: 'colaboradores', arquivo_nome: fileName, total_linhas: rows.length, error_message: summary });
+      }
     }
   };
 

@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 
 const RATING_INDICATOR_ID = '853beb35-febb-48b9-b3ae-be7173bfc6fc';
 const RATING_META = 4.95;
@@ -517,14 +517,10 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       setOpen(false);
       onSuccess();
     } catch (err: any) {
-      toast.error('Erro na importação: ' + err.message);
-      if (batchId) {
-        try {
-          await (supabase.from('import_batches' as any) as any).delete().eq('id', batchId);
-        } catch (e) {
-          console.warn('Falha ao remover batch após erro:', e);
-        }
-      }
+      const errMsg = err?.message || String(err);
+      toast.error('Erro na importação: ' + errMsg);
+      if (batchId) await markImportBatchFailed(batchId, errMsg);
+      else await createFailedImportBatch({ tipo: 'rating', arquivo_nome: fileName, total_linhas: classifications.length, error_message: errMsg });
     } finally {
       setImporting(false);
       setProgress('');
