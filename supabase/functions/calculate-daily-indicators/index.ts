@@ -594,27 +594,19 @@ Deno.serve(async (req) => {
           requestedMonths.add(d.slice(0, 7));
         }
 
-        // Cruzar com mapa_historico: só meses cujas datas realmente existem na tabela
+        // Cruzar com mapa_historico via RPC: uma única query agrega DISTINCT por mês
+        // no banco, evitando paginação e múltiplos roundtrips do client.
         const confirmedMonths = new Set<string>();
         if (validDates.length > 0) {
-          let offset = 0;
-          while (true) {
-            const { data: chunk, error: vErr } = await supabase
-              .from("mapa_historico")
-              .select("data_operacao")
-              .in("data_operacao", validDates)
-              .range(offset, offset + PAGE - 1);
-            if (vErr) {
-              console.warn("Validation query failed:", vErr.message);
-              break;
+          const { data: rows, error: vErr } = await supabase
+            .rpc("distinct_mapa_historico_months", { p_dates: validDates });
+          if (vErr) {
+            console.warn("Validation RPC failed:", vErr.message);
+          } else {
+            for (const r of rows ?? []) {
+              const mes = String((r as any).mes ?? "");
+              if (/^\d{4}-\d{2}$/.test(mes)) confirmedMonths.add(mes);
             }
-            if (!chunk || chunk.length === 0) break;
-            for (const r of chunk) {
-              const dop = String((r as any).data_operacao ?? "");
-              if (dop.length >= 7) confirmedMonths.add(dop.slice(0, 7));
-            }
-            if (chunk.length < PAGE) break;
-            offset += PAGE;
           }
         }
 
