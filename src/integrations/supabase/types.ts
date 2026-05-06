@@ -1601,6 +1601,10 @@ export type Database = {
       }
       is_admin: { Args: { check_user_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      replace_caixas_batidas_month: {
+        Args: { p_mes_first_day: string; p_rows: Json }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "colaborador"

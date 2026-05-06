@@ -137,17 +137,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Delete previous caixas_batidas records for this month
-    const { data: existing } = await supabase
-      .from('user_incentives_daily')
-      .select('id, detalhes_json')
-      .eq('data_referencia', firstDay);
-    const toDelete = (existing ?? []).filter((r: any) => r.detalhes_json?.tipo === 'caixas_batidas').map((r: any) => r.id);
-    if (toDelete.length > 0) {
-      await supabase.from('user_incentives_daily').delete().in('id', toDelete);
-    }
-
-    // 6. Insert new records with cap applied
+    // 5. Build new rows (cap applied)
     const inserts: any[] = [];
     for (const [userId, a] of agg.entries()) {
       const wt = userTypes.get(userId) ?? 'motorista';
@@ -175,21 +165,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 6. Atomic replace via RPC (advisory lock por mês + delete+insert na mesma transação).
+    //    Garante idempotência: reexecuções para o mesmo mês produzem o mesmo resultado
+    //    e execuções concorrentes não duplicam nem corrompem totais.
     const insertErrors: Array<{ user_id: string; nome?: string; motivo: string }> = [];
-    if (inserts.length > 0) {
-      // insert one-by-one to capture per-user errors
-      const { error: bulkErr } = await supabase.from('user_incentives_daily').insert(inserts);
-      if (bulkErr) {
-        // fallback: try individually so we know which ones failed
-        for (const row of inserts) {
-          const { error: rowErr } = await supabase.from('user_incentives_daily').insert(row);
-          if (rowErr) {
-            insertErrors.push({
-              user_id: row.user_id,
-              nome: userNames.get(row.user_id),
-              motivo: rowErr.message,
-            });
-          }
+    const { error: rpcErr } = await supabase.rpc('replace_caixas_batidas_month', {
+      p_mes_first_day: firstDay,
+      p_rows: inserts,
+    });
+    if (rpcErr) {
+      // Fallback: tenta linha-a-linha apenas para descobrir quais falharam
+      console.error('replace_caixas_batidas_month RPC failed:', rpcErr);
+      for (const row of inserts) {
+        const { error: rowErr } = await supabase.rpc('replace_caixas_batidas_month', {
+          p_mes_first_day: firstDay,
+          p_rows: [row],
+        });
+        if (rowErr) {
+          insertErrors.push({
+            user_id: row.user_id,
+            nome: userNames.get(row.user_id),
+            motivo: rowErr.message,
+          });
         }
       }
     }
