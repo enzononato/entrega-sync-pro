@@ -14,7 +14,7 @@ import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewT
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, Copy } from 'lucide-react';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 
 const PDV_CRITICO_INDICATOR_CODE = 'PDV_CRITICO';
 const PDV_META = 5;
@@ -413,6 +413,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
     if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
 
     setImporting(true);
+    let batchId: string | null = null;
     try {
       // Resolve user_id por CPF (ou matrícula como fallback)
       const cpfs = Array.from(new Set(toInsert.map(r => r.cpf).filter(Boolean)));
@@ -452,7 +453,7 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
 
       const mesesUnicos = Array.from(new Set(toInsert.map(r => `${ano}-${String(r.mes_num).padStart(2, '0')}-01`)));
 
-      const batchId = await createImportBatch({
+      batchId = await createImportBatch({
         tipo: 'pdv_critico',
         arquivo_nome: fileName,
         total_linhas: classifications.length,
@@ -536,7 +537,10 @@ function ImportPDVCriticoDialog({ onSuccess }: { onSuccess: () => void }) {
       setOpen(false);
       onSuccess();
     } catch (err: any) {
-      toast.error('Erro na importação: ' + err.message);
+      const errMsg = err?.message || String(err);
+      if (batchId) await markImportBatchFailed(batchId, errMsg);
+      else await createFailedImportBatch({ tipo: 'pdv_critico', arquivo_nome: fileName, total_linhas: classifications.length, error_message: errMsg });
+      toast.error('Erro na importação: ' + errMsg);
     } finally {
       setImporting(false);
       setProgress('');
