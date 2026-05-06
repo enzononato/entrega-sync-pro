@@ -1591,6 +1591,12 @@ export type Database = {
         }
         Returns: Json
       }
+      distinct_mapa_historico_months: {
+        Args: { p_dates: string[] }
+        Returns: {
+          mes: string
+        }[]
+      }
       get_user_id: { Args: { check_auth_id: string }; Returns: string }
       has_role: {
         Args: {
