@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { DateRangePick } from '@/components/shared/DateRangePick';
 import { ImportPreviewTable, RowStatus } from '@/components/admin/ImportPreviewTable';
 import { ImportHistoryPanel } from '@/components/admin/ImportHistoryPanel';
-import { createImportBatch } from '@/hooks/useImportBatches';
+import { createImportBatch, markImportBatchFailed, createFailedImportBatch } from '@/hooks/useImportBatches';
 import { fetchAllIn } from '@/lib/supabasePaginate';
 
 interface ParsedRow {
@@ -351,7 +351,7 @@ function Import031134Dialog({ onSuccess }: { onSuccess: () => void }) {
       }
 
       const uniqueDates = [...new Set(toInsert.map(r => r.data_operacao!).filter(Boolean))];
-      const batchId = await createImportBatch({
+      batchId = await createImportBatch({
         tipo: 'refugo_031134',
         arquivo_nome: fileName,
         total_linhas: classifications.length,
