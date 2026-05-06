@@ -13,7 +13,7 @@ export type ImportBatchTipo =
 export interface ImportBatch {
   id: string;
   tipo: ImportBatchTipo;
-  status: 'preview' | 'confirmed' | 'undone';
+  status: 'preview' | 'confirmed' | 'undone' | 'failed';
   arquivo_nome: string;
   total_linhas: number;
   linhas_inseridas: number;
@@ -26,6 +26,9 @@ export interface ImportBatch {
   undone_at: string | null;
   undone_by: string | null;
   created_at: string;
+  error_message?: string | null;
+  imported_by_nome?: string | null;
+  undone_by_nome?: string | null;
 }
 
 const TARGET_TABLE: Record<ImportBatchTipo, string> = {
@@ -59,9 +62,75 @@ export function useImportBatches(tipo?: ImportBatchTipo) {
       if (tipo) q = q.eq('tipo', tipo);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as ImportBatch[];
+      const batches = (data ?? []) as ImportBatch[];
+      // Enriquecer com nomes de quem importou e desfez
+      const authIds = Array.from(
+        new Set(
+          batches.flatMap(b => [b.imported_by, b.undone_by]).filter((v): v is string => !!v),
+        ),
+      );
+      if (authIds.length > 0) {
+        const { data: users } = await (supabase.from('users') as any)
+          .select('auth_user_id, nome, email')
+          .in('auth_user_id', authIds);
+        const map = new Map<string, string>();
+        (users ?? []).forEach((u: any) => map.set(u.auth_user_id, u.nome || u.email || ''));
+        batches.forEach(b => {
+          b.imported_by_nome = b.imported_by ? map.get(b.imported_by) ?? null : null;
+          b.undone_by_nome = b.undone_by ? map.get(b.undone_by) ?? null : null;
+        });
+      }
+      return batches;
     },
   });
+}
+
+/**
+ * Marca um lote de importação como falho, registrando a mensagem de erro.
+ * Útil para preservar o histórico mesmo quando a importação não foi concluída.
+ */
+export async function markImportBatchFailed(batchId: string, errorMessage: string): Promise<void> {
+  try {
+    await (supabase.from('import_batches' as any) as any)
+      .update({
+        status: 'failed',
+        error_message: (errorMessage || 'Erro desconhecido').slice(0, 1000),
+      })
+      .eq('id', batchId);
+  } catch (e) {
+    console.warn('Falha ao marcar batch como failed:', e);
+  }
+}
+
+/**
+ * Cria um registro de importação já marcado como falha (quando o erro
+ * ocorreu antes de termos chance de criar o batch normalmente).
+ */
+export async function createFailedImportBatch(input: {
+  tipo: ImportBatchTipo;
+  arquivo_nome: string;
+  total_linhas?: number;
+  error_message: string;
+  metadata?: Record<string, any>;
+}): Promise<void> {
+  const { data: authData } = await supabase.auth.getUser();
+  try {
+    await (supabase.from('import_batches' as any) as any).insert({
+      tipo: input.tipo,
+      arquivo_nome: input.arquivo_nome,
+      total_linhas: input.total_linhas ?? 0,
+      linhas_inseridas: 0,
+      linhas_duplicadas: 0,
+      linhas_invalidas: 0,
+      payload_preview: [],
+      metadata: input.metadata ?? {},
+      imported_by: authData.user?.id ?? null,
+      status: 'failed',
+      error_message: (input.error_message || 'Erro desconhecido').slice(0, 1000),
+    });
+  } catch (e) {
+    console.warn('Falha ao criar batch failed:', e);
+  }
 }
 
 /**

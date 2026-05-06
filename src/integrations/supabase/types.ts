@@ -256,6 +256,7 @@ export type Database = {
           arquivo_nome: string
           confirmed_at: string | null
           created_at: string
+          error_message: string | null
           id: string
           imported_by: string | null
           linhas_duplicadas: number
@@ -273,6 +274,7 @@ export type Database = {
           arquivo_nome?: string
           confirmed_at?: string | null
           created_at?: string
+          error_message?: string | null
           id?: string
           imported_by?: string | null
           linhas_duplicadas?: number
@@ -290,6 +292,7 @@ export type Database = {
           arquivo_nome?: string
           confirmed_at?: string | null
           created_at?: string
+          error_message?: string | null
           id?: string
           imported_by?: string | null
           linhas_duplicadas?: number
