@@ -565,14 +565,68 @@ Deno.serve(async (req) => {
     }
     console.log(`REFUGO: ${refugoUpserts.length} records`);
 
-    // ── Encadear cálculo do bônus mensal para os meses afetados ──
+    // ── Encadear cálculo do bônus mensal e Caixas Batidas ──
+    // Regras de validação para garantir que os meses afetados reflitam EXATAMENTE
+    // as importações de mapas que terminaram:
+    //   1) Só encadeia quando o caller passou `data_referencia` (contexto de import);
+    //      sem ele, estaríamos no fallback "últimos 7 dias", que não corresponde a
+    //      nenhuma importação específica.
+    //   2) Cada data precisa ser uma string YYYY-MM-DD válida.
+    //   3) O mês derivado só é incluído se houver pelo menos uma linha em
+    //      `mapa_historico` cuja `data_operacao` esteja entre as datas pedidas
+    //      e dentro daquele mês — caso contrário o mês é descartado para evitar
+    //      acionar recálculos para meses sem dados importados.
     try {
-      const monthsSet = new Set<string>();
-      for (const d of dates) {
-        if (typeof d === "string" && d.length >= 7) monthsSet.add(d.slice(0, 7));
-      }
-      const months = Array.from(monthsSet);
-      if (months.length > 0) {
+      if (!datesProvided) {
+        console.log("Skip chaining: no data_referencia provided (not an import context).");
+      } else {
+        const ymRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+        const validDates: string[] = [];
+        const requestedMonths = new Set<string>();
+        for (const d of dates) {
+          if (typeof d !== "string") continue;
+          const m = d.match(ymRegex);
+          if (!m) continue;
+          // Sanity-check: data válida no calendário
+          const dt = new Date(`${d}T00:00:00Z`);
+          if (isNaN(dt.getTime()) || dt.toISOString().slice(0, 10) !== d) continue;
+          validDates.push(d);
+          requestedMonths.add(d.slice(0, 7));
+        }
+
+        // Cruzar com mapa_historico: só meses cujas datas realmente existem na tabela
+        const confirmedMonths = new Set<string>();
+        if (validDates.length > 0) {
+          let offset = 0;
+          while (true) {
+            const { data: chunk, error: vErr } = await supabase
+              .from("mapa_historico")
+              .select("data_operacao")
+              .in("data_operacao", validDates)
+              .range(offset, offset + PAGE - 1);
+            if (vErr) {
+              console.warn("Validation query failed:", vErr.message);
+              break;
+            }
+            if (!chunk || chunk.length === 0) break;
+            for (const r of chunk) {
+              const dop = String((r as any).data_operacao ?? "");
+              if (dop.length >= 7) confirmedMonths.add(dop.slice(0, 7));
+            }
+            if (chunk.length < PAGE) break;
+            offset += PAGE;
+          }
+        }
+
+        const droppedMonths = [...requestedMonths].filter(m => !confirmedMonths.has(m));
+        if (droppedMonths.length > 0) {
+          console.log(`Skipping months without imported map data: ${droppedMonths.join(", ")}`);
+        }
+
+        const months = Array.from(confirmedMonths);
+        if (months.length === 0) {
+          console.log("No confirmed months to chain — nothing recalculated downstream.");
+        } else {
         console.log(`Triggering calculate-monthly-bonus for months: ${months.join(", ")}`);
         await Promise.all(
           months.map((month) =>
@@ -589,6 +643,7 @@ Deno.serve(async (req) => {
               .catch((e) => console.warn(`caixas-batidas ${month} failed:`, e?.message ?? e))
           )
         );
+        }
       }
     } catch (e: any) {
       console.warn("Failed to chain monthly recalculations:", e?.message ?? e);
