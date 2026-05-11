@@ -1,54 +1,41 @@
-## Contexto
+## Exportar Planos de Ação (CSV)
 
-Hoje colaboradores logam por **matrícula + senha**. Confirmei no banco:
-- **180 colaboradores ativos**, **162 com CPF**, **18 sem CPF**.
-- Todos os 162 CPFs são **únicos** (zero duplicidade).
-- Há matrículas duplicadas entre Motorista/Ajudante (ex.: "2", "19", "3005") — confirma o problema relatado.
+Adicionar um botão **"Exportar"** no cabeçalho da página `/admin/planos-de-acao` que gera um CSV (UTF-8 BOM, abre no Excel) com todos os planos atualmente filtrados (respeita aba ativa + filtro de responsável).
 
-A boa notícia: a edge function `auth-cpf` **já aceita CPF** como fallback. Ou seja, o backend praticamente já está pronto. A troca é viável e de baixa complexidade — o que precisa é (1) deixar o CPF obrigatório/único no banco, (2) preencher os 18 faltantes, (3) trocar a UI de login, (4) ajustar telas administrativas que pedem matrícula no cadastro.
+### Colunas do CSV
 
-## Plano
+Cada linha = um plano de ação, com o máximo de informações disponíveis:
 
-### 1. Banco (migração)
-- Adicionar `UNIQUE` em `users.cpf` (parcial, ignorando NULL) para travar duplicidade futura.
-- Adicionar índice `users(cpf)` para acelerar o lookup do login.
-- **Não** tornar `NOT NULL` ainda — primeiro preencher os 18 faltantes para não quebrar.
+1. ID do plano
+2. Data de abertura (DD/MM/AAAA)
+3. Hora de abertura (HH:mm:ss)
+4. Última atualização (DD/MM/AAAA HH:mm:ss)
+5. Status (Aberto / Em Andamento / Concluído / Atrasado / Cancelado)
+6. Atrasado (Sim/Não)
+7. Prazo (DD/MM/AAAA)
+8. Dias restantes / dias em atraso
+9. Descrição da ação
+10. Observações
+11. Responsável — nome
+12. Responsável — tipo (Motorista / Ajudante)
+13. Indicador — código
+14. Indicador — nome
+15. Causa raiz — data de referência (DD/MM/AAAA)
+16. Causa raiz — descrição do problema
+17. Causa raiz — categoria
+18. Causa raiz — causa raiz
 
-### 2. Preencher os 18 colaboradores sem CPF
-- Gerar lista (CSV) com nome, matrícula, unidade dos 18 sem CPF para você preencher.
-- Você devolve preenchido → atualizo via `insert tool`.
-- Depois disso, opcional: tornar `cpf` `NOT NULL` em `users` (apenas para `role='colaborador'` via trigger, já que admins podem não ter).
+### Implementação
 
-### 3. Tela de login do colaborador (`LoginColaborador.tsx`)
-- Trocar campo "Matrícula" por **"CPF"** com máscara `000.000.000-00`.
-- Validar 11 dígitos antes de enviar.
-- Enviar `cpf` (não `matricula`) para `auth-cpf` — a function já trata.
-- Atualizar copy/placeholder/labels.
+- Reaproveitar `src/lib/exportCsv.ts` (já existe, com BOM UTF-8).
+- Em `src/pages/admin/PlanosDeAcao.tsx`:
+  - Importar `Download` do `lucide-react` e `exportToCsv`.
+  - Adicionar botão `Exportar` ao lado do `PageHeader` (ou logo acima da lista, alinhado à direita), desabilitado quando `filteredPlanos.length === 0`.
+  - Handler `handleExport()` constrói headers + rows a partir de `filteredPlanos`, com nome do arquivo `planos-de-acao_AAAA-MM-DD.csv`.
+- Sem mudanças no hook `usePlanosDeAcao` — os dados já vêm com `users` e `root_cause_records.indicators` via join.
+- Sem mudanças de banco / RLS / edge functions.
 
-### 4. Edge function `auth-cpf`
-- Já funciona com CPF. Pequenos ajustes:
-  - Normalizar CPF removendo máscara (`replace(/\D/g, '')`) — já faz.
-  - Mensagens de erro coerentes ("CPF ou senha inválidos").
-  - Continuar registrando em `login_attempts` com `identifier_type='cpf'`.
+### Escopo
 
-### 5. Telas administrativas
-- `Colaboradores` / cadastro de usuário: tornar **CPF obrigatório** no formulário (hoje é opcional). Matrícula continua existindo (é usada em importações de mapa/PDV/etc.), mas deixa de ser credencial.
-- Importador de colaboradores (CSV): validar CPF obrigatório e único.
-- `LogsLogin`: garantir que mostra o `identifier_type` corretamente.
-
-### 6. Comunicação aos colaboradores
-- Sugerir um aviso/banner no primeiro login pós-mudança ou um comunicado fora do app.
-- Senha **não muda** — só o identificador.
-
-### 7. O que NÃO muda
-- Login do **administrador** (continua e-mail + senha).
-- Importações por **matrícula** continuam funcionando (matrícula segue sendo a chave operacional dos mapas).
-- RLS, Supabase Auth, sessões, refresh — tudo igual.
-
-## Riscos & mitigação
-- **18 colaboradores sem CPF** → bloqueio de login. Mitigação: preencher antes de publicar a mudança.
-- **Colaborador digita CPF errado** → mensagem genérica + log em `login_attempts` (já existe).
-- **CPF é dado sensível (LGPD)** → não exibir CPF em listas públicas; só usar como credencial. Já é o padrão hoje.
-
-## Esforço estimado
-Pequeno: ~1 migração + ~2 arquivos de front (login + cadastro) + ajuste leve no importador. Se quiser, faço tudo numa só rodada após você confirmar e me devolver os 18 CPFs faltantes (ou autorizar deixar `cpf` opcional por enquanto e bloquear login só de quem não tem).
+- Apenas a página admin (`src/pages/admin/PlanosDeAcao.tsx`).
+- Não altera a versão do colaborador.

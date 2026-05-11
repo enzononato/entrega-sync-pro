@@ -7,7 +7,7 @@ export interface ActionPlanWithRelations {
   descricao_acao: string; prazo: string | null; status: string;
   observacoes: string; created_at: string; updated_at: string;
   users: { nome: string; worker_type: string | null } | null;
-  root_cause_records: { descricao_problema: string; causa_raiz: string; data_referencia: string; indicators: { nome: string; codigo: string } | null } | null;
+  root_cause_records: { descricao_problema: string; causa_raiz: string; categoria_causa: string; data_referencia: string; indicators: { nome: string; codigo: string } | null } | null;
 }
 
 export function usePlanosDeAcao(filters?: { status?: string; user_id?: string; atrasados?: boolean }) {
@@ -15,7 +15,7 @@ export function usePlanosDeAcao(filters?: { status?: string; user_id?: string; a
     queryKey: ['action_plans', filters],
     queryFn: async () => {
       let q = (supabase.from('action_plans' as any) as any)
-        .select('*, users(nome, worker_type), root_cause_records(descricao_problema, causa_raiz, data_referencia, indicators(nome, codigo))')
+        .select('*, users(nome, worker_type), root_cause_records(descricao_problema, causa_raiz, categoria_causa, data_referencia, indicators(nome, codigo))')
         .order('created_at', { ascending: false });
       if (filters?.status) q = q.eq('status', filters.status);
       if (filters?.user_id) q = q.eq('responsavel_user_id', filters.user_id);
@@ -36,7 +36,7 @@ export function usePlanosDoColaborador(userId?: string) {
     queryKey: ['action_plans', 'byUser', userId],
     queryFn: async () => {
       const { data, error } = await (supabase.from('action_plans' as any) as any)
-        .select('*, root_cause_records(descricao_problema, causa_raiz, data_referencia, indicators(nome, codigo))')
+        .select('*, root_cause_records(descricao_problema, causa_raiz, categoria_causa, data_referencia, indicators(nome, codigo))')
         .eq('responsavel_user_id', userId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
