@@ -1,74 +1,54 @@
-## Objetivo
-Criar uma RPC Postgres `dashboard_metrics` que devolve as métricas agregadas do dashboard em um único round-trip (~200 bytes em vez de ~5 MB), eliminando o fetch + agregação no browser para os cards de "Metas Atingidas", banner de Desafio e gráficos.
+## Contexto
 
-## Etapa 1 — Migração SQL
+Hoje colaboradores logam por **matrícula + senha**. Confirmei no banco:
+- **180 colaboradores ativos**, **162 com CPF**, **18 sem CPF**.
+- Todos os 162 CPFs são **únicos** (zero duplicidade).
+- Há matrículas duplicadas entre Motorista/Ajudante (ex.: "2", "19", "3005") — confirma o problema relatado.
 
-### Índices de suporte (idempotentes)
-```sql
-CREATE INDEX IF NOT EXISTS idx_uid_data_referencia
-  ON public.user_indicator_daily (data_referencia);
-CREATE INDEX IF NOT EXISTS idx_uid_user_data
-  ON public.user_indicator_daily (user_id, data_referencia);
-CREATE INDEX IF NOT EXISTS idx_uid_indicator_data
-  ON public.user_indicator_daily (indicator_id, data_referencia);
-CREATE INDEX IF NOT EXISTS idx_users_unidade_worker_ativo
-  ON public.users (unidade_id, worker_type) WHERE ativo = true;
-```
+A boa notícia: a edge function `auth-cpf` **já aceita CPF** como fallback. Ou seja, o backend praticamente já está pronto. A troca é viável e de baixa complexidade — o que precisa é (1) deixar o CPF obrigatório/único no banco, (2) preencher os 18 faltantes, (3) trocar a UI de login, (4) ajustar telas administrativas que pedem matrícula no cadastro.
 
-### RPC `dashboard_metrics`
-- `SECURITY DEFINER`, `search_path=public`, retorno `jsonb`.
-- Parâmetros: `p_inicio date`, `p_fim date`, `p_unidade_id uuid default null`, `p_worker_type text default null`.
-- Validação no início: exige `has_role(auth.uid(),'admin')`; se `p_unidade_id` não nulo, exige `admin_can_access_unit(p_unidade_id)`; se nulo, restringe agregação às unidades visíveis ao admin (via `user_units` ou todas, igual `admin_can_access_unit`).
-- Considera apenas `users.ativo = true AND role = 'colaborador'` e respeita filtros opcionais (`unidade_id`, `worker_type`).
-- Trata indicadores mensais corretamente: se `indicators.periodicidade = 'mensal'`, filtra por interseção `to_char(data_referencia,'YYYY-MM')` entre os meses do período; senão por `data_referencia BETWEEN p_inicio AND p_fim`.
-- Status canônico = `dentro_meta`/`acima_meta`/`atingiu` ⇒ atingida.
+## Plano
 
-Retorno (shape estável):
-```json
-{
-  "metas_atingidas": 1234,
-  "metas_total": 1500,
-  "abaixo_meta": 266,
-  "desafios_total": 800,
-  "desafios_atingidos": 420,
-  "por_indicador": [
-    { "indicator_id": "uuid", "codigo": "TML", "nome": "Tempo Médio...",
-      "total": 200, "atingidas": 180, "abaixo": 20 }
-  ]
-}
-```
+### 1. Banco (migração)
+- Adicionar `UNIQUE` em `users.cpf` (parcial, ignorando NULL) para travar duplicidade futura.
+- Adicionar índice `users(cpf)` para acelerar o lookup do login.
+- **Não** tornar `NOT NULL` ainda — primeiro preencher os 18 faltantes para não quebrar.
 
-## Etapa 2 — Hook React Query
-Criar `src/hooks/useDashboardMetrics.ts`:
-- `useQuery` com `queryKey: ['dashboard-metrics', from, to, unidade, tipo]`.
-- Chama `supabase.rpc('dashboard_metrics', { p_inicio, p_fim, p_unidade_id, p_worker_type })`.
-- `staleTime: 2 * 60_000`, `placeholderData: keepPreviousData`.
+### 2. Preencher os 18 colaboradores sem CPF
+- Gerar lista (CSV) com nome, matrícula, unidade dos 18 sem CPF para você preencher.
+- Você devolve preenchido → atualizo via `insert tool`.
+- Depois disso, opcional: tornar `cpf` `NOT NULL` em `users` (apenas para `role='colaborador'` via trigger, já que admins podem não ter).
 
-## Etapa 3 — Refatorar `src/pages/admin/Dashboard.tsx`
-Substituir consumidores de `desempenho`/`filteredDesempenho` por dados da RPC:
-- `dentroMeta`, `abaixoMeta`, `totalMetasDash`, `pctAtingidas` ⇒ direto do retorno.
-- `barData` (Desempenho por Indicador) ⇒ map de `por_indicador`.
-- `topCritical` (Top 5 críticos) ⇒ derivado de `por_indicador` (filtra `abaixo > 0`, ordena, slice 5).
-- `desafioStats` (banner Desafio diário) ⇒ usa `desafios_total/desafios_atingidos`.
+### 3. Tela de login do colaborador (`LoginColaborador.tsx`)
+- Trocar campo "Matrícula" por **"CPF"** com máscara `000.000.000-00`.
+- Validar 11 dígitos antes de enviar.
+- Enviar `cpf` (não `matricula`) para `auth-cpf` — a function já trata.
+- Atualizar copy/placeholder/labels.
 
-Manter intactos:
-- `desafioStatsMes` (lógica de agregação mensal por user/indicador para o HeroStat "Desafio nas Metas").
-- Bônus mensal (`bonusMensalRows` da edge function `calculate-monthly-bonus`).
-- Filtros (Unidade, Perfil, Período, etc.) e demais cards (feedbacks, planos, caixas batidas).
+### 4. Edge function `auth-cpf`
+- Já funciona com CPF. Pequenos ajustes:
+  - Normalizar CPF removendo máscara (`replace(/\D/g, '')`) — já faz.
+  - Mensagens de erro coerentes ("CPF ou senha inválidos").
+  - Continuar registrando em `login_attempts` com `identifier_type='cpf'`.
 
-### Otimização adicional
-Tornar `useDesempenhoDashboard` **condicional**: só habilitar (`enabled`) quando o fallback de bônus for necessário — i.e., `bonusMensalRows.length === 0 && metasComBonus > 0`. No caminho normal (com `user_incentives_daily` populado) o fetch pesado de 38k linhas deixa de acontecer.
+### 5. Telas administrativas
+- `Colaboradores` / cadastro de usuário: tornar **CPF obrigatório** no formulário (hoje é opcional). Matrícula continua existindo (é usada em importações de mapa/PDV/etc.), mas deixa de ser credencial.
+- Importador de colaboradores (CSV): validar CPF obrigatório e único.
+- `LogsLogin`: garantir que mostra o `identifier_type` corretamente.
 
-## Etapa 4 — Validação
-- Comparar `metas_atingidas`, `metas_total` e `por_indicador` antes/depois em alguns períodos (mês corrente, mês anterior) para garantir paridade numérica.
-- Verificar que filtros por unidade e por tipo continuam funcionando (admin com `user_units` restritos vê apenas suas unidades).
+### 6. Comunicação aos colaboradores
+- Sugerir um aviso/banner no primeiro login pós-mudança ou um comunicado fora do app.
+- Senha **não muda** — só o identificador.
 
-## Resultado esperado
-- Dashboard inicial: de ~5–10 s para <500 ms em condições normais.
-- Trocar filtro de unidade/perfil/período: instantâneo (RPC + `keepPreviousData`).
-- Sem mudanças visuais nem nas regras de negócio (binário Atingiu/Não Atingiu mantido).
+### 7. O que NÃO muda
+- Login do **administrador** (continua e-mail + senha).
+- Importações por **matrícula** continuam funcionando (matrícula segue sendo a chave operacional dos mapas).
+- RLS, Supabase Auth, sessões, refresh — tudo igual.
 
-## Não-objetivos
-- Não tocar nas telas de colaborador.
-- Não alterar a edge function de bônus mensal.
-- Não mexer nos importadores nem em RLS de outras tabelas.
+## Riscos & mitigação
+- **18 colaboradores sem CPF** → bloqueio de login. Mitigação: preencher antes de publicar a mudança.
+- **Colaborador digita CPF errado** → mensagem genérica + log em `login_attempts` (já existe).
+- **CPF é dado sensível (LGPD)** → não exibir CPF em listas públicas; só usar como credencial. Já é o padrão hoje.
+
+## Esforço estimado
+Pequeno: ~1 migração + ~2 arquivos de front (login + cadastro) + ajuste leve no importador. Se quiser, faço tudo numa só rodada após você confirmar e me devolver os 18 CPFs faltantes (ou autorizar deixar `cpf` opcional por enquanto e bloquear login só de quem não tem).
