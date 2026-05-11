@@ -103,10 +103,13 @@ Deno.serve(async (req) => {
     // Fallback to CPF if matricula not provided
     if (!user && cpf) {
       const cleanCpf = cpf.replace(/\D/g, "");
+      const formattedCpf = cleanCpf.length === 11
+        ? `${cleanCpf.slice(0,3)}.${cleanCpf.slice(3,6)}.${cleanCpf.slice(6,9)}-${cleanCpf.slice(9,11)}`
+        : cleanCpf;
       const result = await supabaseAdmin
         .from("users")
         .select("id, email, nome, ativo")
-        .eq("cpf", cleanCpf)
+        .in("cpf", [cleanCpf, formattedCpf])
         .maybeSingle();
       if (result.data && result.data.ativo === false) {
         await logAttempt({
