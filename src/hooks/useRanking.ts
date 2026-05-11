@@ -42,7 +42,8 @@ export function useRanking(filters: { dataInicio: string; dataFim: string; unida
       while (true) {
         const { data: page, error } = await supabase
           .from('user_indicator_daily')
-          .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users(nome, worker_type, avatar_url, unidade_id, units(nome))')
+          .select('user_id, indicator_id, percentual_atingimento, status, valor, meta, indicators(nome, codigo), users!inner(nome, worker_type, avatar_url, unidade_id, ativo, units(nome))')
+          .eq('users.ativo', true)
           .gte('data_referencia', filters.dataInicio)
           .lte('data_referencia', filters.dataFim)
           .range(from, from + PAGE_SIZE - 1);
