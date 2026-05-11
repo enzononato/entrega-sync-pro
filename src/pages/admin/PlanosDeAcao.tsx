@@ -18,9 +18,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import {
   ClipboardList, Activity, AlertTriangle, CheckCircle, Loader2,
-  Calendar, ChevronRight, Target, FileText, Clock, XCircle,
+  Calendar, ChevronRight, Target, FileText, Clock, XCircle, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { exportToCsv } from '@/lib/exportCsv';
 
 const STATUS_ICON: Record<string, { icon: typeof ClipboardList; color: string }> = {
   aberto: { icon: ClipboardList, color: 'text-blue-500' },
@@ -87,6 +88,55 @@ export default function PlanosDeAcaoAdmin() {
     : planos;
   const pg = usePagination(filteredPlanos);
 
+  const STATUS_LABEL: Record<string, string> = {
+    aberto: 'Aberto',
+    em_andamento: 'Em Andamento',
+    concluido: 'Concluído',
+    cancelado: 'Cancelado',
+  };
+
+  const handleExport = () => {
+    const headers = [
+      'ID', 'Data Abertura', 'Hora Abertura', 'Última Atualização',
+      'Status', 'Atrasado', 'Prazo', 'Dias Restantes / Atraso',
+      'Descrição da Ação', 'Observações',
+      'Responsável', 'Tipo Responsável',
+      'Indicador Código', 'Indicador Nome',
+      'Causa - Data Referência', 'Causa - Problema', 'Causa - Categoria', 'Causa - Causa Raiz',
+    ];
+    const rows = filteredPlanos.map(p => {
+      const created = new Date(p.created_at);
+      const updated = p.updated_at ? new Date(p.updated_at) : null;
+      const atrasado = isAtrasado(p);
+      const dias = diasRestantes(p);
+      const wt = p.users?.worker_type;
+      return [
+        p.id,
+        format(created, 'dd/MM/yyyy'),
+        format(created, 'HH:mm:ss'),
+        updated ? format(updated, 'dd/MM/yyyy HH:mm:ss') : '',
+        STATUS_LABEL[p.status] ?? p.status,
+        atrasado ? 'Sim' : 'Não',
+        p.prazo ? format(new Date(p.prazo + 'T00:00:00'), 'dd/MM/yyyy') : '',
+        dias === null ? '' : atrasado ? `${Math.abs(dias)} dias de atraso` : `${dias} dias restantes`,
+        p.descricao_acao ?? '',
+        p.observacoes ?? '',
+        p.users?.nome ?? '',
+        wt === 'motorista' ? 'Motorista' : wt === 'ajudante' ? 'Ajudante' : '',
+        p.root_cause_records?.indicators?.codigo ?? '',
+        p.root_cause_records?.indicators?.nome ?? '',
+        p.root_cause_records?.data_referencia
+          ? format(new Date(p.root_cause_records.data_referencia + 'T00:00:00'), 'dd/MM/yyyy')
+          : '',
+        p.root_cause_records?.descricao_problema ?? '',
+        (p.root_cause_records as any)?.categoria_causa ?? '',
+        p.root_cause_records?.causa_raiz ?? '',
+      ];
+    });
+    const today = format(new Date(), 'yyyy-MM-dd');
+    exportToCsv(`planos-de-acao_${today}.csv`, headers, rows);
+  };
+
   const kpis = [
     { label: 'Abertos', value: totalAbertos, icon: ClipboardList, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', borderColor: 'border-l-blue-500' },
     { label: 'Em Andamento', value: totalAndamento, icon: Activity, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', borderColor: 'border-l-amber-500' },
@@ -96,7 +146,19 @@ export default function PlanosDeAcaoAdmin() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <PageHeader title="Planos de Ação" subtitle="Gestão de planos vinculados a causas raiz" />
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <PageHeader title="Planos de Ação" subtitle="Gestão de planos vinculados a causas raiz" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={filteredPlanos.length === 0}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Exportar ({filteredPlanos.length})
+        </Button>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
