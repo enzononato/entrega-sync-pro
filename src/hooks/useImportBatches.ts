@@ -170,11 +170,21 @@ export function useUndoImport() {
       // Para rating: capturar user_ids antes de deletar para limpar indicadores depois
       let ratingUserIds: string[] = [];
       if (batch.tipo === 'rating') {
-        const { data: ratingRows } = await (supabase.from('rating_avaliacoes') as any)
-          .select('user_id')
-          .eq('import_batch_id', batch.id)
-          .not('user_id', 'is', null);
-        ratingUserIds = Array.from(new Set((ratingRows ?? []).map((r: any) => r.user_id).filter(Boolean)));
+        // Paginação manual para bypass do limite de 1000 do PostgREST
+        const collected: string[] = [];
+        const PAGE = 1000;
+        let from = 0;
+        while (true) {
+          const { data } = await (supabase.from('rating_avaliacoes') as any)
+            .select('user_id')
+            .eq('import_batch_id', batch.id)
+            .not('user_id', 'is', null)
+            .range(from, from + PAGE - 1);
+          if (data && data.length) collected.push(...data.map((r: any) => r.user_id));
+          if (!data || data.length < PAGE) break;
+          from += PAGE;
+        }
+        ratingUserIds = Array.from(new Set(collected.filter(Boolean)));
       }
 
       // Para Colaboradores, NÃO deletamos usuários (poderia quebrar referências).
@@ -246,11 +256,31 @@ export function useUndoImport() {
               const RATING_META = 4.95;
               const RATING_DESAFIO = 5.0;
               const userIds = Array.from(restoredUserIds);
-              const { data: restored } = await (supabase.from('rating_avaliacoes') as any)
-                .select('user_id, rating')
-                .eq('data_referencia_inicio', inicio)
-                .in('user_id', userIds);
-              const rows = (restored ?? [])
+              const workerType: string | undefined = batch.metadata?.worker_type;
+              const unidade: string | undefined = batch.metadata?.unidade;
+              // Paginação manual: chunks de 500 user_ids × range de 1000.
+              // Filtra também por worker_type e unidade para não pegar
+              // registro de outro contexto do mesmo user no mesmo mês.
+              const restored: any[] = [];
+              const USER_CHUNK = 500, PAGE = 1000;
+              for (let i = 0; i < userIds.length; i += USER_CHUNK) {
+                const slice = userIds.slice(i, i + USER_CHUNK);
+                let from = 0;
+                while (true) {
+                  let q = (supabase.from('rating_avaliacoes') as any)
+                    .select('user_id, rating')
+                    .eq('data_referencia_inicio', inicio)
+                    .in('user_id', slice)
+                    .range(from, from + PAGE - 1);
+                  if (workerType) q = q.eq('worker_type', workerType);
+                  if (unidade) q = q.eq('unidade', unidade);
+                  const { data } = await q;
+                  if (data && data.length) restored.push(...data);
+                  if (!data || data.length < PAGE) break;
+                  from += PAGE;
+                }
+              }
+              const rows = restored
                 .filter((r: any) => r.user_id)
                 .map((r: any) => {
                   const v = Number(r.rating) || 0;
