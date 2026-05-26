@@ -374,7 +374,9 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       // Pagina em chunks para não cair no limite de 1000 do PostgREST
       const CHUNK = 300, PAGE = 1000;
       for (let i = 0; i < matriculas.length; i += CHUNK) {
-        if (isCancelled?.()) { setClassifying(false); return; }
+        // Quando cancelado, NÃO mexer em `classifying` — outra chamada está
+        // em voo e é dona desse estado agora.
+        if (isCancelled?.()) return;
         const slice = matriculas.slice(i, i + CHUNK);
         let from = 0;
         while (true) {
@@ -394,7 +396,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
     } catch (e) {
       console.warn('Falha ao checar duplicidade rating:', e);
     }
-    if (isCancelled?.()) { setClassifying(false); return; }
+    if (isCancelled?.()) return;
     const seen = new Set<string>();
     const cls = parsed.map(r => {
       let status: RowStatus = 'novo';
@@ -405,7 +407,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       else seen.add(r.matricula);
       return { row: r, status, reason };
     });
-    if (isCancelled?.()) { setClassifying(false); return; }
+    if (isCancelled?.()) return;
     setClassifications(cls);
     setClassifying(false);
   };
@@ -531,11 +533,21 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           }
         } catch (chunkErr: any) {
           if (appliedChunks > 0) {
-            // Importação parcial: avisa o usuário e marca o lote como failed
-            // com mensagem específica. O snapshot dos chunks aplicados já
-            // está persistido — o "Desfazer" reverte o que foi aplicado.
+            // Importação parcial: avisa o usuário, MANTÉM o lote como
+            // 'confirmed' (para o "Desfazer" continuar disponível) e só
+            // registra a mensagem de erro. O snapshot dos chunks aplicados
+            // já está persistido — o undo reverte o que foi aplicado.
             const msg = `Importação parcial: ${appliedChunks} de ${totalBatches} lotes aplicados. Use "Desfazer" no histórico para reverter os lotes já aplicados. Erro no lote ${batchNum}: ${chunkErr?.message || chunkErr}`;
             toast.error(msg);
+            try {
+              await (supabase.from('import_batches' as any) as any)
+                .update({ error_message: msg.slice(0, 1000) })
+                .eq('id', batchId);
+            } catch (e) {
+              console.warn('Falha ao registrar error_message parcial:', e);
+            }
+            // Reset batchId para o catch externo NÃO marcar como failed.
+            batchId = null;
             throw new Error(msg);
           }
           throw chunkErr;
