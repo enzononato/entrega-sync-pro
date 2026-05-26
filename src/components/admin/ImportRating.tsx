@@ -680,10 +680,15 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           )}
 
           {progress && <p className="text-sm text-primary">{progress}</p>}
+          {classifying && !importing && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> Verificando duplicidades…
+            </p>
+          )}
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Cancelar</Button>
-            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo' || c.status === 'duplicado') || importing}>
+            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo' || c.status === 'duplicado') || importing || classifying}>
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               {importing ? 'Importando...' : `Confirmar`}
             </Button>
