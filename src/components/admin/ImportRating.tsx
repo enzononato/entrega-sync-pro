@@ -268,6 +268,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
   const [classifications, setClassifications] = useState<{ row: ParsedRow; status: RowStatus; reason?: string }[]>([]);
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
+  const [classifying, setClassifying] = useState(false);
   const [progress, setProgress] = useState('');
   const [workerType, setWorkerType] = useState<'motorista' | 'ajudante'>('motorista');
   const [mesReferencia, setMesReferencia] = useState(''); // YYYY-MM
@@ -358,12 +359,14 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
     reader.readAsArrayBuffer(file);
   };
 
-  const classify = async (parsed: ParsedRow[]) => {
+  const classify = async (parsed: ParsedRow[], isCancelled?: () => boolean) => {
     if (!mesReferencia || !unidade.trim() || !workerType) {
       // Marca todos como "novo" provisoriamente — re-classifica quando filtros estiverem prontos
+      if (isCancelled?.()) return;
       setClassifications(parsed.map(r => ({ row: r, status: 'novo' as RowStatus })));
       return;
     }
+    setClassifying(true);
     const { inicio } = monthToRange(mesReferencia);
     const matriculas = parsed.map(r => r.matricula).filter(Boolean);
     const existingSet = new Set<string>();
@@ -371,6 +374,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       // Pagina em chunks para não cair no limite de 1000 do PostgREST
       const CHUNK = 300, PAGE = 1000;
       for (let i = 0; i < matriculas.length; i += CHUNK) {
+        if (isCancelled?.()) { setClassifying(false); return; }
         const slice = matriculas.slice(i, i + CHUNK);
         let from = 0;
         while (true) {
@@ -390,6 +394,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
     } catch (e) {
       console.warn('Falha ao checar duplicidade rating:', e);
     }
+    if (isCancelled?.()) { setClassifying(false); return; }
     const seen = new Set<string>();
     const cls = parsed.map(r => {
       let status: RowStatus = 'novo';
@@ -400,12 +405,17 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       else seen.add(r.matricula);
       return { row: r, status, reason };
     });
+    if (isCancelled?.()) { setClassifying(false); return; }
     setClassifications(cls);
+    setClassifying(false);
   };
 
-  // Re-classifica quando os filtros mudam
+  // Re-classifica quando os filtros mudam — com cancelamento para evitar
+  // que respostas fora de ordem sobrescrevam o estado.
   useEffect(() => {
-    if (rows.length) classify(rows);
+    let cancelled = false;
+    if (rows.length) classify(rows, () => cancelled);
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mesReferencia, unidade, workerType]);
 
@@ -424,16 +434,30 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
     try {
       const matriculas = toInsert.map(r => r.matricula);
       const matriculaToUserId: Record<string, string> = {};
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, matricula, worker_type')
-        .in('matricula', matriculas);
-      // Vincular apenas se o worker_type bater com o tipo da importação
-      users?.forEach(u => {
-        if (u.worker_type === workerType) {
-          matriculaToUserId[u.matricula] = u.id;
+      // Paginação manual: chunks de 500 matrículas × range de 1000 — evita
+      // estourar URL e o limite default de 1000 do PostgREST.
+      {
+        const CHUNK = 500, PAGE = 1000;
+        for (let i = 0; i < matriculas.length; i += CHUNK) {
+          const slice = matriculas.slice(i, i + CHUNK);
+          let from = 0;
+          while (true) {
+            const { data, error } = await supabase
+              .from('users')
+              .select('id, matricula, worker_type')
+              .in('matricula', slice)
+              .range(from, from + PAGE - 1);
+            if (error) throw error;
+            (data ?? []).forEach((u: any) => {
+              if (u.worker_type === workerType) {
+                matriculaToUserId[u.matricula] = u.id;
+              }
+            });
+            if (!data || data.length < PAGE) break;
+            from += PAGE;
+          }
         }
-      });
+      }
 
       const { data: authData } = await supabase.auth.getUser();
       const importedBy = authData.user?.id || null;
@@ -468,30 +492,53 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         linhas_sobrescritas: sobrescritos.length,
         linhas_novas: novos.length,
       };
+      let appliedChunks = 0;
       for (let i = 0; i < enriched.length; i += batchSize) {
         const batchNum = Math.floor(i / batchSize) + 1;
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length})`);
         const slice = enriched.slice(i, i + batchSize);
-        const { data, error } = await (supabase as any).rpc('replace_rating_month', {
-          p_inicio: inicio,
-          p_fim: fim,
-          p_worker_type: workerType,
-          p_unidade: unidade.trim(),
-          p_rows: slice,
-        });
-        if (error) throw error;
-        const res = (data ?? {}) as { inserted?: number; snapshot?: any[] };
-        if (Array.isArray(res.snapshot) && res.snapshot.length) {
-          snapshotTotal.push(...res.snapshot);
-          // Persistência incremental: garante que se um chunk seguinte falhar,
-          // o snapshot dos chunks já aplicados não é perdido e o undo pode restaurar.
+        try {
+          const { data, error } = await (supabase as any).rpc('replace_rating_month', {
+            p_inicio: inicio,
+            p_fim: fim,
+            p_worker_type: workerType,
+            p_unidade: unidade.trim(),
+            p_rows: slice,
+          });
+          if (error) throw error;
+          appliedChunks++;
+          const res = (data ?? {}) as { inserted?: number; snapshot?: any[] };
+          if (Array.isArray(res.snapshot) && res.snapshot.length) {
+            snapshotTotal.push(...res.snapshot);
+          }
+          // Persistência incremental: mescla com metadata existente para não
+          // perder eventuais campos adicionados em outro lugar.
           try {
+            const { data: existing } = await (supabase.from('import_batches' as any) as any)
+              .select('metadata')
+              .eq('id', batchId)
+              .single();
+            const merged = {
+              ...((existing as any)?.metadata ?? {}),
+              ...baseMetadata,
+              ...(snapshotTotal.length ? { snapshot: snapshotTotal } : {}),
+            };
             await (supabase.from('import_batches' as any) as any)
-              .update({ metadata: { ...baseMetadata, snapshot: snapshotTotal } })
+              .update({ metadata: merged })
               .eq('id', batchId);
           } catch (e) {
             console.warn('Falha ao persistir snapshot incremental:', e);
           }
+        } catch (chunkErr: any) {
+          if (appliedChunks > 0) {
+            // Importação parcial: avisa o usuário e marca o lote como failed
+            // com mensagem específica. O snapshot dos chunks aplicados já
+            // está persistido — o "Desfazer" reverte o que foi aplicado.
+            const msg = `Importação parcial: ${appliedChunks} de ${totalBatches} lotes aplicados. Use "Desfazer" no histórico para reverter os lotes já aplicados. Erro no lote ${batchNum}: ${chunkErr?.message || chunkErr}`;
+            toast.error(msg);
+            throw new Error(msg);
+          }
+          throw chunkErr;
         }
       }
 
@@ -633,10 +680,15 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           )}
 
           {progress && <p className="text-sm text-primary">{progress}</p>}
+          {classifying && !importing && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> Verificando duplicidades…
+            </p>
+          )}
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Cancelar</Button>
-            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo' || c.status === 'duplicado') || importing}>
+            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo' || c.status === 'duplicado') || importing || classifying}>
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               {importing ? 'Importando...' : `Confirmar`}
             </Button>
