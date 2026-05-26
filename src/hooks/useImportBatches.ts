@@ -192,16 +192,6 @@ export function useUndoImport() {
         (batch as any)._deletedCount = count ?? 0;
       }
 
-      const { data: authData } = await supabase.auth.getUser();
-      const { error: upErr } = await (supabase.from('import_batches' as any) as any)
-        .update({
-          status: 'undone',
-          undone_at: new Date().toISOString(),
-          undone_by: authData.user?.id ?? null,
-        })
-        .eq('id', batch.id);
-      if (upErr) throw upErr;
-
       // Recalcular indicadores quando aplicável
       const datasAfetadas: string[] = batch.metadata?.datas ?? [];
       if (datasAfetadas.length && batch.tipo !== 'colaboradores' && batch.tipo !== 'rating' && batch.tipo !== 'pdv_critico') {
@@ -215,6 +205,7 @@ export function useUndoImport() {
       }
 
       // Rating: limpar user_indicator_daily mensal gerados pelo lote
+      let ratingRestoreFailed = false;
       if (batch.tipo === 'rating') {
         const mes: string | undefined = batch.metadata?.mes;
         const RATING_INDICATOR_ID = '853beb35-febb-48b9-b3ae-be7173bfc6fc';
@@ -285,6 +276,7 @@ export function useUndoImport() {
             }
           } catch (e) {
             console.warn('Falha ao restaurar snapshot do Rating no undo:', e);
+            ratingRestoreFailed = true;
           }
         }
       }
@@ -322,6 +314,22 @@ export function useUndoImport() {
           }
         }
       }
+
+      // Marca o batch como desfeito SOMENTE depois que as restaurações críticas
+      // terminaram. Se a restauração do snapshot do Rating falhou, marcamos como
+      // 'failed' para evitar inconsistência silenciosa.
+      const { data: authData } = await supabase.auth.getUser();
+      const { error: upErr } = await (supabase.from('import_batches' as any) as any)
+        .update({
+          status: ratingRestoreFailed ? 'failed' : 'undone',
+          undone_at: new Date().toISOString(),
+          undone_by: authData.user?.id ?? null,
+          error_message: ratingRestoreFailed
+            ? 'Undo parcial: snapshot do Rating não pôde ser restaurado completamente.'
+            : null,
+        })
+        .eq('id', batch.id);
+      if (upErr) throw upErr;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['import_batches'] });
