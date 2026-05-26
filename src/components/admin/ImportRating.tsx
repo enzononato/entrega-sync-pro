@@ -449,42 +449,52 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         metadata: { mes: mesReferencia, worker_type: workerType, unidade: unidade.trim(), linhas_sobrescritas: sobrescritos.length, linhas_novas: novos.length },
       });
 
-      // Apaga registros antigos das matrículas sobrescritas, em chunks
-      if (sobrescritos.length) {
-        setProgress(`Removendo ${sobrescritos.length} registros antigos para sobrescrever...`);
-        const matsSobre = sobrescritos.map(r => r.matricula);
-        const CHUNK = 300;
-        for (let i = 0; i < matsSobre.length; i += CHUNK) {
-          const slice = matsSobre.slice(i, i + CHUNK);
-          const { error: delErr } = await (supabase.from('rating_avaliacoes') as any)
-            .delete()
-            .eq('data_referencia_inicio', inicio)
-            .eq('worker_type', workerType)
-            .eq('unidade', unidade.trim())
-            .in('matricula', slice);
-          if (delErr) throw delErr;
-        }
-      }
-
       const enriched = toInsert.map(r => ({
-        data_referencia_inicio: inicio,
-        data_referencia_fim: fim,
-        worker_type: workerType,
-        unidade: unidade.trim(),
         user_id: matriculaToUserId[r.matricula] || null,
         imported_by: importedBy,
         import_batch_id: batchId,
         ...r,
       }));
 
+      // Chama RPC atômica (delete+insert na mesma transação, com lock).
+      // Particiona em chunks para evitar payloads gigantes.
       const batchSize = 500;
       const totalBatches = Math.ceil(enriched.length / batchSize);
+      const snapshotTotal: any[] = [];
       for (let i = 0; i < enriched.length; i += batchSize) {
         const batchNum = Math.floor(i / batchSize) + 1;
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length})`);
-        const batch = enriched.slice(i, i + batchSize);
-        const { error } = await (supabase.from('rating_avaliacoes') as any).insert(batch);
+        const slice = enriched.slice(i, i + batchSize);
+        const { data, error } = await (supabase as any).rpc('replace_rating_month', {
+          p_inicio: inicio,
+          p_fim: fim,
+          p_worker_type: workerType,
+          p_unidade: unidade.trim(),
+          p_rows: slice,
+        });
         if (error) throw error;
+        const res = (data ?? {}) as { inserted?: number; snapshot?: any[] };
+        if (Array.isArray(res.snapshot)) snapshotTotal.push(...res.snapshot);
+      }
+
+      // Salva snapshot dos antigos no metadata do batch (para restauração no desfazer).
+      if (snapshotTotal.length) {
+        try {
+          await (supabase.from('import_batches' as any) as any)
+            .update({
+              metadata: {
+                mes: mesReferencia,
+                worker_type: workerType,
+                unidade: unidade.trim(),
+                linhas_sobrescritas: sobrescritos.length,
+                linhas_novas: novos.length,
+                snapshot: snapshotTotal,
+              },
+            })
+            .eq('id', batchId);
+        } catch (e) {
+          console.warn('Falha ao salvar snapshot no batch:', e);
+        }
       }
 
       // Gera/atualiza indicador mensal Rating em user_indicator_daily
@@ -559,7 +569,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão <strong>sobrescritas</strong> com os novos valores. Os valores antigos não podem ser recuperados via "Desfazer".
+              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão <strong>sobrescritas</strong> com os novos valores. Um snapshot dos valores antigos é salvo — se você usar "Desfazer" no histórico, os valores anteriores são restaurados.
             </div>
           </div>
 

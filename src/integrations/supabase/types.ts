@@ -1611,6 +1611,17 @@ export type Database = {
         Args: { p_mes_first_day: string; p_rows: Json }
         Returns: number
       }
+      replace_rating_month: {
+        Args: {
+          p_fim: string
+          p_inicio: string
+          p_rows: Json
+          p_unidade: string
+          p_worker_type: string
+        }
+        Returns: Json
+      }
+      restore_rating_snapshot: { Args: { p_snapshot: Json }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "colaborador"
