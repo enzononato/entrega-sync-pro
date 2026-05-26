@@ -395,8 +395,8 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       let status: RowStatus = 'novo';
       let reason: string | undefined;
       if (!r.matricula) { status = 'invalido'; reason = 'Matrícula ausente'; }
-      else if (existingSet.has(r.matricula)) { status = 'duplicado'; reason = 'Já existe para este mês/tipo/unidade'; }
-      else if (seen.has(r.matricula)) { status = 'duplicado'; reason = 'Repetido na planilha'; }
+      else if (seen.has(r.matricula)) { status = 'invalido'; reason = 'Repetido na planilha'; }
+      else if (existingSet.has(r.matricula)) { status = 'duplicado'; reason = 'Será sobrescrito (mesmo mês/tipo/unidade)'; seen.add(r.matricula); }
       else seen.add(r.matricula);
       return { row: r, status, reason };
     });
@@ -410,8 +410,10 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
   }, [mesReferencia, unidade, workerType]);
 
   const handleImport = async () => {
-    const toInsert = classifications.filter(c => c.status === 'novo').map(c => c.row);
-    if (!toInsert.length) { toast.error('Nenhum registro novo para importar.'); return; }
+    const novos = classifications.filter(c => c.status === 'novo').map(c => c.row);
+    const sobrescritos = classifications.filter(c => c.status === 'duplicado').map(c => c.row);
+    const toInsert = [...novos, ...sobrescritos];
+    if (!toInsert.length) { toast.error('Nenhum registro para importar.'); return; }
     if (!mesReferencia) { toast.error('Informe o mês de referência.'); return; }
     if (!unidade.trim()) { toast.error('Informe a unidade/revenda.'); return; }
 
@@ -441,11 +443,28 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         arquivo_nome: fileName,
         total_linhas: classifications.length,
         linhas_inseridas: toInsert.length,
-        linhas_duplicadas: classifications.filter(c => c.status === 'duplicado').length,
+        linhas_duplicadas: 0,
         linhas_invalidas: classifications.filter(c => c.status === 'invalido').length,
         payload_preview: classifications.slice(0, 50).map(c => ({ status: c.status, matricula: c.row.matricula, nome: c.row.nome, rating: c.row.rating })),
-        metadata: { mes: mesReferencia, worker_type: workerType, unidade: unidade.trim() },
+        metadata: { mes: mesReferencia, worker_type: workerType, unidade: unidade.trim(), linhas_sobrescritas: sobrescritos.length, linhas_novas: novos.length },
       });
+
+      // Apaga registros antigos das matrículas sobrescritas, em chunks
+      if (sobrescritos.length) {
+        setProgress(`Removendo ${sobrescritos.length} registros antigos para sobrescrever...`);
+        const matsSobre = sobrescritos.map(r => r.matricula);
+        const CHUNK = 300;
+        for (let i = 0; i < matsSobre.length; i += CHUNK) {
+          const slice = matsSobre.slice(i, i + CHUNK);
+          const { error: delErr } = await (supabase.from('rating_avaliacoes') as any)
+            .delete()
+            .eq('data_referencia_inicio', inicio)
+            .eq('worker_type', workerType)
+            .eq('unidade', unidade.trim())
+            .in('matricula', slice);
+          if (delErr) throw delErr;
+        }
+      }
 
       const enriched = toInsert.map(r => ({
         data_referencia_inicio: inicio,
@@ -509,7 +528,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
       const matched = Object.keys(matriculaToUserId).length;
       toast.success(
-        `${toInsert.length} avaliações importadas! ` +
+        `${toInsert.length} avaliações importadas (${novos.length} novas, ${sobrescritos.length} sobrescritas). ` +
         `${matched}/${toInsert.length} matrículas vinculadas. ` +
         `${indicatorsUpserted} indicadores mensais atualizados.`
       );
@@ -540,7 +559,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão marcadas como <strong>duplicadas</strong> e ignoradas. Use "Desfazer" no histórico se precisar reimportar.
+              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão <strong>sobrescritas</strong> com os novos valores. Os valores antigos não podem ser recuperados via "Desfazer".
             </div>
           </div>
 
@@ -608,7 +627,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Cancelar</Button>
-            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo') || importing}>
+            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo' || c.status === 'duplicado') || importing}>
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               {importing ? 'Importando...' : `Confirmar`}
             </Button>
