@@ -461,6 +461,13 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
       const batchSize = 500;
       const totalBatches = Math.ceil(enriched.length / batchSize);
       const snapshotTotal: any[] = [];
+      const baseMetadata = {
+        mes: mesReferencia,
+        worker_type: workerType,
+        unidade: unidade.trim(),
+        linhas_sobrescritas: sobrescritos.length,
+        linhas_novas: novos.length,
+      };
       for (let i = 0; i < enriched.length; i += batchSize) {
         const batchNum = Math.floor(i / batchSize) + 1;
         setProgress(`Lote ${batchNum}/${totalBatches} (${Math.min(i + batchSize, enriched.length)}/${enriched.length})`);
@@ -474,26 +481,17 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
         });
         if (error) throw error;
         const res = (data ?? {}) as { inserted?: number; snapshot?: any[] };
-        if (Array.isArray(res.snapshot)) snapshotTotal.push(...res.snapshot);
-      }
-
-      // Salva snapshot dos antigos no metadata do batch (para restauração no desfazer).
-      if (snapshotTotal.length) {
-        try {
-          await (supabase.from('import_batches' as any) as any)
-            .update({
-              metadata: {
-                mes: mesReferencia,
-                worker_type: workerType,
-                unidade: unidade.trim(),
-                linhas_sobrescritas: sobrescritos.length,
-                linhas_novas: novos.length,
-                snapshot: snapshotTotal,
-              },
-            })
-            .eq('id', batchId);
-        } catch (e) {
-          console.warn('Falha ao salvar snapshot no batch:', e);
+        if (Array.isArray(res.snapshot) && res.snapshot.length) {
+          snapshotTotal.push(...res.snapshot);
+          // Persistência incremental: garante que se um chunk seguinte falhar,
+          // o snapshot dos chunks já aplicados não é perdido e o undo pode restaurar.
+          try {
+            await (supabase.from('import_batches' as any) as any)
+              .update({ metadata: { ...baseMetadata, snapshot: snapshotTotal } })
+              .eq('id', batchId);
+          } catch (e) {
+            console.warn('Falha ao persistir snapshot incremental:', e);
+          }
         }
       }
 
