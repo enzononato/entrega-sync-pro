@@ -559,7 +559,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão marcadas como <strong>duplicadas</strong> e ignoradas. Use "Desfazer" no histórico se precisar reimportar.
+              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão <strong>sobrescritas</strong> com os novos valores. Os valores antigos não podem ser recuperados via "Desfazer".
             </div>
           </div>
 
@@ -627,7 +627,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Cancelar</Button>
-            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo') || importing}>
+            <Button onClick={handleImport} disabled={!classifications.some(c => c.status === 'novo' || c.status === 'duplicado') || importing}>
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               {importing ? 'Importando...' : `Confirmar`}
             </Button>
