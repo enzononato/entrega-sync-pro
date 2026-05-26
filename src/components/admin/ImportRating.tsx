@@ -569,7 +569,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão <strong>sobrescritas</strong> com os novos valores. Os valores antigos não podem ser recuperados via "Desfazer".
+              Linhas já existentes para o mesmo <strong>mês + tipo + unidade</strong> serão <strong>sobrescritas</strong> com os novos valores. Um snapshot dos valores antigos é salvo — se você usar "Desfazer" no histórico, os valores anteriores são restaurados.
             </div>
           </div>
 
