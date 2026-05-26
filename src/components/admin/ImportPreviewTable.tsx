@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertTriangle, Copy, X } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Copy, X, RefreshCw } from 'lucide-react';
 
 export type RowStatus = 'novo' | 'duplicado' | 'invalido';
 
@@ -20,15 +20,27 @@ interface Props<T> {
   detectedColumns?: { name: string; mapped: boolean }[];
   fileName?: string;
   invalidLines?: { line: number; reason: string; preview?: string }[];
+  /**
+   * Define como tratar linhas com chave repetida no destino.
+   * - 'ignore' (default): badge "Duplicado", aviso de que serão ignoradas.
+   * - 'update': badge "Atualização", aviso de que serão sobrescritas.
+   */
+  duplicateMode?: 'ignore' | 'update';
 }
 
-const STATUS_BADGE: Record<RowStatus, { label: string; className: string; icon: React.ElementType }> = {
-  novo: { label: 'Novo', className: 'bg-success/15 text-success border-success/30', icon: CheckCircle2 },
-  duplicado: { label: 'Duplicado', className: 'bg-warning/15 text-warning border-warning/30', icon: Copy },
-  invalido: { label: 'Inválido', className: 'bg-destructive/15 text-destructive border-destructive/30', icon: AlertTriangle },
-};
+function getStatusBadge(status: RowStatus, duplicateMode: 'ignore' | 'update') {
+  if (status === 'novo') {
+    return { label: 'Novo', className: 'bg-success/15 text-success border-success/30', icon: CheckCircle2 };
+  }
+  if (status === 'duplicado') {
+    return duplicateMode === 'update'
+      ? { label: 'Atualização', className: 'bg-warning/15 text-warning border-warning/30', icon: RefreshCw }
+      : { label: 'Duplicado', className: 'bg-warning/15 text-warning border-warning/30', icon: Copy };
+  }
+  return { label: 'Inválido', className: 'bg-destructive/15 text-destructive border-destructive/30', icon: AlertTriangle };
+}
 
-export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedCount = 0, skippedReasons, detectedColumns, fileName, invalidLines }: Props<T>) {
+export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedCount = 0, skippedReasons, detectedColumns, fileName, invalidLines, duplicateMode = 'ignore' }: Props<T>) {
   const novos = rows.filter(r => r.status === 'novo').length;
   const dups = rows.filter(r => r.status === 'duplicado').length;
   const inv = rows.filter(r => r.status === 'invalido').length;
@@ -37,6 +49,9 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
   const visible = filtered.slice(0, maxPreview);
   const mappedCols = detectedColumns?.filter(c => c.mapped) ?? [];
   const unmappedCols = detectedColumns?.filter(c => !c.mapped) ?? [];
+  const dupBadge = getStatusBadge('duplicado', duplicateMode);
+  const novoBadge = getStatusBadge('novo', duplicateMode);
+  const invBadge = getStatusBadge('invalido', duplicateMode);
 
   const toggle = (s: RowStatus) => setFilter(prev => (prev === s ? null : s));
   const btnBase = 'transition cursor-pointer hover:opacity-80';
@@ -73,17 +88,17 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
 
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => toggle('novo')} className={`${btnBase} ${activeRing('novo')} rounded`}>
-          <Badge variant="outline" className={STATUS_BADGE.novo.className}>
+          <Badge variant="outline" className={novoBadge.className}>
             <CheckCircle2 className="h-3 w-3 mr-1" /> {novos} novos
           </Badge>
         </button>
         <button type="button" onClick={() => toggle('duplicado')} className={`${btnBase} ${activeRing('duplicado')} rounded`}>
-          <Badge variant="outline" className={STATUS_BADGE.duplicado.className}>
-            <Copy className="h-3 w-3 mr-1" /> {dups} duplicados
+          <Badge variant="outline" className={dupBadge.className}>
+            <dupBadge.icon className="h-3 w-3 mr-1" /> {dups} {duplicateMode === 'update' ? 'atualizações' : 'duplicados'}
           </Badge>
         </button>
         <button type="button" onClick={() => toggle('invalido')} className={`${btnBase} ${activeRing('invalido')} rounded`}>
-          <Badge variant="outline" className={STATUS_BADGE.invalido.className}>
+          <Badge variant="outline" className={invBadge.className}>
             <AlertTriangle className="h-3 w-3 mr-1" /> {inv} inválidos
           </Badge>
         </button>
@@ -123,7 +138,7 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
               <tr><td colSpan={columns.length + 1} className="p-3 text-center text-muted-foreground">Nenhuma linha neste filtro.</td></tr>
             )}
             {visible.map((entry, i) => {
-              const cfg = STATUS_BADGE[entry.status];
+              const cfg = getStatusBadge(entry.status, duplicateMode);
               const Icon = cfg.icon;
               return (
                 <tr key={i} className="border-t">
@@ -154,7 +169,11 @@ export function ImportPreviewTable<T>({ rows, columns, maxPreview = 50, skippedC
 
       {dups > 0 && (
         <p className="text-xs text-muted-foreground">
-          Linhas duplicadas serão <strong>ignoradas</strong> na importação.
+          {duplicateMode === 'update' ? (
+            <>Linhas já existentes terão seus valores <strong>atualizados (sobrescritos)</strong>.</>
+          ) : (
+            <>Linhas duplicadas serão <strong>ignoradas</strong> na importação.</>
+          )}
         </p>
       )}
       {inv > 0 && (
