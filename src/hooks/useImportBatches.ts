@@ -232,6 +232,61 @@ export function useUndoImport() {
             console.warn('Falha ao limpar indicador Rating no undo:', e);
           }
         }
+
+        // Restaura os valores antigos a partir do snapshot guardado no metadata.
+        const snapshot: any[] | undefined = batch.metadata?.snapshot;
+        if (Array.isArray(snapshot) && snapshot.length) {
+          try {
+            const CHUNK = 500;
+            let restoredUserIds = new Set<string>();
+            for (let i = 0; i < snapshot.length; i += CHUNK) {
+              const slice = snapshot.slice(i, i + CHUNK);
+              const { error: restErr } = await (supabase as any).rpc('restore_rating_snapshot', {
+                p_snapshot: slice,
+              });
+              if (restErr) throw restErr;
+              slice.forEach((r: any) => { if (r?.user_id) restoredUserIds.add(r.user_id); });
+            }
+
+            // Recalcula os indicadores mensais para os usuários restaurados
+            if (mes && restoredUserIds.size) {
+              const [y, m] = mes.split('-').map(Number);
+              const inicio = `${y}-${String(m).padStart(2, '0')}-01`;
+              const RATING_META = 4.95;
+              const RATING_DESAFIO = 5.0;
+              const userIds = Array.from(restoredUserIds);
+              const { data: restored } = await (supabase.from('rating_avaliacoes') as any)
+                .select('user_id, rating')
+                .eq('data_referencia_inicio', inicio)
+                .in('user_id', userIds);
+              const rows = (restored ?? [])
+                .filter((r: any) => r.user_id)
+                .map((r: any) => {
+                  const v = Number(r.rating) || 0;
+                  return {
+                    user_id: r.user_id,
+                    indicator_id: RATING_INDICATOR_ID,
+                    data_referencia: inicio,
+                    valor: v,
+                    meta: RATING_META,
+                    desafio: RATING_DESAFIO,
+                    percentual_atingimento: (v / RATING_META) * 100,
+                    status: v >= RATING_META ? 'dentro_meta' : 'abaixo_meta',
+                    status_desafio: v >= RATING_DESAFIO ? 'atingiu' : 'nao_atingiu',
+                    origem_dado: 'import_rating',
+                    mapa_numero: 'MENSAL',
+                  };
+                });
+              if (rows.length) {
+                await (supabase.from('user_indicator_daily') as any).upsert(rows, {
+                  onConflict: 'user_id,indicator_id,data_referencia',
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('Falha ao restaurar snapshot do Rating no undo:', e);
+          }
+        }
       }
 
       // PDV Crítico: limpar entradas de user_indicator_daily geradas pelo lote
