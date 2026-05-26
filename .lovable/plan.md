@@ -1,32 +1,31 @@
 ## Objetivo
-Mudar o comportamento da importação de Rating: linhas duplicadas (mesmo mês + tipo + unidade + matrícula) passam a **sobrescrever** o registro existente em vez de serem ignoradas.
+No Rating, linhas com mesma chave (mês + tipo + unidade + matrícula) **não são duplicatas** — são **atualizações** dos valores existentes. O preview precisa refletir isso, sem afetar os outros importadores (031805, 031134, PDV, Relatos) onde "duplicado" ainda significa "ignorado".
 
-## Mudanças em `src/components/admin/ImportRating.tsx`
+## Mudanças
 
-### 1. Classificação dos duplicados
-- Manter o status `'duplicado'`, mas tratá-lo como **"será substituído"**.
-- Atualizar a `reason` para "Será sobrescrito (mesmo mês/tipo/unidade)".
-- Repetidos dentro da mesma planilha continuam inválidos para evitar conflito interno.
+### 1. `src/components/admin/ImportPreviewTable.tsx`
+Tornar a semântica de "duplicado" configurável por prop, sem quebrar os outros importadores:
 
-### 2. `handleImport` — incluir duplicados na importação
-- `toInsert` passa a incluir tanto `'novo'` quanto `'duplicado'`.
-- Antes do `insert`, executar um `DELETE` na `rating_avaliacoes` filtrando por `data_referencia_inicio = inicio`, `worker_type`, `unidade` e `matricula IN (lista das matrículas duplicadas)` — feito em chunks de 300 para não estourar a URL.
-- Em seguida, fazer o `insert` normal de todas as linhas (novas + sobrescritas).
-- Botão "Confirmar" passa a habilitar quando há `novo` **ou** `duplicado`.
+- Adicionar prop opcional:
+  ```ts
+  duplicateMode?: 'ignore' | 'update'  // default: 'ignore'
+  ```
+- Quando `duplicateMode === 'update'`:
+  - **Badge** (chip de filtro e chip da linha): trocar label `Duplicado` → `Atualização`, trocar ícone `Copy` → `RefreshCw` (lucide), manter cor warning (amarelo) para destacar que algo será modificado. Continuar contando como "X atualizações" no contador.
+  - **Aviso no rodapé**: trocar `Linhas duplicadas serão ignoradas na importação.` por `Linhas existentes terão seus valores atualizados (sobrescritos).`
+- Quando `duplicateMode === 'ignore'` (default): comportamento atual intacto.
 
-### 3. Metadados do lote
-- `linhas_inseridas` = novos + sobrescritos.
-- Adicionar campo `linhas_sobrescritas` no `metadata.json` do `import_batches` para rastreabilidade (a coluna `linhas_duplicadas` da tabela passa a ser 0, já que nada mais é ignorado por duplicidade).
-- Toast final: "X importadas (Y novas, Z sobrescritas)".
+### 2. `src/components/admin/ImportRating.tsx`
+Passar `duplicateMode="update"` ao renderizar `<ImportPreviewTable />`. Nenhuma outra mudança de lógica (RPC, snapshot, índice único permanecem como estão).
 
-### 4. UI do diálogo
-- Trocar o aviso amarelo de "serão ignoradas" para algo como:
-  > Linhas já existentes para o mesmo **mês + tipo + unidade** serão **sobrescritas** com os novos valores.
-- Na `ImportPreviewTable`, o badge "duplicado" passa a significar "será substituído". (Se quiser texto diferente no badge, posso fazer depois — por ora mantemos.)
+### 3. Demais importadores
+Nenhuma mudança — continuam usando o default `'ignore'`.
 
-### 5. Atualização do indicador mensal
-- O bloco que faz `upsert` em `user_indicator_daily` (com `onConflict: user_id,indicator_id,data_referencia`) **já sobrescreve** corretamente. Apenas precisa receber também as linhas sobrescritas — o que acontece naturalmente quando elas passam a integrar `enriched`.
+## Detalhes técnicos
+- O mapa `STATUS_BADGE` continua com chave `duplicado` internamente (status type não muda). A renderização do label/ícone passa a depender de `duplicateMode`. Alternativa mais limpa: extrair `STATUS_BADGE` para uma função `getStatusBadge(status, duplicateMode)` que devolve `{ label, icon, className }`.
+- O `title` (tooltip) da linha continua mostrando o `reason` vindo do ImportRating (que já diz "Será sobrescrito (mesmo mês/tipo/unidade)").
+- Sem mudança de schema, sem mudança de tipos do Supabase.
 
-## Impacto / efeitos colaterais
-- O fluxo "Desfazer" do histórico continua funcionando para o lote novo, mas **não restaura** os valores antigos sobrescritos (eles foram apagados). Vou deixar isso explícito no aviso amarelo.
-- Nenhuma mudança de schema; apenas lógica do componente.
+## Fora de escopo
+- Renomear o `RowStatus` literal de `'duplicado'` para outro nome (alto custo, baixo benefício — é interno).
+- Mudar texto do toast final ("Y atualizadas" em vez de "Y sobrescritas") — pode ser feito junto se quiser, me avise.

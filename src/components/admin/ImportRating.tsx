@@ -620,6 +620,7 @@ function ImportRatingDialog({ onSuccess }: { onSuccess: () => void }) {
           {classifications.length > 0 && (
             <ImportPreviewTable
               rows={classifications}
+              duplicateMode="update"
               columns={[
                 { key: 'matricula', label: 'Matrícula', render: (r) => r.matricula },
                 { key: 'nome', label: 'Nome', render: (r) => r.nome },
